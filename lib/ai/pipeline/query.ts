@@ -105,7 +105,7 @@ export async function queryDocuments(options: QueryOptions): Promise<QueryResult
   const vectorDB = getVectorDBProvider()
 
   const filter = selectedDocumentIds.length > 0
-    ? { key: 'payload.docId', match: { any: selectedDocumentIds } }
+    ? { key: 'docId', match: { any: selectedDocumentIds } }
     : undefined
 
   const results = await vectorDB.search(namespace, queryVector, TOP_K, filter)

@@ -1,4 +1,5 @@
 import { ingestDocument } from "@/lib/ai/pipeline/ingest";
+import { isEmbeddingUnavailable } from "@/lib/ai/pipeline/query";
 import { getDocumentRequestContext } from "@/lib/documents/server";
 import { NextResponse } from "next/server";
 
@@ -28,6 +29,7 @@ export async function POST(
   }
 
   let chunkCount = 0;
+  let processingWarning: string | null = null;
 
   try {
     const { data: storedFile, error: downloadError } = await context.service.storage
@@ -46,13 +48,15 @@ export async function POST(
     });
     chunkCount = result.chunkCount;
   } catch (error) {
-    // Embedding is best-effort for now. The stored document remains usable.
-    console.warn("Document embedding skipped:", error);
+    console.error("Document embedding failed:", error);
+    processingWarning = isEmbeddingUnavailable(error)
+      ? "Semantic indexing is waiting for available OpenAI embedding quota. Document chat will use the text fallback."
+      : "Semantic indexing failed. Verify the OpenAI and Qdrant configuration, then retry processing.";
   }
 
   const { data: updated, error: updateError } = await context.service
     .from("documents")
-    .update({ status: "ready", chunk_count: chunkCount, error_message: null })
+    .update({ status: "ready", chunk_count: chunkCount, error_message: processingWarning })
     .eq("id", document.id)
     .select()
     .single();
@@ -61,5 +65,9 @@ export async function POST(
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
-  return NextResponse.json({ document: updated });
+  return NextResponse.json({
+    document: updated,
+    embedded: chunkCount > 0,
+    warning: processingWarning,
+  });
 }

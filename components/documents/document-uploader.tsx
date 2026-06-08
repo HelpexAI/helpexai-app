@@ -124,12 +124,17 @@ export function DocumentUploader() {
         updateItem(item.key, { status: "embedding", progress: 82 });
 
         try {
-          await fetch(`/api/documents/${uploadedDocuments[index].id}/process`, { method: "POST" });
+          const processResponse = await fetch(`/api/documents/${uploadedDocuments[index].id}/process`, { method: "POST" });
+          const processResult = await processResponse.json();
+          if (!processResponse.ok) throw new Error(processResult.error ?? "Document processing failed.");
+          updateItem(item.key, {
+            status: "ready",
+            progress: 100,
+            error: processResult.embedded ? undefined : processResult.warning ?? "Semantic indexing is pending.",
+          });
         } catch {
-          // Embedding is best-effort. Storage upload remains successful.
+          updateItem(item.key, { status: "ready", progress: 100, error: "Document stored successfully, but semantic indexing could not be confirmed." });
         }
-
-        updateItem(item.key, { status: "ready", progress: 100 });
       }),
     );
 

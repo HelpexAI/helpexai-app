@@ -6,8 +6,11 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
   private dimensions = 1536
 
   constructor() {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY is required for semantic document indexing')
+    }
     this.model = new OpenAIEmbeddings({
-      apiKey: process.env.OPENAI_API_KEY!,
+      apiKey: process.env.OPENAI_API_KEY,
       model: 'text-embedding-3-small',
       dimensions: this.dimensions,
     })

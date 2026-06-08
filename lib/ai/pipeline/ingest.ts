@@ -1,7 +1,6 @@
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
 import { getEmbeddingProvider, getVectorDBProvider } from '../factory'
 import { generateNamespace } from '@/lib/utils'
-import { nanoid } from 'nanoid'
 
 const CHUNK_SIZE = 1000
 const CHUNK_OVERLAP = 200
@@ -102,10 +101,13 @@ export async function ingestDocument(options: IngestOptions): Promise<IngestResu
   // 3. Embed all chunks
   const embeddingProvider = getEmbeddingProvider()
   const vectors = await embeddingProvider.embedBatch(chunks.map(chunk => chunk.text))
+  if (vectors.length !== chunks.length || vectors.some(vector => vector.length !== embeddingProvider.getDimensions())) {
+    throw new Error('Embedding provider returned an unexpected vector count or dimension')
+  }
 
   // 4. Prepare Qdrant points
   const points = chunks.map((chunk, index) => ({
-    id: nanoid(),
+    id: crypto.randomUUID(),
     vector: vectors[index],
     payload: {
       docId,
@@ -119,6 +121,11 @@ export async function ingestDocument(options: IngestOptions): Promise<IngestResu
   // 5. Upsert to Qdrant
   const namespace = generateNamespace(userId, categorySlug)
   const vectorDB = getVectorDBProvider()
+  // Make processing retries idempotent instead of accumulating duplicate chunks.
+  await vectorDB.deleteByFilter(namespace, {
+    key: 'docId',
+    match: { value: docId },
+  })
   await vectorDB.upsert(namespace, points)
 
   return { chunkCount: chunks.length }
@@ -132,7 +139,7 @@ export async function deleteDocumentVectors(
   const namespace = generateNamespace(userId, categorySlug)
   const vectorDB = getVectorDBProvider()
   await vectorDB.deleteByFilter(namespace, {
-    key: 'payload.docId',
+    key: 'docId',
     match: { value: docId },
   })
 }

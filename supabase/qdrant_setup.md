@@ -36,11 +36,11 @@ curl -X PUT "https://YOUR-CLUSTER-URL/collections/helpexai_dev/index" \
   -H "api-key: YOUR-QDRANT-API-KEY" \
   -d '{"field_name": "namespace", "field_schema": "keyword"}'
 
-# Index docId field (used for document deletion)
+# Index docId field (used for selected-document filtering and deletion)
 curl -X PUT "https://YOUR-CLUSTER-URL/collections/helpexai_dev/index" \
   -H "Content-Type: application/json" \
   -H "api-key: YOUR-QDRANT-API-KEY" \
-  -d '{"field_name": "payload.docId", "field_schema": "keyword"}'
+  -d '{"field_name": "docId", "field_schema": "keyword"}'
 ```
 
 ## 4. Verify

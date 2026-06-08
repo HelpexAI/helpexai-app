@@ -23,6 +23,8 @@ const citationPanel = await readFile(new URL("../components/conversations/citati
 const documentViewerPage = await readFile(new URL("../app/(dashboard)/documents/[id]/page.tsx", import.meta.url), "utf8");
 const middleware = await readFile(new URL("../middleware.ts", import.meta.url), "utf8");
 const publicToolClient = await readFile(new URL("../components/public-tool/public-document-tool.tsx", import.meta.url), "utf8");
+const openAIEmbeddings = await readFile(new URL("../lib/ai/providers/embeddings/openai.ts", import.meta.url), "utf8");
+const qdrantProvider = await readFile(new URL("../lib/ai/providers/vectordb/qdrant.ts", import.meta.url), "utf8");
 
 test("account protected writes are revoked from authenticated clients", () => {
   assert.match(migration, /DROP POLICY IF EXISTS "Users can update own accounts"/);
@@ -80,6 +82,18 @@ test("PDF ingestion preserves page metadata for citations", () => {
   assert.match(ingestion, /pageNumber: chunk\.pageNumber/);
   assert.match(queryPipeline, /pageNumber: page\.pageNumber/);
   assert.match(queryPipeline, /lexicalScore/);
+});
+
+test("Qdrant ingestion uses valid UUID point IDs and correct docId filters", () => {
+  assert.match(ingestion, /id: crypto\.randomUUID\(\)/);
+  assert.match(ingestion, /key: 'docId'/);
+  assert.match(queryPipeline, /key: 'docId'/);
+  assert.doesNotMatch(queryPipeline, /key: 'payload\.docId'/);
+  assert.match(ingestion, /unexpected vector count or dimension/);
+  assert.match(openAIEmbeddings, /OPENAI_API_KEY is required/);
+  assert.match(qdrantProvider, /QDRANT_URL, QDRANT_API_KEY, and QDRANT_COLLECTION_NAME are required/);
+  assert.match(qdrantProvider, /ensurePayloadIndexes/);
+  assert.match(qdrantProvider, /\['namespace', 'docId'\]/);
 });
 
 test("conversation citations open a page-aware highlighted preview", () => {
