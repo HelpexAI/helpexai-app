@@ -5,6 +5,26 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
+export async function GET() {
+  const context = await getDocumentRequestContext();
+  if (!context) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { data: documents, error } = await context.service
+    .from("documents")
+    .select("*")
+    .eq("user_id", context.user.id)
+    .eq("category_slug", context.category)
+    .order("created_at", { ascending: false });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({
+    documents: documents ?? [],
+    category: context.category,
+    maxDocuments: context.documentLimit.limit,
+    requiresResolution: context.documentLimit.requiresResolution,
+  });
+}
+
 export async function POST(request: Request) {
   const context = await getDocumentRequestContext();
   if (!context) {

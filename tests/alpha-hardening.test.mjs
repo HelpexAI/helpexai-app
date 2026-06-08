@@ -32,6 +32,9 @@ const dashboardPage = await readFile(new URL("../app/(dashboard)/dashboard/page.
 const dashboardShell = await readFile(new URL("../components/dashboard/dashboard-shell.tsx", import.meta.url), "utf8");
 const documentServer = await readFile(new URL("../lib/documents/server.ts", import.meta.url), "utf8");
 const documentPageRoute = await readFile(new URL("../app/api/documents/[id]/pages/[page]/route.ts", import.meta.url), "utf8");
+const documentsPage = await readFile(new URL("../app/(dashboard)/documents/page.tsx", import.meta.url), "utf8");
+const conversationsPage = await readFile(new URL("../app/(dashboard)/conversations/page.tsx", import.meta.url), "utf8");
+const activeConversationPage = await readFile(new URL("../app/(dashboard)/conversations/[id]/page.tsx", import.meta.url), "utf8");
 
 test("account protected writes are revoked from authenticated clients", () => {
   assert.match(migration, /DROP POLICY IF EXISTS "Users can update own accounts"/);
@@ -148,4 +151,7 @@ test("dashboard navigation avoids middleware database work and request waterfall
   assert.match(dashboardShell, /showNavigationFeedback/);
   assert.match(documentServer, /getDocumentAccessContext/);
   assert.match(documentPageRoute, /getDocumentAccessContext/);
+  assert.match(documentsPage, /DocumentsClientPage/);
+  assert.match(conversationsPage, /ConversationsClientPage/);
+  assert.match(activeConversationPage, /ActiveConversationClientPage/);
 });

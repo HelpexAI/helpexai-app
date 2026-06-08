@@ -3,6 +3,33 @@ import { CreateConversationSchema } from "@/lib/validations/schemas";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { NextResponse } from "next/server";
 
+export async function GET() {
+  const context = await getDocumentRequestContext();
+  if (!context) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (context.documentLimit.requiresResolution) {
+    return NextResponse.json({
+      locked: true,
+      used: context.documentLimit.used,
+      limit: context.documentLimit.limit,
+    });
+  }
+
+  const [{ data: conversations, error: conversationsError }, { data: documents, error: documentsError }] = await Promise.all([
+    context.service.from("conversations").select("id, title, selected_document_ids, updated_at").eq("user_id", context.user.id).eq("category_slug", context.category).order("updated_at", { ascending: false }),
+    context.service.from("documents").select("id, name, file_size, file_type").eq("user_id", context.user.id).eq("category_slug", context.category).neq("status", "failed").order("created_at", { ascending: false }),
+  ]);
+  if (conversationsError || documentsError) {
+    return NextResponse.json({ error: conversationsError?.message ?? documentsError?.message }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    locked: false,
+    conversations: conversations ?? [],
+    documents: documents ?? [],
+    category: context.category,
+  });
+}
+
 export async function POST(request: Request) {
   const context = await getDocumentRequestContext();
   if (!context) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
