@@ -82,6 +82,35 @@ function UsageCard({
   );
 }
 
+function CountCard({
+  label,
+  current,
+  icon: Icon,
+}: {
+  label: string;
+  current: number;
+  icon: LucideIcon;
+}) {
+  return (
+    <article className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-6">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 sm:text-sm">
+          {label}
+        </span>
+        <div className="flex size-8 items-center justify-center rounded-lg bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark">
+          <Icon className="size-4" />
+        </div>
+      </div>
+      <span className="text-3xl font-bold leading-9 text-zinc-950 dark:text-white">
+        {current}
+      </span>
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+        Unlimited conversations
+      </p>
+    </article>
+  );
+}
+
 function formatConversationDate(value: string) {
   return new Intl.DateTimeFormat("en", {
     month: "short",
@@ -95,7 +124,7 @@ export default async function DashboardPage() {
   const workspace = await getCurrentWorkspace();
   const supabase = await createClient();
 
-  const [questionsResult, recentResult] = await Promise.all([
+  const [questionsResult, conversationsCountResult, recentResult] = await Promise.all([
     supabase
       .from("usage_logs")
       .select("*", { count: "exact", head: true })
@@ -103,6 +132,11 @@ export default async function DashboardPage() {
       .eq("category_slug", workspace.category)
       .eq("action", "query")
       .gte("created_at", startOfTodayUtc()),
+    supabase
+      .from("conversations")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", workspace.userId)
+      .eq("category_slug", workspace.category),
     supabase
       .from("conversations")
       .select("id, title, selected_document_ids, created_at")
@@ -115,6 +149,7 @@ export default async function DashboardPage() {
   const limits = PLAN_LIMITS[workspace.plan];
   const documentsCount = workspace.documentsUsed;
   const questionsCount = questionsResult.count ?? 0;
+  const conversationsCount = conversationsCountResult.count ?? 0;
   const recentConversations = recentResult.data ?? [];
   const business = workspace.category === "business";
   const CategoryIcon = business ? Briefcase : Scale;
@@ -143,6 +178,11 @@ export default async function DashboardPage() {
           current={questionsCount}
           limit={limits.max_queries_day}
           icon={HelpCircle}
+        />
+        <CountCard
+          label="Conversations"
+          current={conversationsCount}
+          icon={MessageSquare}
         />
       </section>
 
