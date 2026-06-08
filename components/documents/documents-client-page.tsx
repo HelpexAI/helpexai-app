@@ -4,7 +4,8 @@ import { ClientPageError } from "@/components/dashboard/client-page-error";
 import { SectionLoading } from "@/components/dashboard/section-loading";
 import { DocumentLibrary } from "@/components/documents/document-library";
 import type { CategorySlug, Document } from "@/types";
-import { useCallback, useEffect, useState } from "react";
+import { fetchJson, queryKeys } from "@/lib/client/query";
+import { useQuery } from "@tanstack/react-query";
 
 type DocumentsResponse = {
   error?: string;
@@ -15,21 +16,11 @@ type DocumentsResponse = {
 };
 
 export function DocumentsClientPage() {
-  const [data, setData] = useState<DocumentsResponse | null>(null);
-  const [error, setError] = useState("");
-  const load = useCallback(async () => {
-    setError("");
-    try {
-      const response = await fetch("/api/documents", { cache: "no-store" });
-      const result = await response.json() as DocumentsResponse;
-      if (!response.ok) throw new Error(result.error ?? "Could not load documents.");
-      setData(result);
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Could not load documents.");
-    }
-  }, []);
-  useEffect(() => { void load(); }, [load]);
-  if (error) return <ClientPageError message={error} onRetry={() => void load()} />;
+  const { data, error, refetch } = useQuery({
+    queryKey: queryKeys.documents,
+    queryFn: () => fetchJson<DocumentsResponse>("/api/documents"),
+  });
+  if (error) return <ClientPageError message={error.message} onRetry={() => void refetch()} />;
   if (!data) return <SectionLoading label="Loading documents..." />;
   return <DocumentLibrary documents={data.documents} category={data.category} maxDocuments={data.maxDocuments} requiresResolution={data.requiresResolution} />;
 }

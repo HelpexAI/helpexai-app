@@ -8,9 +8,9 @@ import { AI_DISCLAIMERS, stripAiDisclaimer } from "@/lib/ai/disclaimer";
 import type { CategorySlug, Message, MessageSource } from "@/types";
 import { AlertTriangle, Bot, ChevronDown, ChevronUp, Eye, FileText, List, Loader2, Lock, Send } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { conversationCacheKeys, updateConversationCache } from "@/lib/client/conversation-cache";
+import { queryKeys } from "@/lib/client/query";
+import { useQueryClient } from "@tanstack/react-query";
 
 type ChatDocument = { id: string; name: string };
 
@@ -44,7 +44,7 @@ export function ActiveConversation({
   questionsUsed: number;
   questionsLimit: number;
 }) {
-  const router = useRouter();
+  const queryClient = useQueryClient();
   const [messages, setMessages] = useState(initialMessages);
   const [title, setTitle] = useState(conversation.title);
   const [input, setInput] = useState("");
@@ -89,20 +89,20 @@ export function ActiveConversation({
     }
     setMessages((current) => [...current, result.assistantMessage!]);
     if (result.counted) setUsed((value) => value + 1);
-    updateConversationCache<{
+    queryClient.setQueryData<{
       messages?: Message[];
       questionsUsed?: number;
       conversation?: ConversationSummary;
-    }>(conversationCacheKeys.detail(conversation.id), (cached) => ({
+    }>(queryKeys.conversation(conversation.id), (cached) => cached ? ({
       ...cached,
       messages: [...(cached.messages ?? initialMessages), optimistic, result.assistantMessage!],
       questionsUsed: (cached.questionsUsed ?? questionsUsed) + (result.counted ? 1 : 0),
       conversation: cached.conversation
         ? { ...cached.conversation, title: title === "New Conversation" ? content.split(/\s+/).slice(0, 7).join(" ") : title }
         : cached.conversation,
-    }));
+    }) : cached);
+    void queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
     setLoading(false);
-    router.refresh();
   }
 
   return (

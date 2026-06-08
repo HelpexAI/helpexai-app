@@ -7,7 +7,8 @@ import type { CategorySlug, Document } from "@/types";
 import { ArrowRight, Check, FileText, List, Loader2, Lock, MessageSquarePlus, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { conversationCacheKeys, invalidateConversationCache } from "@/lib/client/conversation-cache";
+import { queryKeys } from "@/lib/client/query";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function ConversationHub({
   conversations,
@@ -19,6 +20,7 @@ export function ConversationHub({
   category: CategorySlug;
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -39,9 +41,8 @@ export function ConversationHub({
       setLoading(false);
       return;
     }
-    invalidateConversationCache(conversationCacheKeys.list);
+    void queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
     router.push(`/conversations/${result.conversation.id}`);
-    router.refresh();
   }
 
   return (

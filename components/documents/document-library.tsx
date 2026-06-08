@@ -20,6 +20,8 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { fetchJson, queryKeys } from "@/lib/client/query";
+import { useQueryClient } from "@tanstack/react-query";
 
 const filters: Array<{ label: string; value: "all" | DocumentStatus }> = [
   { label: "All", value: "all" },
@@ -77,6 +79,7 @@ export function DocumentLibrary({
   requiresResolution: boolean;
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [documents, setDocuments] = useState(initialDocuments);
   const [filter, setFilter] = useState<"all" | DocumentStatus>("all");
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -90,9 +93,18 @@ export function DocumentLibrary({
   const readyCount = documents.filter((document) => document.status === "ready").length;
   const failedCount = documents.filter((document) => document.status === "failed").length;
   const limitReached = documents.length >= maxDocuments;
+  function prefetchDocument(id: string) {
+    router.prefetch(`/documents/${id}`);
+    void queryClient.prefetchQuery({
+      queryKey: queryKeys.document(id),
+      queryFn: () => fetchJson(`/api/documents/${id}`),
+    });
+  }
   useEffect(() => {
-    documents.slice(0, 5).forEach(document => router.prefetch(`/documents/${document.id}`));
-  }, [documents, router]);
+    documents.slice(0, 5).forEach(document => prefetchDocument(document.id));
+    // Query client and router are stable for the lifetime of this mounted library.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documents]);
 
   async function deleteDocument(document: DocumentRecord) {
     setDeleting(document.id);
@@ -108,9 +120,14 @@ export function DocumentLibrary({
     }
 
     setDocuments((current) => current.filter((item) => item.id !== document.id));
+    queryClient.setQueryData<{ documents: DocumentRecord[] }>(
+      queryKeys.documents,
+      (cached) => cached ? { ...cached, documents: cached.documents.filter(item => item.id !== document.id) } : cached,
+    );
+    queryClient.removeQueries({ queryKey: queryKeys.document(document.id) });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
     setDeleting(null);
     setDocumentToDelete(null);
-    router.refresh();
   }
 
   return (
@@ -213,9 +230,9 @@ export function DocumentLibrary({
                     <Link
                       href={`/documents/${document.id}`}
                       prefetch
-                      onMouseEnter={() => router.prefetch(`/documents/${document.id}`)}
-                      onFocus={() => router.prefetch(`/documents/${document.id}`)}
-                      onTouchStart={() => router.prefetch(`/documents/${document.id}`)}
+                      onMouseEnter={() => prefetchDocument(document.id)}
+                      onFocus={() => prefetchDocument(document.id)}
+                      onTouchStart={() => prefetchDocument(document.id)}
                       className="block truncate text-sm font-semibold text-zinc-950 transition hover:text-theme-primary dark:text-white dark:hover:text-theme-soft-foreground-dark"
                     >
                       {document.name}
@@ -270,7 +287,7 @@ export function DocumentLibrary({
                     <Link
                       href={`/documents/${document.id}`}
                       prefetch
-                      onTouchStart={() => router.prefetch(`/documents/${document.id}`)}
+                      onTouchStart={() => prefetchDocument(document.id)}
                       className="block truncate text-sm font-semibold text-zinc-950 transition hover:text-theme-primary dark:text-white dark:hover:text-theme-soft-foreground-dark"
                     >
                       {document.name}

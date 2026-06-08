@@ -3,7 +3,8 @@
 import { ClientPageError } from "@/components/dashboard/client-page-error";
 import { DocumentViewer } from "@/components/documents/document-viewer";
 import type { Document } from "@/types";
-import { useCallback, useEffect, useState } from "react";
+import { fetchJson, queryKeys } from "@/lib/client/query";
+import { useQuery } from "@tanstack/react-query";
 
 type ViewerResponse = {
   error?: string;
@@ -32,21 +33,11 @@ export function DocumentViewerClientPage({
   initialPage: number;
   highlightExcerpt: string | null;
 }) {
-  const [data, setData] = useState<ViewerResponse | null>(null);
-  const [error, setError] = useState("");
-  const load = useCallback(async () => {
-    setError("");
-    try {
-      const response = await fetch(`/api/documents/${id}`, { cache: "no-store" });
-      const result = await response.json() as ViewerResponse;
-      if (!response.ok) throw new Error(result.error ?? "Could not open document.");
-      setData(result);
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Could not open document.");
-    }
-  }, [id]);
-  useEffect(() => { void load(); }, [load]);
-  if (error) return <ClientPageError message={error} onRetry={() => void load()} />;
+  const { data, error, refetch } = useQuery({
+    queryKey: queryKeys.document(id),
+    queryFn: () => fetchJson<ViewerResponse>(`/api/documents/${id}`),
+  });
+  if (error) return <ClientPageError message={error.message} onRetry={() => void refetch()} />;
   if (!data) return <OpeningDocument />;
   return <DocumentViewer document={data.document} downloadUrl={data.downloadUrl} extractedText={data.extractedText} pageCount={1} initialPage={initialPage} highlightExcerpt={highlightExcerpt} />;
 }

@@ -5,6 +5,7 @@ import type { CategorySlug } from "@/types";
 import { Briefcase, Loader2, Scale } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 const workspaces = {
   legal: {
@@ -34,6 +35,7 @@ export function WorkspaceSelector({
   categories: CategorySlug[];
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState<CategorySlug | null>(null);
   const [error, setError] = useState("");
 
@@ -53,12 +55,14 @@ export function WorkspaceSelector({
       return;
     }
 
+    queryClient.clear();
     router.replace("/dashboard");
     router.refresh();
   }
 
   async function signOut() {
     await createClient().auth.signOut();
+    queryClient.clear();
     router.replace("/login");
     router.refresh();
   }
@@ -116,4 +120,3 @@ export function WorkspaceSelector({
     </div>
   );
 }
-

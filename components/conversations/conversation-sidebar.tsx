@@ -7,7 +7,8 @@ import { FileText, Loader2, MessageSquare, MoreHorizontal, Pencil, Search, Trash
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { conversationCacheKeys, invalidateConversationCache } from "@/lib/client/conversation-cache";
+import { fetchJson, queryKeys } from "@/lib/client/query";
+import { useQueryClient } from "@tanstack/react-query";
 
 export type ConversationSummary = {
   id: string;
@@ -28,6 +29,7 @@ export function ConversationSidebar({
   onMobileClose?: () => void;
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const pathname = usePathname();
   const [conversations, setConversations] = useState(initialConversations);
   const [search, setSearch] = useState("");
@@ -42,10 +44,19 @@ export function ConversationSidebar({
     () => conversations.filter((conversation) => conversation.title.toLowerCase().includes(search.toLowerCase())),
     [conversations, search],
   );
+  function prefetchConversation(id: string) {
+    router.prefetch(`/conversations/${id}`);
+    void queryClient.prefetchQuery({
+      queryKey: queryKeys.conversation(id),
+      queryFn: () => fetchJson(`/api/conversations/${id}`),
+    });
+  }
   useEffect(() => setConversations(initialConversations), [initialConversations]);
   useEffect(() => {
-    initialConversations.slice(0, 5).forEach(conversation => router.prefetch(`/conversations/${conversation.id}`));
-  }, [initialConversations, router]);
+    initialConversations.slice(0, 5).forEach(conversation => prefetchConversation(conversation.id));
+    // Query client and router are stable for the lifetime of this mounted sidebar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialConversations]);
   useEffect(() => {
     function closeMenu(event: MouseEvent) {
       if (!menuRef.current?.contains(event.target as Node)) setMenuId(null);
@@ -73,9 +84,17 @@ export function ConversationSidebar({
     setConversations((current) => current.map((item) => item.id === result.conversation!.id ? { ...item, ...result.conversation } : item));
     setRenaming(null);
     setSaving(false);
-    invalidateConversationCache(conversationCacheKeys.list);
-    invalidateConversationCache(conversationCacheKeys.detail(result.conversation.id));
-    router.refresh();
+    queryClient.setQueriesData<{ conversations?: ConversationSummary[] }>(
+      { queryKey: queryKeys.conversations },
+      (cached) => cached ? {
+        ...cached,
+        conversations: cached.conversations?.map(item => item.id === result.conversation!.id ? { ...item, ...result.conversation } : item),
+      } : cached,
+    );
+    queryClient.setQueryData<{ conversation?: ConversationSummary }>(
+      queryKeys.conversation(result.conversation.id),
+      (cached) => cached ? { ...cached, conversation: cached.conversation ? { ...cached.conversation, ...result.conversation } : cached.conversation } : cached,
+    );
   }
 
   async function deleteConversation() {
@@ -92,12 +111,15 @@ export function ConversationSidebar({
     setConversations((current) => current.filter((item) => item.id !== deletedId));
     setDeleting(null);
     setSaving(false);
-    invalidateConversationCache(conversationCacheKeys.list);
-    invalidateConversationCache(conversationCacheKeys.detail(deletedId));
+    queryClient.setQueriesData<{ conversations?: ConversationSummary[] }>(
+      { queryKey: queryKeys.conversations },
+      (cached) => cached ? { ...cached, conversations: cached.conversations?.filter(item => item.id !== deletedId) } : cached,
+    );
+    queryClient.removeQueries({ queryKey: queryKeys.conversation(deletedId) });
     if (activeId === deletedId || pathname === `/conversations/${deletedId}`) {
       router.replace("/conversations");
     } else {
-      router.refresh();
+      await queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
     }
   }
 
@@ -116,7 +138,7 @@ export function ConversationSidebar({
             const destination = active ? "/conversations" : `/conversations/${conversation.id}`;
             return (
               <div key={conversation.id} className={`group relative border-l-4 transition ${active ? "border-theme-primary bg-theme-soft dark:bg-theme-soft-dark" : "border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800/60"}`}>
-                <Link href={destination} prefetch onMouseEnter={() => router.prefetch(destination)} onFocus={() => router.prefetch(destination)} onTouchStart={() => router.prefetch(destination)} onClick={onMobileClose} aria-label={active ? `Close ${conversation.title}` : `Open ${conversation.title}`} className="flex items-start gap-2.5 px-4 py-3 pr-10">
+                <Link href={destination} prefetch onMouseEnter={() => active ? router.prefetch(destination) : prefetchConversation(conversation.id)} onFocus={() => active ? router.prefetch(destination) : prefetchConversation(conversation.id)} onTouchStart={() => active ? router.prefetch(destination) : prefetchConversation(conversation.id)} onClick={onMobileClose} aria-label={active ? `Close ${conversation.title}` : `Open ${conversation.title}`} className="flex items-start gap-2.5 px-4 py-3 pr-10">
                   <span className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg ${active ? "bg-theme-primary/10 text-theme-primary" : "bg-zinc-100 text-zinc-400 dark:bg-zinc-800"}`}><MessageSquare className="size-3.5" /></span>
                   <span className="min-w-0"><span className="block truncate text-sm font-semibold text-zinc-950 dark:text-white">{conversation.title}</span><span className="mt-1.5 flex items-center gap-2 text-[11px] text-zinc-400"><span className="inline-flex items-center gap-1 rounded bg-zinc-100 px-1.5 py-0.5 dark:bg-zinc-800"><FileText className="size-2.5" />{count} doc{count === 1 ? "" : "s"}</span><span>{formatRelativeTime(conversation.updated_at)}</span></span></span>
                 </Link>

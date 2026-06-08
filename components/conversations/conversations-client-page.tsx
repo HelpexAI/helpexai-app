@@ -6,8 +6,8 @@ import { ConversationsLocked } from "@/components/conversations/conversations-lo
 import { ConversationSkeleton } from "@/components/conversations/conversation-skeleton";
 import type { ConversationSummary } from "@/components/conversations/conversation-sidebar";
 import type { CategorySlug, Document } from "@/types";
-import { conversationCacheKeys, getConversationCache, setConversationCache } from "@/lib/client/conversation-cache";
-import { useCallback, useEffect, useState } from "react";
+import { fetchJson, queryKeys } from "@/lib/client/query";
+import { useQuery } from "@tanstack/react-query";
 
 type ConversationsResponse = {
   error?: string;
@@ -20,24 +20,11 @@ type ConversationsResponse = {
 };
 
 export function ConversationsClientPage() {
-  const [data, setData] = useState<ConversationsResponse | null>(() => getConversationCache(conversationCacheKeys.list));
-  const [error, setError] = useState("");
-  const load = useCallback(async () => {
-    setError("");
-    try {
-      const response = await fetch("/api/conversations", { cache: "no-store" });
-      const result = await response.json() as ConversationsResponse;
-      if (!response.ok) throw new Error(result.error ?? "Could not load conversations.");
-      setData(result);
-      setConversationCache(conversationCacheKeys.list, result);
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Could not load conversations.");
-    }
-  }, []);
-  useEffect(() => {
-    if (!data) void load();
-  }, [data, load]);
-  if (error) return <ClientPageError message={error} onRetry={() => void load()} />;
+  const { data, error, refetch } = useQuery({
+    queryKey: queryKeys.conversations,
+    queryFn: () => fetchJson<ConversationsResponse>("/api/conversations"),
+  });
+  if (error) return <ClientPageError message={error.message} onRetry={() => void refetch()} />;
   if (!data) return <ConversationSkeleton root />;
   if (data.locked) return <ConversationsLocked used={data.used ?? 0} limit={data.limit ?? 0} />;
   return <ConversationHub conversations={data.conversations ?? []} documents={data.documents ?? []} category={data.category ?? "legal"} />;

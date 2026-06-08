@@ -6,8 +6,8 @@ import { ConversationsLocked } from "@/components/conversations/conversations-lo
 import { ConversationSkeleton } from "@/components/conversations/conversation-skeleton";
 import type { ConversationSummary } from "@/components/conversations/conversation-sidebar";
 import type { CategorySlug, Message } from "@/types";
-import { conversationCacheKeys, getConversationCache, setConversationCache } from "@/lib/client/conversation-cache";
-import { useCallback, useEffect, useState } from "react";
+import { fetchJson, queryKeys } from "@/lib/client/query";
+import { useQuery } from "@tanstack/react-query";
 
 type ActiveConversationResponse = {
   error?: string;
@@ -24,27 +24,13 @@ type ActiveConversationResponse = {
 };
 
 export function ActiveConversationClientPage({ id }: { id: string }) {
-  const cacheKey = conversationCacheKeys.detail(id);
-  const [data, setData] = useState<ActiveConversationResponse | null>(() => getConversationCache(cacheKey));
-  const [error, setError] = useState("");
-  const load = useCallback(async () => {
-    setError("");
-    try {
-      const response = await fetch(`/api/conversations/${id}`, { cache: "no-store" });
-      const result = await response.json() as ActiveConversationResponse;
-      if (!response.ok) throw new Error(result.error ?? "Could not load conversation.");
-      setData(result);
-      setConversationCache(cacheKey, result);
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Could not load conversation.");
-    }
-  }, [cacheKey, id]);
-  useEffect(() => {
-    if (!data) void load();
-  }, [data, load]);
-  if (error) return <ClientPageError message={error} onRetry={() => void load()} />;
+  const { data, error, refetch } = useQuery({
+    queryKey: queryKeys.conversation(id),
+    queryFn: () => fetchJson<ActiveConversationResponse>(`/api/conversations/${id}`),
+  });
+  if (error) return <ClientPageError message={error.message} onRetry={() => void refetch()} />;
   if (!data) return <ConversationSkeleton />;
   if (data.locked) return <ConversationsLocked used={data.used ?? 0} limit={data.limit ?? 0} />;
-  if (!data.conversation || !data.category) return <ClientPageError message="Conversation data is unavailable." onRetry={() => void load()} />;
+  if (!data.conversation || !data.category) return <ClientPageError message="Conversation data is unavailable." onRetry={() => void refetch()} />;
   return <ActiveConversation conversation={data.conversation} conversations={data.conversations ?? []} documents={data.documents ?? []} initialMessages={data.messages ?? []} category={data.category} questionsUsed={data.questionsUsed ?? 0} questionsLimit={data.questionsLimit ?? 0} />;
 }

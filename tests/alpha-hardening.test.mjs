@@ -35,6 +35,9 @@ const documentPageRoute = await readFile(new URL("../app/api/documents/[id]/page
 const documentsPage = await readFile(new URL("../app/(dashboard)/documents/page.tsx", import.meta.url), "utf8");
 const conversationsPage = await readFile(new URL("../app/(dashboard)/conversations/page.tsx", import.meta.url), "utf8");
 const activeConversationPage = await readFile(new URL("../app/(dashboard)/conversations/[id]/page.tsx", import.meta.url), "utf8");
+const queryProvider = await readFile(new URL("../components/providers/query-provider.tsx", import.meta.url), "utf8");
+const queryClientHelpers = await readFile(new URL("../lib/client/query.ts", import.meta.url), "utf8");
+const conversationsClientPage = await readFile(new URL("../components/conversations/conversations-client-page.tsx", import.meta.url), "utf8");
 
 test("account protected writes are revoked from authenticated clients", () => {
   assert.match(migration, /DROP POLICY IF EXISTS "Users can update own accounts"/);
@@ -154,4 +157,12 @@ test("dashboard navigation avoids middleware database work and request waterfall
   assert.match(documentsPage, /DocumentsClientPage/);
   assert.match(conversationsPage, /ConversationsClientPage/);
   assert.match(activeConversationPage, /ActiveConversationClientPage/);
+});
+
+test("TanStack Query caches client pages and supports precise invalidation", () => {
+  assert.match(queryProvider, /QueryClientProvider/);
+  assert.match(queryProvider, /staleTime: 5 \* 60 \* 1000/);
+  assert.match(queryProvider, /refetchOnWindowFocus: false/);
+  assert.match(queryClientHelpers, /queryKeys/);
+  assert.match(conversationsClientPage, /useQuery/);
 });
