@@ -29,10 +29,14 @@ async function getPdfPageCount(buffer: Buffer) {
 
 export default async function DocumentViewerPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ page?: string; highlight?: string }>;
 }) {
   const { id } = await params;
+  const query = await searchParams;
+  const requestedPage = Number.parseInt(query.page ?? "", 10);
   const workspace = await getCurrentWorkspace();
   const service = createServiceClient();
   const { data: document } = await service
@@ -75,6 +79,8 @@ export default async function DocumentViewerPage({
       downloadUrl={download.signedUrl}
       extractedText={extractedText}
       pageCount={pageCount}
+      initialPage={Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1}
+      highlightExcerpt={query.highlight?.trim() || null}
     />
   );
 }

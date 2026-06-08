@@ -13,6 +13,13 @@ const publicQuestionRoute = await readFile(new URL("../app/api/public-tool/quest
 const publicToolReservationFix = await readFile(new URL("../supabase/migrations/006_fix_public_tool_question_reservation.sql", import.meta.url), "utf8");
 const platformKnowledge = await readFile(new URL("../lib/ai/knowledge/helpexai-platform.ts", import.meta.url), "utf8");
 const publicQuery = await readFile(new URL("../lib/ai/public-query.ts", import.meta.url), "utf8");
+const legalPrompt = await readFile(new URL("../lib/ai/prompts/legal.ts", import.meta.url), "utf8");
+const businessPrompt = await readFile(new URL("../lib/ai/prompts/business.ts", import.meta.url), "utf8");
+const ingestion = await readFile(new URL("../lib/ai/pipeline/ingest.ts", import.meta.url), "utf8");
+const queryPipeline = await readFile(new URL("../lib/ai/pipeline/query.ts", import.meta.url), "utf8");
+const activeConversation = await readFile(new URL("../components/conversations/active-conversation.tsx", import.meta.url), "utf8");
+const citationPanel = await readFile(new URL("../components/conversations/citation-preview-panel.tsx", import.meta.url), "utf8");
+const documentViewerPage = await readFile(new URL("../app/(dashboard)/documents/[id]/page.tsx", import.meta.url), "utf8");
 
 test("account protected writes are revoked from authenticated clients", () => {
   assert.match(migration, /DROP POLICY IF EXISTS "Users can update own accounts"/);
@@ -53,4 +60,26 @@ test("public tool can answer HelpexAI platform questions without document citati
   assert.match(platformKnowledge, /Premium: \$49 per month, up to 100 documents/);
   assert.match(publicQuery, /isHelpexAIPlatformQuestion/);
   assert.match(publicQuery, /sources: \[\]/);
+});
+
+test("category personas enforce evidence-first domain analysis", () => {
+  assert.match(legalPrompt, /DOCUMENT FACTS, REASONABLE INFERENCE, and INFORMATION NOT PROVIDED/);
+  assert.match(legalPrompt, /Never invent clauses, facts, cases, statutes, page numbers/);
+  assert.match(businessPrompt, /Reconcile related documents whenever possible/);
+  assert.match(businessPrompt, /Recalculate arithmetic before reporting discrepancies/);
+});
+
+test("PDF ingestion preserves page metadata for citations", () => {
+  assert.match(ingestion, /data\.pages\.map/);
+  assert.match(ingestion, /pageNumber: chunk\.pageNumber/);
+  assert.match(queryPipeline, /pageNumber: page\.pageNumber/);
+  assert.match(queryPipeline, /lexicalScore/);
+});
+
+test("conversation citations open a page-aware highlighted preview", () => {
+  assert.match(activeConversation, /CitationPreviewPanel/);
+  assert.match(activeConversation, /onPreview=\{setActiveCitation\}/);
+  assert.match(citationPanel, /Referenced content/);
+  assert.match(citationPanel, /pageNumber/);
+  assert.match(documentViewerPage, /highlightExcerpt/);
 });

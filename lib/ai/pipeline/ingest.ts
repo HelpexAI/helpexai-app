@@ -19,6 +19,25 @@ export interface IngestResult {
   chunkCount: number
 }
 
+export interface ExtractedDocumentPage {
+  pageNumber: number | null
+  text: string
+}
+
+export async function extractDocumentPages(buffer: Buffer, fileType: string): Promise<ExtractedDocumentPage[]> {
+  if (fileType === 'pdf') {
+    const { PDFParse } = await import('pdf-parse')
+    const parser = new PDFParse({ data: buffer })
+    try {
+      const data = await parser.getText()
+      return data.pages.map(page => ({ pageNumber: page.num, text: page.text }))
+    } finally {
+      await parser.destroy()
+    }
+  }
+  return [{ pageNumber: null, text: await extractDocumentText(buffer, fileType) }]
+}
+
 export async function extractDocumentText(buffer: Buffer, fileType: string): Promise<string> {
   if (fileType === 'pdf') {
     const { PDFParse } = await import('pdf-parse')
@@ -45,8 +64,8 @@ export async function ingestDocument(options: IngestOptions): Promise<IngestResu
   const { userId, categorySlug, docId, docName, fileBuffer, fileType } = options
 
   // 1. Extract text
-  const rawText = await extractDocumentText(fileBuffer, fileType)
-  if (!rawText.trim()) {
+  const pages = await extractDocumentPages(fileBuffer, fileType)
+  if (!pages.some(page => page.text.trim())) {
     throw new Error('No text content could be extracted from this document')
   }
 
@@ -55,7 +74,13 @@ export async function ingestDocument(options: IngestOptions): Promise<IngestResu
     chunkSize: CHUNK_SIZE,
     chunkOverlap: CHUNK_OVERLAP,
   })
-  const chunks = await splitter.splitText(rawText)
+  const pageChunks = await Promise.all(pages.map(async page => ({
+    pageNumber: page.pageNumber,
+    chunks: await splitter.splitText(page.text),
+  })))
+  const chunks = pageChunks.flatMap(page =>
+    page.chunks.map(text => ({ text, pageNumber: page.pageNumber })),
+  )
 
   if (chunks.length === 0) {
     throw new Error('Document produced no text chunks after splitting')
@@ -63,7 +88,7 @@ export async function ingestDocument(options: IngestOptions): Promise<IngestResu
 
   // 3. Embed all chunks
   const embeddingProvider = getEmbeddingProvider()
-  const vectors = await embeddingProvider.embedBatch(chunks)
+  const vectors = await embeddingProvider.embedBatch(chunks.map(chunk => chunk.text))
 
   // 4. Prepare Qdrant points
   const points = chunks.map((chunk, index) => ({
@@ -73,8 +98,8 @@ export async function ingestDocument(options: IngestOptions): Promise<IngestResu
       docId,
       docName,
       chunkIndex: index,
-      pageNumber: null, // TODO: extract page numbers for PDF
-      text: chunk,
+      pageNumber: chunk.pageNumber,
+      text: chunk.text,
     },
   }))
 

@@ -1,4 +1,4 @@
-import { extractDocumentText } from "@/lib/ai/pipeline/ingest";
+import { extractDocumentPages } from "@/lib/ai/pipeline/ingest";
 import { isEmbeddingUnavailable, queryDocuments, queryDocumentsFromRawText } from "@/lib/ai/pipeline/query";
 import { getDocumentRequestContext } from "@/lib/documents/server";
 import { SendMessageSchema } from "@/lib/validations/schemas";
@@ -46,7 +46,7 @@ async function queryWithSelectedDocumentFallback(
         rawDocuments.push({
           id: document.id,
           name: document.name,
-          text: await extractDocumentText(Buffer.from(await file.arrayBuffer()), document.file_type),
+          pages: await extractDocumentPages(Buffer.from(await file.arrayBuffer()), document.file_type),
         });
       } catch (error) {
         console.warn(`Could not extract fallback text from ${document.name}:`, error);

@@ -84,16 +84,20 @@ export function DocumentViewer({
   downloadUrl,
   extractedText,
   pageCount,
+  initialPage = 1,
+  highlightExcerpt,
 }: {
   document: DocumentRecord;
   downloadUrl: string;
   extractedText: string | null;
   pageCount: number;
+  initialPage?: number;
+  highlightExcerpt?: string | null;
 }) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(100);
   const [rotation, setRotation] = useState(0);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(() => Math.min(Math.max(initialPage, 1), pageCount));
   const [pagesOpen, setPagesOpen] = useState(true);
   const [shared, setShared] = useState(false);
 
@@ -180,7 +184,7 @@ export function DocumentViewer({
           )}
 
           <main className="min-w-0 flex-1 overflow-auto p-3 sm:p-6 lg:p-8">
-            <div className="mx-auto flex min-h-[70vh] justify-center">
+            <div className="mx-auto flex min-h-[70vh] max-w-5xl flex-col items-center gap-5">
               {document.file_type === "pdf" ? (
                 <Image
                   key={currentPage}
@@ -201,13 +205,43 @@ export function DocumentViewer({
                     <FileText className="size-6 text-theme-primary" />
                     <h1 className="break-all text-lg font-bold text-zinc-900">{document.name}</h1>
                   </div>
-                  {extractedText || "No readable text was found in this document."}
+                  <HighlightedDocumentText text={extractedText || "No readable text was found in this document."} excerpt={highlightExcerpt} />
                 </article>
+              )}
+              {highlightExcerpt && document.file_type === "pdf" && (
+                <aside className="w-full max-w-[850px] rounded-xl border border-amber-300/50 bg-amber-100 p-4 text-zinc-900 shadow-xl">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-amber-800">Referenced content on page {currentPage}</p>
+                  <p className="whitespace-pre-wrap text-sm leading-6"><mark className="rounded bg-amber-300 px-1 text-zinc-950">{highlightExcerpt}</mark></p>
+                </aside>
               )}
             </div>
           </main>
         </div>
       </div>
     </div>
+  );
+}
+
+function HighlightedDocumentText({ text, excerpt }: { text: string; excerpt?: string | null }) {
+  const needle = excerpt?.trim();
+  if (!needle) return text;
+  const start = text.toLowerCase().indexOf(needle.toLowerCase());
+  if (start < 0) {
+    return (
+      <>
+        <aside className="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-zinc-800">
+          <p className="mb-1 text-xs font-bold uppercase tracking-wider text-amber-800">Referenced content</p>
+          <mark className="bg-amber-200 text-zinc-950">{needle}</mark>
+        </aside>
+        {text}
+      </>
+    );
+  }
+  return (
+    <>
+      {text.slice(0, start)}
+      <mark className="rounded bg-amber-200 px-0.5 text-zinc-950">{text.slice(start, start + needle.length)}</mark>
+      {text.slice(start + needle.length)}
+    </>
   );
 }

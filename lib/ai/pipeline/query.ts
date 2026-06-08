@@ -34,7 +34,13 @@ export interface QueryResult {
 export interface RawDocumentContext {
   id: string
   name: string
-  text: string
+  pages: Array<{ pageNumber: number | null; text: string }>
+}
+
+function lexicalScore(question: string, text: string): number {
+  const terms = new Set(question.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) ?? [])
+  const lowerText = text.toLowerCase()
+  return [...terms].reduce((score, term) => score + (lowerText.includes(term) ? 1 : 0), 0)
 }
 
 function getSystemPrompt(categorySlug: CategorySlug): string {
@@ -152,32 +158,41 @@ export async function queryDocumentsFromRawText(
   }
 
   let remaining = FALLBACK_TOTAL_CHARACTER_LIMIT
-  const documents = options.documents
-    .map((document) => {
-      const text = document.text.trim().slice(0, Math.min(FALLBACK_DOCUMENT_CHARACTER_LIMIT, remaining))
+  const pages = options.documents
+    .flatMap(document => document.pages.map(page => ({
+      ...page,
+      docId: document.id,
+      docName: document.name,
+      score: lexicalScore(question, page.text),
+    })))
+    .filter(page => page.text.trim().length > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, TOP_K)
+    .map(page => {
+      const text = page.text.trim().slice(0, Math.min(FALLBACK_DOCUMENT_CHARACTER_LIMIT, remaining))
       remaining -= text.length
-      return { ...document, text }
+      return { ...page, text }
     })
-    .filter((document) => document.text.length > 0 && remaining >= 0)
+    .filter(page => page.text.length > 0)
 
-  if (!documents.length) {
+  if (!pages.length) {
     throw new Error('No readable text was found in the selected documents.')
   }
 
-  const context = documents
-    .map((document, index) => `[Source ${index + 1}] Document: "${document.name}"\n${document.text}`)
+  const context = pages
+    .map((page, index) => `[Source ${index + 1}] Document: "${page.docName}"${page.pageNumber ? ` | Page ${page.pageNumber}` : ''}\n${page.text}`)
     .join('\n\n---\n\n')
-  const prompt = `DOCUMENT CONTEXT:\n${context}\n\n---\n\nUser Question: ${question}\n\nAnswer based ONLY on the document context above. Cite document names in your answer.`
+  const prompt = `DOCUMENT CONTEXT:\n${context}\n\n---\n\nUser Question: ${question}\n\nAnswer based ONLY on the document context above. Cite document names and page numbers when available.`
   const answer = stripAiDisclaimer(await getLLMProvider().complete(prompt, getSystemPrompt(categorySlug)))
 
   return {
     answer,
-    sources: documents.map((document) => ({
-      docId: document.id,
-      docName: document.name,
-      chunkIndex: 0,
-      pageNumber: null,
-      excerpt: document.text.slice(0, 300),
+    sources: pages.map((page, index) => ({
+      docId: page.docId,
+      docName: page.docName,
+      chunkIndex: index,
+      pageNumber: page.pageNumber,
+      excerpt: page.text.slice(0, 300),
     })),
     answerType: 'document',
     tokensUsed: Math.ceil(answer.length / 4),
