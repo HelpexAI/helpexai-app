@@ -124,7 +124,7 @@ export default async function DashboardPage() {
   const workspace = await getCurrentWorkspace();
   const supabase = await createClient();
 
-  const [questionsResult, conversationsCountResult, recentResult] = await Promise.all([
+  const [questionsResult, recentResult] = await Promise.all([
     supabase
       .from("usage_logs")
       .select("*", { count: "exact", head: true })
@@ -134,12 +134,7 @@ export default async function DashboardPage() {
       .gte("created_at", startOfTodayUtc()),
     supabase
       .from("conversations")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", workspace.userId)
-      .eq("category_slug", workspace.category),
-    supabase
-      .from("conversations")
-      .select("id, title, selected_document_ids, created_at")
+      .select("id, title, selected_document_ids, created_at", { count: "exact" })
       .eq("user_id", workspace.userId)
       .eq("category_slug", workspace.category)
       .order("created_at", { ascending: false })
@@ -149,7 +144,7 @@ export default async function DashboardPage() {
   const limits = PLAN_LIMITS[workspace.plan];
   const documentsCount = workspace.documentsUsed;
   const questionsCount = questionsResult.count ?? 0;
-  const conversationsCount = conversationsCountResult.count ?? 0;
+  const conversationsCount = recentResult.count ?? 0;
   const recentConversations = recentResult.data ?? [];
   const business = workspace.category === "business";
   const CategoryIcon = business ? Briefcase : Scale;

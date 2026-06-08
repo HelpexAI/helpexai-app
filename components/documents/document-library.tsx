@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const filters: Array<{ label: string; value: "all" | DocumentStatus }> = [
   { label: "All", value: "all" },
@@ -90,6 +90,9 @@ export function DocumentLibrary({
   const readyCount = documents.filter((document) => document.status === "ready").length;
   const failedCount = documents.filter((document) => document.status === "failed").length;
   const limitReached = documents.length >= maxDocuments;
+  useEffect(() => {
+    documents.slice(0, 5).forEach(document => router.prefetch(`/documents/${document.id}`));
+  }, [documents, router]);
 
   async function deleteDocument(document: DocumentRecord) {
     setDeleting(document.id);
@@ -209,6 +212,10 @@ export function DocumentLibrary({
                   <div className="min-w-0">
                     <Link
                       href={`/documents/${document.id}`}
+                      prefetch
+                      onMouseEnter={() => router.prefetch(`/documents/${document.id}`)}
+                      onFocus={() => router.prefetch(`/documents/${document.id}`)}
+                      onTouchStart={() => router.prefetch(`/documents/${document.id}`)}
                       className="block truncate text-sm font-semibold text-zinc-950 transition hover:text-theme-primary dark:text-white dark:hover:text-theme-soft-foreground-dark"
                     >
                       {document.name}
@@ -262,6 +269,8 @@ export function DocumentLibrary({
                   <div className="min-w-0 flex-1">
                     <Link
                       href={`/documents/${document.id}`}
+                      prefetch
+                      onTouchStart={() => router.prefetch(`/documents/${document.id}`)}
                       className="block truncate text-sm font-semibold text-zinc-950 transition hover:text-theme-primary dark:text-white dark:hover:text-theme-soft-foreground-dark"
                     >
                       {document.name}

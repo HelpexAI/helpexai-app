@@ -29,14 +29,23 @@ export default async function BillingPage({
     }
   }
 
-  const { data: account } = await service
-    .from("accounts")
-    .select("plan, stripe_customer_id, subscription_status")
-    .eq("user_id", workspace.userId)
-    .eq("category_slug", workspace.category)
-    .maybeSingle();
+  const [accountResult, questionsResult] = await Promise.all([
+    service
+      .from("accounts")
+      .select("plan, stripe_customer_id, subscription_status")
+      .eq("user_id", workspace.userId)
+      .eq("category_slug", workspace.category)
+      .maybeSingle(),
+    supabase
+      .from("usage_logs")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", workspace.userId)
+      .eq("category_slug", workspace.category)
+      .eq("action", "query")
+      .gte("created_at", startOfTodayUtc()),
+  ]);
+  const account = accountResult.data;
   const currentPlan = normalizePlanSlug(account?.plan);
-  const questionsResult = await supabase.from("usage_logs").select("*", { count: "exact", head: true }).eq("user_id", workspace.userId).eq("category_slug", workspace.category).eq("action", "query").gte("created_at", startOfTodayUtc());
   const limits = PLAN_LIMITS[currentPlan];
 
   const invoices = [];

@@ -1,14 +1,12 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PROTECTED_ROUTES = ['/dashboard', '/documents', '/conversations', '/billing', '/settings', '/select-workspace']
 const AUTH_ROUTES = ['/login', '/signup', '/verify-email']
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
-  const isProtected = PROTECTED_ROUTES.some(r => pathname.startsWith(r))
   const isAuthRoute = AUTH_ROUTES.some(r => pathname.startsWith(r))
-  if (!isProtected && !isAuthRoute) return NextResponse.next({ request })
+  if (!isAuthRoute) return NextResponse.next({ request })
 
   let supabaseResponse = NextResponse.next({ request })
 
@@ -37,55 +35,6 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Redirect unauthenticated users away from protected routes
-  if (isProtected && user) {
-    const { data: accounts } = await supabase
-      .from('accounts')
-      .select('category_slug, deletion_requested_at')
-      .eq('user_id', user.id)
-
-    if (accounts?.some(account => account.deletion_requested_at)) {
-      await supabase.auth.signOut()
-      const url = request.nextUrl.clone()
-      url.pathname = '/login'
-      url.searchParams.set('account', 'deletion-requested')
-      return NextResponse.redirect(url)
-    }
-
-    if (!accounts?.length) {
-      await supabase.auth.signOut()
-      const url = request.nextUrl.clone()
-      url.pathname = '/login'
-      url.searchParams.set('error', 'no_accounts')
-      return NextResponse.redirect(url)
-    }
-
-    const activeCategory = request.cookies.get('helpex_active_workspace')?.value
-    const activeAccountExists = accounts.some(account => account.category_slug === activeCategory)
-
-    if (accounts.length > 1 && !activeAccountExists && pathname !== '/select-workspace') {
-      const url = request.nextUrl.clone()
-      url.pathname = '/select-workspace'
-      url.search = ''
-      return NextResponse.redirect(url)
-    }
-
-    if (accounts.length === 1 && !activeAccountExists) {
-      supabaseResponse.cookies.set('helpex_active_workspace', accounts[0].category_slug, {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        path: '/',
-      })
-    }
-  }
-
-  if (isProtected && !user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
-  }
-
   // Redirect authenticated users away from auth routes
   if (isAuthRoute && user) {
     const url = request.nextUrl.clone()
@@ -98,12 +47,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/dashboard/:path*',
-    '/documents/:path*',
-    '/conversations/:path*',
-    '/billing/:path*',
-    '/settings/:path*',
-    '/select-workspace/:path*',
     '/login',
     '/signup',
     '/verify-email',

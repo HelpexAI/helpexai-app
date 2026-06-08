@@ -1,4 +1,4 @@
-import { getDocumentRequestContext } from "@/lib/documents/server";
+import { getDocumentAccessContext } from "@/lib/documents/server";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -9,7 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string; page: string }> },
 ) {
   const { id, page: pageParam } = await params;
-  const context = await getDocumentRequestContext();
+  const context = await getDocumentAccessContext();
   if (!context) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

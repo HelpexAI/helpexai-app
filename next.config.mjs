@@ -13,6 +13,13 @@ const pdfRenderAssets = [
 ];
 
 const nextConfig = {
+  experimental: {
+    clientSegmentCache: true,
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
+  },
   serverExternalPackages: [
     "pdf-parse",
     "pdfjs-dist",

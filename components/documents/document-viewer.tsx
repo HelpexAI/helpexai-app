@@ -87,7 +87,8 @@ export function DocumentViewer({
   const viewerRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(100);
   const [rotation, setRotation] = useState(0);
-  const [currentPage, setCurrentPage] = useState(() => Math.min(Math.max(initialPage, 1), pageCount));
+  const [currentPage, setCurrentPage] = useState(() => Math.max(initialPage, 1));
+  const [resolvedPageCount, setResolvedPageCount] = useState(pageCount);
   const [pagesOpen, setPagesOpen] = useState(true);
   const [shared, setShared] = useState(false);
   const [pageLoading, setPageLoading] = useState(document.file_type === "pdf");
@@ -103,6 +104,20 @@ export function DocumentViewer({
     setPageLoading(document.file_type === "pdf");
     setPageError(false);
   }, [currentPage, document.file_type]);
+
+  useEffect(() => {
+    if (document.file_type !== "pdf") return;
+    let cancelled = false;
+    void fetch(`/api/documents/${document.id}/pages`)
+      .then(async response => response.ok ? response.json() as Promise<{ pageCount: number }> : null)
+      .then(result => {
+        if (!cancelled && result?.pageCount) setResolvedPageCount(result.pageCount);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [document.file_type, document.id]);
 
   async function shareDocument() {
     try {
@@ -155,9 +170,9 @@ export function DocumentViewer({
           <div className="flex shrink-0 items-center gap-1">
             <ToolButton label="Previous page" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}><ChevronLeft className="size-4" /></ToolButton>
             <span className="px-2 text-xs text-white/60">
-              Page <strong className="text-white">{currentPage}</strong> of {pageCount}
+              Page <strong className="text-white">{currentPage}</strong> of {resolvedPageCount}
             </span>
-            <ToolButton label="Next page" onClick={() => setCurrentPage((page) => Math.min(pageCount, page + 1))}><ChevronRight className="size-4" /></ToolButton>
+            <ToolButton label="Next page" onClick={() => setCurrentPage((page) => Math.min(resolvedPageCount, page + 1))}><ChevronRight className="size-4" /></ToolButton>
             <ToolButton label="Full screen" onClick={() => void viewerRef.current?.requestFullscreen()}><Maximize2 className="size-4" /></ToolButton>
           </div>
         </div>
@@ -167,7 +182,7 @@ export function DocumentViewer({
             <aside className="hidden w-40 shrink-0 overflow-y-auto border-r border-white/10 bg-[#0d1b30] p-3 sm:block">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/40">Pages</p>
               <div className="flex flex-col gap-3">
-                {Array.from({ length: pageCount }, (_, index) => index + 1).map((page) => (
+                {Array.from({ length: resolvedPageCount }, (_, index) => index + 1).map((page) => (
                   <PageThumbnail
                     key={page}
                     page={page}

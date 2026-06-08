@@ -27,6 +27,11 @@ const publicToolClient = await readFile(new URL("../components/public-tool/publi
 const openAIEmbeddings = await readFile(new URL("../lib/ai/providers/embeddings/openai.ts", import.meta.url), "utf8");
 const qdrantProvider = await readFile(new URL("../lib/ai/providers/vectordb/qdrant.ts", import.meta.url), "utf8");
 const nextConfig = await readFile(new URL("../next.config.mjs", import.meta.url), "utf8");
+const dashboardWorkspace = await readFile(new URL("../lib/dashboard/workspace.ts", import.meta.url), "utf8");
+const dashboardPage = await readFile(new URL("../app/(dashboard)/dashboard/page.tsx", import.meta.url), "utf8");
+const dashboardShell = await readFile(new URL("../components/dashboard/dashboard-shell.tsx", import.meta.url), "utf8");
+const documentServer = await readFile(new URL("../lib/documents/server.ts", import.meta.url), "utf8");
+const documentPageRoute = await readFile(new URL("../app/api/documents/[id]/pages/[page]/route.ts", import.meta.url), "utf8");
 
 test("account protected writes are revoked from authenticated clients", () => {
   assert.match(migration, /DROP POLICY IF EXISTS "Users can update own accounts"/);
@@ -126,7 +131,21 @@ test("assistant conversation messages render safe styled Markdown", () => {
 
 test("public APIs avoid auth middleware and free tool restores sessions in background", () => {
   assert.doesNotMatch(middleware, /\/\(\(\?!_next/);
-  assert.match(middleware, /if \(!isProtected && !isAuthRoute\) return NextResponse\.next/);
+  assert.match(middleware, /if \(!isAuthRoute\) return NextResponse\.next/);
   assert.match(publicToolClient, /restoringSession/);
   assert.match(publicToolClient, /interactedRef/);
+});
+
+test("dashboard navigation avoids middleware database work and request waterfalls", () => {
+  assert.doesNotMatch(middleware, /from\('accounts'\)/);
+  assert.doesNotMatch(middleware, /'\/dashboard\/:path\*'/);
+  assert.match(dashboardWorkspace, /Promise\.all\(\[/);
+  assert.match(dashboardPage, /select\("id, title, selected_document_ids, created_at", \{ count: "exact" \}\)/);
+  assert.match(dashboardShell, /router\.prefetch\(href\)/);
+  assert.match(dashboardShell, /requestIdleCallback/);
+  assert.match(nextConfig, /clientSegmentCache: true/);
+  assert.match(nextConfig, /dynamic: 30/);
+  assert.match(dashboardShell, /showNavigationFeedback/);
+  assert.match(documentServer, /getDocumentAccessContext/);
+  assert.match(documentPageRoute, /getDocumentAccessContext/);
 });

@@ -16,17 +16,6 @@ async function extractReadableText(buffer: Buffer, fileType: DocumentRecord["fil
   return null;
 }
 
-async function getPdfPageCount(buffer: Buffer) {
-  const { PDFParse } = await import("pdf-parse");
-  const parser = new PDFParse({ data: buffer });
-  try {
-    const info = await parser.getInfo();
-    return info.total;
-  } finally {
-    await parser.destroy();
-  }
-}
-
 export default async function DocumentViewerPage({
   params,
   searchParams,
@@ -49,25 +38,22 @@ export default async function DocumentViewerPage({
 
   if (!document) notFound();
 
-  const [{ data: download }, { data: file }] = await Promise.all([
+  const [{ data: download }, fileResult] = await Promise.all([
     service.storage
       .from("documents")
       .createSignedUrl(document.file_path, 60 * 60, { download: document.name }),
-    service.storage.from("documents").download(document.file_path),
+    document.file_type === "pdf"
+      ? Promise.resolve({ data: null })
+      : service.storage.from("documents").download(document.file_path),
   ]);
 
   if (!download?.signedUrl) notFound();
 
   let extractedText: string | null = null;
-  let pageCount = 1;
-  if (file) {
+  if (fileResult.data) {
     try {
-      const buffer = Buffer.from(await file.arrayBuffer());
-      if (document.file_type === "pdf") {
-        pageCount = await getPdfPageCount(buffer);
-      } else {
-        extractedText = await extractReadableText(buffer, document.file_type);
-      }
+      const buffer = Buffer.from(await fileResult.data.arrayBuffer());
+      extractedText = await extractReadableText(buffer, document.file_type);
     } catch (error) {
       console.warn("Document preview metadata unavailable:", error);
     }
@@ -78,7 +64,7 @@ export default async function DocumentViewerPage({
       document={document as DocumentRecord}
       downloadUrl={download.signedUrl}
       extractedText={extractedText}
-      pageCount={pageCount}
+      pageCount={1}
       initialPage={Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1}
       highlightExcerpt={query.highlight?.trim() || null}
     />

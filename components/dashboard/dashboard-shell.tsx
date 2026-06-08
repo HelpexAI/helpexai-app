@@ -49,11 +49,56 @@ export function DashboardShell({
   const [collapsed, setCollapsed] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setCollapsed(localStorage.getItem("helpex-sidebar-collapsed") === "true");
   }, []);
+
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
+
+  useEffect(() => {
+    function showNavigationFeedback(event: MouseEvent) {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const anchor = (event.target as Element | null)?.closest("a[href]");
+      if (!(anchor instanceof HTMLAnchorElement) || anchor.target === "_blank" || anchor.origin !== window.location.origin) return;
+      const nextPath = `${anchor.pathname}${anchor.search}`;
+      if (nextPath !== `${window.location.pathname}${window.location.search}`) setPendingHref(nextPath);
+    }
+    document.addEventListener("click", showNavigationFeedback);
+    return () => document.removeEventListener("click", showNavigationFeedback);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const priorityRoutes = ["/dashboard", "/documents", "/conversations"];
+    priorityRoutes.forEach((href) => {
+      if (href !== pathname) router.prefetch(href);
+    });
+    const prefetchRemainingRoutes = () => {
+      if (cancelled) return;
+      navigation
+        .filter(({ href }) => !priorityRoutes.includes(href))
+        .forEach(({ href }, index) => {
+        window.setTimeout(() => {
+          if (!cancelled && href !== pathname) router.prefetch(href);
+        }, index * 150);
+      });
+      window.setTimeout(() => {
+        if (!cancelled) router.prefetch("/documents/upload");
+      }, navigation.length * 150);
+    };
+    const idleCallback = window.requestIdleCallback?.(prefetchRemainingRoutes, { timeout: 1000 });
+    const timeout = idleCallback === undefined ? window.setTimeout(prefetchRemainingRoutes, 250) : undefined;
+    return () => {
+      cancelled = true;
+      if (idleCallback !== undefined) window.cancelIdleCallback?.(idleCallback);
+      if (timeout !== undefined) window.clearTimeout(timeout);
+    };
+  }, [pathname, router]);
 
   useEffect(() => {
     function closeMenu(event: MouseEvent) {
@@ -100,6 +145,11 @@ export function DashboardShell({
       className="min-h-screen bg-slate-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-50"
       style={themeStyle(dashboardTheme(workspace.category))}
     >
+      {pendingHref && (
+        <div className="fixed inset-x-0 top-0 z-[100] h-0.5 overflow-hidden bg-theme-soft dark:bg-theme-soft-dark">
+          <div className="h-full w-1/2 animate-pulse rounded-full bg-theme-primary" />
+        </div>
+      )}
       <aside
         className={`fixed inset-y-0 left-0 z-40 hidden flex-col bg-[#0a1628] text-white transition-[width] duration-300 lg:flex ${
           collapsed ? "w-[76px]" : "w-60"
@@ -154,10 +204,15 @@ export function DashboardShell({
               <Link
                 key={href}
                 href={href}
+                prefetch
                 title={collapsed ? label : undefined}
                 aria-disabled={conversationsLocked}
+                onMouseEnter={() => router.prefetch(href)}
+                onFocus={() => router.prefetch(href)}
+                onTouchStart={() => router.prefetch(href)}
                 onClick={(event) => {
                   if (conversationsLocked) event.preventDefault();
+                  else if (!active) setPendingHref(href);
                 }}
                 className={`flex items-center rounded-lg py-2.5 text-sm transition-colors ${
                   collapsed ? "justify-center px-2" : "gap-3 px-3"
@@ -270,6 +325,11 @@ export function DashboardShell({
             {pathname === "/dashboard" && (
               <Link
                 href="/documents/upload"
+                prefetch
+                onMouseEnter={() => router.prefetch("/documents/upload")}
+                onFocus={() => router.prefetch("/documents/upload")}
+                onTouchStart={() => router.prefetch("/documents/upload")}
+                onClick={() => setPendingHref("/documents/upload")}
                 className="flex h-10 items-center justify-center gap-2 rounded-lg bg-theme-primary px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-theme-primary-hover sm:px-4"
               >
                 <Upload className="size-4" />
@@ -299,9 +359,12 @@ export function DashboardShell({
             <Link
               key={href}
               href={href}
+              prefetch
               aria-disabled={conversationsLocked}
+              onTouchStart={() => router.prefetch(href)}
               onClick={(event) => {
                 if (conversationsLocked) event.preventDefault();
+                else if (!active) setPendingHref(href);
               }}
               className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg text-[10px] font-medium transition-colors ${
                 active

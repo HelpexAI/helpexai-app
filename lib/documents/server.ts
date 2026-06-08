@@ -50,6 +50,21 @@ export async function getDocumentRequestContext() {
   };
 }
 
+export async function getDocumentAccessContext() {
+  const supabase = await createClient();
+  const [userResult, category] = await Promise.all([
+    supabase.auth.getUser(),
+    getActiveWorkspaceCategory(),
+  ]);
+  const user = userResult.data.user;
+  if (!user || !category) return null;
+  return {
+    user,
+    category,
+    service: createServiceClient(),
+  };
+}
+
 export function fileTypeFromFile(file: File): FileType | null {
   const extension = file.name.split(".").pop()?.toLowerCase();
 
