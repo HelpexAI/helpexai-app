@@ -1,5 +1,5 @@
-import { SectionLoading } from "@/components/dashboard/section-loading";
+import { ConversationSkeleton } from "@/components/conversations/conversation-skeleton";
 
 export default function ConversationsLoading() {
-  return <SectionLoading label="Loading conversations..." />;
+  return <ConversationSkeleton root />;
 }

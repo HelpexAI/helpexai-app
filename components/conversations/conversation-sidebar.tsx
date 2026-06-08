@@ -108,9 +108,10 @@ export function ConversationSidebar({
           {filtered.map((conversation) => {
             const active = conversation.id === activeId;
             const count = conversation.selected_document_ids.length;
+            const destination = active ? "/conversations" : `/conversations/${conversation.id}`;
             return (
               <div key={conversation.id} className={`group relative border-l-4 transition ${active ? "border-theme-primary bg-theme-soft dark:bg-theme-soft-dark" : "border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800/60"}`}>
-                <Link href={`/conversations/${conversation.id}`} prefetch onMouseEnter={() => router.prefetch(`/conversations/${conversation.id}`)} onFocus={() => router.prefetch(`/conversations/${conversation.id}`)} onTouchStart={() => router.prefetch(`/conversations/${conversation.id}`)} onClick={onMobileClose} className="flex items-start gap-2.5 px-4 py-3 pr-10">
+                <Link href={destination} prefetch onMouseEnter={() => router.prefetch(destination)} onFocus={() => router.prefetch(destination)} onTouchStart={() => router.prefetch(destination)} onClick={onMobileClose} aria-label={active ? `Close ${conversation.title}` : `Open ${conversation.title}`} className="flex items-start gap-2.5 px-4 py-3 pr-10">
                   <span className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg ${active ? "bg-theme-primary/10 text-theme-primary" : "bg-zinc-100 text-zinc-400 dark:bg-zinc-800"}`}><MessageSquare className="size-3.5" /></span>
                   <span className="min-w-0"><span className="block truncate text-sm font-semibold text-zinc-950 dark:text-white">{conversation.title}</span><span className="mt-1.5 flex items-center gap-2 text-[11px] text-zinc-400"><span className="inline-flex items-center gap-1 rounded bg-zinc-100 px-1.5 py-0.5 dark:bg-zinc-800"><FileText className="size-2.5" />{count} doc{count === 1 ? "" : "s"}</span><span>{formatRelativeTime(conversation.updated_at)}</span></span></span>
                 </Link>

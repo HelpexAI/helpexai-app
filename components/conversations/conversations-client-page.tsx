@@ -1,9 +1,9 @@
 "use client";
 
 import { ClientPageError } from "@/components/dashboard/client-page-error";
-import { SectionLoading } from "@/components/dashboard/section-loading";
 import { ConversationHub } from "@/components/conversations/conversation-hub";
 import { ConversationsLocked } from "@/components/conversations/conversations-locked";
+import { ConversationSkeleton } from "@/components/conversations/conversation-skeleton";
 import type { ConversationSummary } from "@/components/conversations/conversation-sidebar";
 import type { CategorySlug, Document } from "@/types";
 import { useCallback, useEffect, useState } from "react";
@@ -34,7 +34,7 @@ export function ConversationsClientPage() {
   }, []);
   useEffect(() => { void load(); }, [load]);
   if (error) return <ClientPageError message={error} onRetry={() => void load()} />;
-  if (!data) return <SectionLoading label="Loading conversations..." />;
+  if (!data) return <ConversationSkeleton root />;
   if (data.locked) return <ConversationsLocked used={data.used ?? 0} limit={data.limit ?? 0} />;
   return <ConversationHub conversations={data.conversations ?? []} documents={data.documents ?? []} category={data.category ?? "legal"} />;
 }
