@@ -1,10 +1,13 @@
 import { getDocumentRequestContext } from "@/lib/documents/server";
 import { CreateConversationSchema } from "@/lib/validations/schemas";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   const context = await getDocumentRequestContext();
   if (!context) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const limited = await enforceRateLimit(`conversation-create:${context.user.id}:${context.category}`, 20, 60);
+  if (limited) return limited;
   if (context.documentLimit.requiresResolution) {
     return NextResponse.json(
       { error: "Choose which documents to keep before starting conversations.", code: "DOCUMENT_LIMIT_RESOLUTION_REQUIRED" },

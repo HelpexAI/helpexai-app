@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/account-deletions",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/public-tool-cleanup",
+      "schedule": "30 3 * * *"
+    }
+  ]
+}

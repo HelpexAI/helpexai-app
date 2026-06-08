@@ -4,21 +4,23 @@ import { stripe } from "@/lib/stripe/client";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { updateAccountFromSubscription } from "@/lib/stripe/subscriptions";
 import { startOfTodayUtc } from "@/lib/usage/daily";
+import { normalizePlanSlug, PLAN_LIMITS } from "@/lib/stripe/plans";
 
 export const dynamic = "force-dynamic";
 
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams: { checkout?: string; session_id?: string };
+  searchParams: Promise<{ checkout?: string; session_id?: string }>;
 }) {
+  const resolvedSearchParams = await searchParams;
   const workspace = await getCurrentWorkspace();
   const supabase = await createClient();
   const service = createServiceClient();
 
-  if (searchParams.checkout === "success" && searchParams.session_id) {
+  if (resolvedSearchParams.checkout === "success" && resolvedSearchParams.session_id) {
     try {
-      const session = await stripe.checkout.sessions.retrieve(searchParams.session_id);
+      const session = await stripe.checkout.sessions.retrieve(resolvedSearchParams.session_id);
       if (session.client_reference_id === workspace.userId && typeof session.subscription === "string") {
         await updateAccountFromSubscription(await stripe.subscriptions.retrieve(session.subscription));
       }
@@ -33,16 +35,13 @@ export default async function BillingPage({
     .eq("user_id", workspace.userId)
     .eq("category_slug", workspace.category)
     .maybeSingle();
-  const currentPlan = account?.plan === "pro" ? "pro" : "free";
+  const currentPlan = normalizePlanSlug(account?.plan);
   const [planResult, documentsResult, questionsResult] = await Promise.all([
     supabase.from("plans").select("max_documents, max_queries_day").eq("slug", currentPlan).eq("category_slug", workspace.category).maybeSingle(),
     supabase.from("documents").select("*", { count: "exact", head: true }).eq("user_id", workspace.userId).eq("category_slug", workspace.category),
     supabase.from("usage_logs").select("*", { count: "exact", head: true }).eq("user_id", workspace.userId).eq("category_slug", workspace.category).eq("action", "query").gte("created_at", startOfTodayUtc()),
   ]);
-  const limits = planResult.data ?? {
-    max_documents: currentPlan === "pro" ? 50 : 1,
-    max_queries_day: currentPlan === "pro" ? 50 : 3,
-  };
+  const limits = planResult.data ?? PLAN_LIMITS[currentPlan];
 
   const invoices = [];
   if (account?.stripe_customer_id) {
@@ -66,7 +65,7 @@ export default async function BillingPage({
     <BillingOverview
       plan={currentPlan}
       subscriptionStatus={account?.subscription_status ?? null}
-      notice={searchParams.checkout === "success" ? "success" : searchParams.checkout === "cancelled" ? "cancelled" : undefined}
+      notice={resolvedSearchParams.checkout === "success" ? "success" : resolvedSearchParams.checkout === "cancelled" ? "cancelled" : undefined}
       usage={[
         { label: "Documents", current: documentsResult.count ?? 0, limit: limits.max_documents },
         { label: "Questions Today", current: questionsResult.count ?? 0, limit: limits.max_queries_day },

@@ -1,6 +1,7 @@
+import { reportError } from "@/lib/monitoring";
 import { stripe } from "@/lib/stripe/client";
-import { createServiceClient } from "@/lib/supabase/server";
 import { updateAccountFromSubscription } from "@/lib/stripe/subscriptions";
+import { createServiceClient } from "@/lib/supabase/server";
 import type Stripe from "stripe";
 import { NextResponse } from "next/server";
 
@@ -23,32 +24,42 @@ export async function POST(request: Request) {
     );
   }
 
+  const service = createServiceClient();
   try {
-    if (event.type === "checkout.session.completed") {
-      const session = event.data.object;
-      if (typeof session.subscription === "string") {
-        await updateAccountFromSubscription(await stripe.subscriptions.retrieve(session.subscription));
+    const { error: claimError } = await service
+      .from("stripe_events")
+      .insert({ event_id: event.id, event_type: event.type });
+    if (claimError?.code === "23505") {
+      return NextResponse.json({ received: true, duplicate: true });
+    }
+    if (claimError) throw claimError;
+
+    try {
+      if (event.type === "checkout.session.completed") {
+        const session = event.data.object;
+        if (typeof session.subscription === "string") {
+          await updateAccountFromSubscription(await stripe.subscriptions.retrieve(session.subscription));
+        }
       }
-    }
 
-    if (event.type === "customer.subscription.created" || event.type === "customer.subscription.updated") {
-      await updateAccountFromSubscription(event.data.object);
-    }
+      if (event.type === "customer.subscription.created" || event.type === "customer.subscription.updated") {
+        await updateAccountFromSubscription(event.data.object);
+      }
 
-    if (event.type === "customer.subscription.deleted") {
-      const subscription = event.data.object;
-      const service = createServiceClient();
-      const { error } = await service
-        .from("accounts")
-        .update({
-          plan: "free",
-          subscription_status: "cancelled",
-        })
-        .eq("stripe_subscription_id", subscription.id);
-      if (error) throw error;
+      if (event.type === "customer.subscription.deleted") {
+        const subscription = event.data.object;
+        const { error } = await service
+          .from("accounts")
+          .update({ plan: "free", subscription_status: "cancelled" })
+          .eq("stripe_subscription_id", subscription.id);
+        if (error) throw error;
+      }
+    } catch (error) {
+      await service.from("stripe_events").delete().eq("event_id", event.id);
+      throw error;
     }
   } catch (error) {
-    console.error("Stripe webhook synchronization failed:", error);
+    reportError(error, { area: "stripe-webhook", eventId: event.id, eventType: event.type });
     return NextResponse.json({ error: "Webhook synchronization failed." }, { status: 500 });
   }
 

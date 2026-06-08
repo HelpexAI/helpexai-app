@@ -68,6 +68,5 @@ export type SendMessageInput = z.infer<typeof SendMessageSchema>
 // ── Billing ───────────────────────────────────
 
 export const CheckoutSchema = z.object({
-  plan_slug: z.literal('pro'),
-  category_slug: z.enum(['legal', 'business'] as const),
+  plan_slug: z.enum(['pro', 'premium'] as const),
 })

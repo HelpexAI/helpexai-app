@@ -18,6 +18,7 @@ export function MarketingFooter() {
         </div>
       </Link>
       <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm leading-5 text-zinc-500 dark:text-zinc-400 sm:gap-x-6">
+        <Link href="/free-tool">Free Tool</Link>
         <Link href="/#features">Features</Link>
         <Link href="/#pricing">Pricing</Link>
         <Link href="/privacy">Privacy Policy</Link>

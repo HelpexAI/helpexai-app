@@ -2,6 +2,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getActiveWorkspaceCategory } from "@/lib/dashboard/active-workspace";
 import { getDocumentLimitState } from "@/lib/usage/limits";
 import type { CategorySlug, FileType, PlanSlug } from "@/types";
+import { normalizePlanSlug } from "@/lib/stripe/plans";
 
 export async function getDocumentRequestContext() {
   const supabase = await createClient();
@@ -36,7 +37,7 @@ export async function getDocumentRequestContext() {
   if (!account) return null;
 
   const category = (account?.category_slug === "business" ? "business" : "legal") as CategorySlug;
-  const plan = (account?.plan === "pro" ? "pro" : "free") as PlanSlug;
+  const plan = normalizePlanSlug(account?.plan) as PlanSlug;
   const service = createServiceClient();
   const documentLimit = await getDocumentLimitState(service, user.id, category, plan);
 

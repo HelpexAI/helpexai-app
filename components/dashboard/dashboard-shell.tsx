@@ -234,7 +234,7 @@ export function DashboardShell({
               </p>
               <span
                 className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                  workspace.plan === "pro"
+                  workspace.plan !== "free"
                     ? "bg-violet-500/20 text-violet-300"
                     : "bg-white/10 text-slate-300"
                 }`}

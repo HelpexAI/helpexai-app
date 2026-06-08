@@ -27,7 +27,11 @@ export function LoginForm() {
         ? "We could not complete sign in. Please try again."
         : "",
   );
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState(() =>
+    searchParams.get("password") === "updated"
+      ? "Password updated. Sign in with your new password."
+      : "",
+  );
 
   async function continueWithGoogle() {
     setLoading("google");
@@ -105,7 +109,7 @@ export function LoginForm() {
     const supabase = createClient();
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(
       email,
-      { redirectTo: `${window.location.origin}/auth/callback?next=/settings` },
+      { redirectTo: `${window.location.origin}/auth/callback?next=/reset-password` },
     );
 
     if (resetError) {

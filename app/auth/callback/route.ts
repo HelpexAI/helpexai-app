@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { setActiveWorkspaceCookie } from "@/lib/dashboard/workspace-session";
 import type { CategorySlug } from "@/types";
 import { NextResponse } from "next/server";
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
         : null;
 
   if (category && mode === "signup") {
-    const { error: accountError } = await supabase
+    const { error: accountError } = await createServiceClient()
       .from("accounts")
       .upsert(
         {
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
     }
   }
 
-  const safeNext = next?.startsWith("/") ? next : "/dashboard";
+  const safeNext = next?.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
   if (category && mode === "signup") {
     const response = NextResponse.redirect(new URL(safeNext, url.origin));
     setActiveWorkspaceCookie(response, category);

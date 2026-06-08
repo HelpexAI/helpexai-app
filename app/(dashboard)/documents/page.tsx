@@ -1,6 +1,7 @@
 import { DocumentLibrary } from "@/components/documents/document-library";
 import { getCurrentWorkspace } from "@/lib/dashboard/workspace";
 import { createClient } from "@/lib/supabase/server";
+import { PLAN_LIMITS } from "@/lib/stripe/plans";
 
 export default async function DocumentsPage() {
   const workspace = await getCurrentWorkspace();
@@ -24,7 +25,7 @@ export default async function DocumentsPage() {
     <DocumentLibrary
       documents={documents ?? []}
       category={workspace.category}
-      maxDocuments={plan?.max_documents ?? (workspace.plan === "pro" ? 50 : 1)}
+      maxDocuments={plan?.max_documents ?? PLAN_LIMITS[workspace.plan].max_documents}
       requiresResolution={workspace.documentsOverLimit}
     />
   );

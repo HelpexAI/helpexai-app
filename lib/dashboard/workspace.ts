@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspaceCategory } from "@/lib/dashboard/active-workspace";
 import { getDocumentLimitState } from "@/lib/usage/limits";
 import type { CategorySlug, PlanSlug } from "@/types";
+import { normalizePlanSlug } from "@/lib/stripe/plans";
 import { redirect } from "next/navigation";
 
 export interface CurrentWorkspace {
@@ -66,7 +67,7 @@ export async function getCurrentWorkspace(): Promise<CurrentWorkspace> {
     .toUpperCase();
 
   const category = account?.category_slug === "business" ? "business" : "legal";
-  const plan = account?.plan === "pro" ? "pro" : "free";
+  const plan = normalizePlanSlug(account?.plan);
   const documentLimit = await getDocumentLimitState(supabase, user.id, category, plan);
 
   return {

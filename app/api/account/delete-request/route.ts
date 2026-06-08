@@ -1,5 +1,6 @@
 import { getDocumentRequestContext } from "@/lib/documents/server";
 import { stripe } from "@/lib/stripe/client";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -7,6 +8,8 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   const context = await getDocumentRequestContext();
   if (!context) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const limited = await enforceRateLimit(`account-delete:${context.user.id}`, 3, 3600);
+  if (limited) return limited;
 
   const body = await request.json().catch(() => ({}));
   if (body.confirmation !== "DELETE") {
@@ -18,14 +21,18 @@ export async function POST(request: Request) {
     .select("stripe_subscription_id")
     .eq("user_id", context.user.id)
 
+  const cancellationErrors: string[] = [];
   for (const account of accounts ?? []) {
     if (account.stripe_subscription_id) {
       try {
         await stripe.subscriptions.cancel(account.stripe_subscription_id);
       } catch (error) {
-        console.warn("Subscription cancellation during deletion request skipped:", error);
+        cancellationErrors.push(error instanceof Error ? error.message : "Stripe cancellation failed");
       }
     }
+  }
+  if (cancellationErrors.length) {
+    return NextResponse.json({ error: "Could not cancel all active subscriptions. Please try again." }, { status: 502 });
   }
 
   const { error } = await context.service

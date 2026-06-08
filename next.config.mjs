@@ -1,13 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: [
-      "pdf-parse",
-      "pdfjs-dist",
-      "@napi-rs/canvas",
-      "mammoth",
-    ],
-  },
+  serverExternalPackages: [
+    "pdf-parse",
+    "pdfjs-dist",
+    "@napi-rs/canvas",
+    "mammoth",
+  ],
   images: {
     remotePatterns: [
       {

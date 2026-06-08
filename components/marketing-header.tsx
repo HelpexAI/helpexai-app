@@ -6,6 +6,7 @@ import { LayoutDashboard, Menu, Moon, Sun, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const links = [
+  { label: "Free Tool", homeHref: "/free-tool", otherHref: "/free-tool" },
   { label: "Features", homeHref: "#features", otherHref: "/#features" },
   { label: "Pricing", homeHref: "#pricing", otherHref: "/#pricing" },
   { label: "Privacy Policy", homeHref: "/privacy", otherHref: "/privacy" },
@@ -47,7 +48,9 @@ export function MarketingHeader() {
         <nav className="hidden items-center gap-6 text-sm font-medium leading-5 text-zinc-500 dark:text-zinc-400 lg:flex xl:gap-8">
           {links.map((link) => {
             const href = pathname === "/" ? link.homeHref : link.otherHref;
-            const active = link.label === "Privacy Policy" && pathname === "/privacy";
+            const active =
+              (link.label === "Privacy Policy" && pathname === "/privacy") ||
+              (link.label === "Free Tool" && pathname === "/free-tool");
 
             return (
               <Link

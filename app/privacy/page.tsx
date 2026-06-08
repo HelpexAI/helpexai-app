@@ -37,6 +37,12 @@ const sections = [
             browser information, IP address, and diagnostic data.
           </li>
           <li>
+            <strong>Public tool information:</strong> email addresses submitted
+            with marketing consent, temporary extracted document text, and
+            questions asked through the free public tool. Temporary public-tool
+            document text is scheduled for deletion after 24 hours.
+          </li>
+          <li>
             <strong>Payment information:</strong> billing details processed by
             our payment provider. HelpexAI does not store full payment card
             numbers.

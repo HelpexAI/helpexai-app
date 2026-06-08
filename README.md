@@ -42,6 +42,8 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 STRIPE_WEBHOOK_SECRET=
 STRIPE_LEGAL_PRO_PRICE_ID=
 STRIPE_BUSINESS_PRO_PRICE_ID=
+STRIPE_LEGAL_PREMIUM_PRICE_ID=
+STRIPE_BUSINESS_PREMIUM_PRICE_ID=
 ```
 
 ### 2. Supabase Setup
@@ -50,6 +52,13 @@ STRIPE_BUSINESS_PRO_PRICE_ID=
 3. Storage → create bucket named `documents` (private)
 4. Authentication → enable Google OAuth
 5. Copy URL + keys to `.env.local`
+
+For an existing project, run `002_remove_conversation_limits.sql`,
+`003_alpha_hardening.sql`, `004_three_tier_pricing.sql`, and
+`005_public_tool.sql`, then `006_fix_public_tool_question_reservation.sql` in
+Supabase SQL Editor. Migration `003` is required
+before running the hardened app because API routes use its atomic quota and
+rate-limit functions.
 
 ### 3. Qdrant Setup
 Follow instructions in `supabase/qdrant_setup.md`
@@ -60,7 +69,7 @@ npm run dev
 ```
 
 ### 5. Stripe test billing
-1. Use Stripe test-mode API keys and recurring monthly Price IDs in `.env.local`.
+1. Create recurring monthly Pro ($29) and Premium ($49) prices for both Legal and Business, then add all four test-mode Price IDs to `.env.local`.
 2. Register `/api/stripe/webhook` and enable:
    - `checkout.session.completed`
    - `customer.subscription.created`
@@ -70,6 +79,18 @@ npm run dev
 4. Use Stripe test card `4242 4242 4242 4242` with any future expiry and CVC.
 
 The app returns an account to Free when Stripe reports the subscription as inactive or deleted. If the workspace then exceeds the Free document allowance, conversations remain locked until the user chooses which documents to keep.
+
+### 6. Alpha release checks
+```bash
+npm run check
+```
+
+Set `CRON_SECRET` in Vercel. `vercel.json` schedules permanent account deletion cleanup daily at 03:00 UTC.
+Set a separate long random `PUBLIC_TOOL_SECRET` in Vercel. The public tool stores
+marketing-consented emails separately and automatically removes expiring
+document text sessions after 24 hours.
+
+OpenAI embeddings remain the preferred semantic-search path. If OpenAI quota is unavailable, chat falls back to bounded raw selected-document context with Groq. Restoring OpenAI billing requires no code change; reprocess documents afterward to populate Qdrant.
 
 ## Tech Stack
 - **Frontend:** Next.js 14, TypeScript, Tailwind CSS, shadcn/ui

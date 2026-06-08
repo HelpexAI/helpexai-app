@@ -1,8 +1,9 @@
 import { extractDocumentText } from "@/lib/ai/pipeline/ingest";
 import { isEmbeddingUnavailable, queryDocuments, queryDocumentsFromRawText } from "@/lib/ai/pipeline/query";
 import { getDocumentRequestContext } from "@/lib/documents/server";
-import { startOfTodayUtc } from "@/lib/usage/daily";
 import { SendMessageSchema } from "@/lib/validations/schemas";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
+import { reportError } from "@/lib/monitoring";
 import { NextResponse } from "next/server";
 
 function conversationTitle(message: string) {
@@ -65,10 +66,13 @@ async function queryWithSelectedDocumentFallback(
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   const context = await getDocumentRequestContext();
   if (!context) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const limited = await enforceRateLimit(`conversation-message:${context.user.id}:${context.category}`, 15, 60);
+  if (limited) return limited;
   if (context.documentLimit.requiresResolution) {
     return NextResponse.json(
       { error: "Choose which documents to keep before continuing conversations.", code: "DOCUMENT_LIMIT_RESOLUTION_REQUIRED" },
@@ -87,32 +91,26 @@ export async function POST(
   const { data: conversation } = await context.service
     .from("conversations")
     .select("id, title, selected_document_ids")
-    .eq("id", params.id)
+    .eq("id", id)
     .eq("user_id", context.user.id)
     .eq("category_slug", context.category)
     .maybeSingle();
 
   if (!conversation) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
 
-  const [{ data: plan }, { count }] = await Promise.all([
-    context.service
-      .from("plans")
-      .select("max_queries_day")
-      .eq("slug", context.plan)
-      .eq("category_slug", context.category)
-      .maybeSingle(),
-    context.service
-      .from("usage_logs")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", context.user.id)
-      .eq("category_slug", context.category)
-      .eq("action", "query")
-      .gte("created_at", startOfTodayUtc()),
-  ]);
-  const maxQueries = plan?.max_queries_day ?? (context.plan === "pro" ? 50 : 3);
-  if ((count ?? 0) >= maxQueries) {
+  const requestId = crypto.randomUUID();
+  const { data: reservation, error: reservationError } = await context.service.rpc("reserve_daily_query", {
+    p_user_id: context.user.id,
+    p_category_slug: context.category,
+    p_request_id: requestId,
+  });
+  if (reservationError) {
+    return NextResponse.json({ error: "Question quota protection is unavailable. Apply the alpha hardening migration." }, { status: 503 });
+  }
+  const quota = reservation?.[0];
+  if (!quota?.allowed) {
     return NextResponse.json(
-      { error: `You have reached today's ${maxQueries}-question limit.`, code: "QUERY_LIMIT_REACHED" },
+      { error: `You have reached today's ${quota?.quota_limit ?? 3}-question limit.`, code: "QUERY_LIMIT_REACHED" },
       { status: 403 },
     );
   }
@@ -122,7 +120,10 @@ export async function POST(
     .insert({ conversation_id: conversation.id, role: "user", content: parsed.data.content })
     .select()
     .single();
-  if (userError) return NextResponse.json({ error: userError.message }, { status: 500 });
+  if (userError) {
+    await context.service.from("usage_logs").delete().eq("request_id", requestId);
+    return NextResponse.json({ error: userError.message }, { status: 500 });
+  }
 
   if (conversation.title === "New Conversation") {
     await context.service
@@ -151,13 +152,11 @@ export async function POST(
       .single();
     if (assistantError) throw assistantError;
 
-    const { error: usageError } = await context.service.from("usage_logs").insert({
-      user_id: context.user.id,
-      category_slug: context.category,
-      action: "query",
-      tokens_used: result.tokensUsed,
-    });
+    const { error: usageError } = await context.service.from("usage_logs")
+      .update({ tokens_used: result.tokensUsed })
+      .eq("request_id", requestId);
     if (usageError) {
+      await context.service.from("usage_logs").delete().eq("request_id", requestId);
       await context.service.from("messages").delete().eq("id", assistantMessage.id);
       await context.service.from("messages").delete().eq("id", userMessage.id);
       return NextResponse.json({ error: "Could not record successful answer usage." }, { status: 500 });
@@ -172,7 +171,8 @@ export async function POST(
         : undefined,
     });
   } catch (error) {
-    console.error("Conversation query failed:", error);
+    reportError(error, { area: "conversation-query", userId: context.user.id, category: context.category, conversationId: conversation.id });
+    await context.service.from("usage_logs").delete().eq("request_id", requestId);
     await context.service.from("messages").delete().eq("id", userMessage.id);
     const message = error instanceof Error ? `${error.name} ${error.message}` : String(error);
     const providerMessage = /429|rate.?limit|quota/i.test(message)

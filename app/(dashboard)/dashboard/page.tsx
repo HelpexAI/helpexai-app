@@ -1,6 +1,7 @@
 import { getCurrentWorkspace } from "@/lib/dashboard/workspace";
 import { startOfTodayUtc } from "@/lib/usage/daily";
 import { createClient } from "@/lib/supabase/server";
+import { PLAN_LIMITS } from "@/lib/stripe/plans";
 import {
   ArrowRight,
   Briefcase,
@@ -127,10 +128,7 @@ export default async function DashboardPage() {
       .limit(3),
   ]);
 
-  const limits = planResult.data ?? {
-    max_documents: workspace.plan === "pro" ? 50 : 1,
-    max_queries_day: workspace.plan === "pro" ? 50 : 3,
-  };
+  const limits = planResult.data ?? PLAN_LIMITS[workspace.plan];
   const documentsCount = documentsResult.count ?? 0;
   const questionsCount = questionsResult.count ?? 0;
   const recentConversations = recentResult.data ?? [];
@@ -275,7 +273,7 @@ export default async function DashboardPage() {
                 You&apos;re on the Free plan
               </p>
               <p className="mt-0.5 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Upgrade to Pro for 50 documents and 50 daily questions.
+                Upgrade to Pro for 30 documents and 30 daily questions.
               </p>
             </div>
           </div>

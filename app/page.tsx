@@ -272,7 +272,7 @@ export default function HomePage() {
                   Start free and upgrade when your team needs more power.
                 </p>
               </div>
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                 {/* Free */}
                 <div className="shadow-sm rounded-3xl bg-white border border-zinc-200 p-6 gap-4 flex flex-col">
                   <div>
@@ -291,8 +291,8 @@ export default function HomePage() {
                   </div>
                   <div className="flex flex-col gap-2">
                     {[
-                      { ok: true, label: "1 document" },
-                      { ok: true, label: "3 questions/day" },
+                      { ok: true, label: "3 documents" },
+                      { ok: true, label: "5 questions/day" },
                       { ok: true, label: "Unlimited conversations" },
                       { ok: false, label: "Advanced citations" },
                       { ok: false, label: "Cross-document comparison" },
@@ -329,7 +329,7 @@ export default function HomePage() {
                     </div>
                     <div className="flex items-end gap-2">
                       <span className="font-black text-4xl leading-10">
-                        $49
+                        $29
                       </span>
                       <span className="text-theme-primary-foreground/80 text-sm leading-5 pb-1">
                         /month
@@ -338,8 +338,8 @@ export default function HomePage() {
                   </div>
                   <div className="flex flex-col gap-2">
                     {[
-                      "50 documents",
-                      "50 questions/day",
+                      "30 documents",
+                      "30 questions/day",
                       "Unlimited conversations",
                       "Priority processing",
                       "Cross-document comparison",
@@ -358,6 +358,42 @@ export default function HomePage() {
                     className="mt-auto font-semibold rounded-full bg-white text-theme-primary text-sm text-center px-6 py-3"
                   >
                     Upgrade to Pro
+                  </Link>
+                </div>
+
+                {/* Premium */}
+                <div className="shadow-sm rounded-3xl bg-white border-2 border-theme-primary p-6 gap-4 flex flex-col">
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="font-bold text-xl leading-7">Premium</h3>
+                      <span className="font-semibold rounded-full bg-theme-soft text-theme-soft-foreground text-xs leading-4 px-3 py-1">
+                        Maximum Power
+                      </span>
+                    </div>
+                    <div className="flex items-end gap-2">
+                      <span className="font-black text-4xl leading-10">$49</span>
+                      <span className="text-[#71717b] text-sm leading-5 pb-1">/month</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {[
+                      "100 documents",
+                      "100 questions/day",
+                      "Unlimited conversations",
+                      "Priority processing",
+                      "Cross-document comparison",
+                    ].map((f) => (
+                      <div key={f} className="text-sm leading-5 flex items-center gap-3">
+                        <Check className="size-4 text-theme-primary" />
+                        {f}
+                      </div>
+                    ))}
+                  </div>
+                  <Link
+                    href="/signup"
+                    className="mt-auto font-semibold rounded-full bg-theme-primary text-white text-sm text-center px-6 py-3"
+                  >
+                    Get Premium
                   </Link>
                 </div>
               </div>

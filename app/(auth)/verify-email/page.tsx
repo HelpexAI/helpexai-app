@@ -6,15 +6,16 @@ export const metadata: Metadata = {
   title: "Check Your Email",
 };
 
-export default function VerifyEmailPage({
+export default async function VerifyEmailPage({
   searchParams,
 }: {
-  searchParams: { email?: string; category?: string };
+  searchParams: Promise<{ email?: string; category?: string }>;
 }) {
+  const resolvedSearchParams = await searchParams;
   const category: CategorySlug | undefined =
-    searchParams.category === "legal" || searchParams.category === "business"
-      ? searchParams.category
+    resolvedSearchParams.category === "legal" || resolvedSearchParams.category === "business"
+      ? resolvedSearchParams.category
       : undefined;
 
-  return <VerifyEmailCard email={searchParams.email} category={category} />;
+  return <VerifyEmailCard email={resolvedSearchParams.email} category={category} />;
 }

@@ -103,3 +103,31 @@
 .dark .marketing-page [class~="bg-theme-primary"] .bg-white {
   background-color: #fff;
 }
+
+.public-tool-scrollbar {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--theme-primary) / 0.55) transparent;
+}
+
+.public-tool-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.public-tool-scrollbar::-webkit-scrollbar-track {
+  margin-block: 10px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.public-tool-scrollbar::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: rgb(var(--theme-primary) / 0.5);
+  background-clip: padding-box;
+}
+
+.public-tool-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--theme-primary) / 0.8);
+  background-clip: padding-box;
+}

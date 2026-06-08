@@ -1,5 +1,6 @@
 import { getDocumentRequestContext } from "@/lib/documents/server";
 import { stripe } from "@/lib/stripe/client";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -7,6 +8,8 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   const context = await getDocumentRequestContext();
   if (!context) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const limited = await enforceRateLimit(`stripe-portal:${context.user.id}:${context.category}`, 10, 3600);
+  if (limited) return limited;
 
   const { data: account } = await context.service
     .from("accounts")
@@ -22,7 +25,7 @@ export async function POST(request: Request) {
   try {
     const configurations = await stripe.billingPortal.configurations.list({ active: true, limit: 1 });
     const configuration = configurations.data[0] ?? await stripe.billingPortal.configurations.create({
-      business_profile: { headline: "Manage your HelpexAI Pro subscription" },
+      business_profile: { headline: "Manage your HelpexAI subscription" },
       features: {
         customer_update: { enabled: true, allowed_updates: ["email", "address"] },
         invoice_history: { enabled: true },

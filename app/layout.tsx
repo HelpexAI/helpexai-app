@@ -3,7 +3,11 @@ import { Inter } from 'next/font/google'
 import { themeStyle } from '@/lib/theme'
 import './globals.css'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-sans',
+})
 
 export const metadata: Metadata = {
   title: {
@@ -37,7 +41,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={inter.className} style={themeStyle("main")}>{children}</body>
+      <body className={`${inter.variable} font-sans`} style={themeStyle("main")}>{children}</body>
     </html>
   )
 }

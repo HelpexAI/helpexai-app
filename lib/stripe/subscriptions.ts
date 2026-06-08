@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import type { CategorySlug, SubscriptionStatus } from "@/types";
+import { normalizePlanSlug } from "@/lib/stripe/plans";
+import type { CategorySlug, PlanSlug, SubscriptionStatus } from "@/types";
 import type Stripe from "stripe";
 
 export function validStripePriceId(value: string | null | undefined) {
@@ -13,6 +14,20 @@ export function subscriptionStatus(status: Stripe.Subscription.Status): Subscrip
   return "cancelled";
 }
 
+function planFromPriceId(priceId: string | undefined): PlanSlug {
+  const premiumPrices = [
+    process.env.STRIPE_LEGAL_PREMIUM_PRICE_ID,
+    process.env.STRIPE_BUSINESS_PREMIUM_PRICE_ID,
+  ];
+  const proPrices = [
+    process.env.STRIPE_LEGAL_PRO_PRICE_ID,
+    process.env.STRIPE_BUSINESS_PRO_PRICE_ID,
+  ];
+  if (priceId && premiumPrices.includes(priceId)) return "premium";
+  if (priceId && proPrices.includes(priceId)) return "pro";
+  return "free";
+}
+
 export async function updateAccountFromSubscription(subscription: Stripe.Subscription) {
   const service = createServiceClient();
   const userId = subscription.metadata.user_id;
@@ -20,10 +35,14 @@ export async function updateAccountFromSubscription(subscription: Stripe.Subscri
   if (!userId || !category) return;
 
   const status = subscriptionStatus(subscription.status);
-  await service
+  const active = status === "active" || status === "trialing";
+  const metadataPlan = normalizePlanSlug(subscription.metadata.plan_slug);
+  const pricePlan = planFromPriceId(subscription.items.data[0]?.price.id);
+  const paidPlan = metadataPlan !== "free" ? metadataPlan : pricePlan;
+  const { error } = await service
     .from("accounts")
     .update({
-      plan: status === "active" || status === "trialing" ? "pro" : "free",
+      plan: active && paidPlan !== "free" ? paidPlan : "free",
       stripe_customer_id:
         typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id,
       stripe_subscription_id: subscription.id,
@@ -31,4 +50,5 @@ export async function updateAccountFromSubscription(subscription: Stripe.Subscri
     })
     .eq("user_id", userId)
     .eq("category_slug", category);
+  if (error) throw error;
 }

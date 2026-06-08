@@ -30,14 +30,15 @@ async function getPdfPageCount(buffer: Buffer) {
 export default async function DocumentViewerPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const workspace = await getCurrentWorkspace();
   const service = createServiceClient();
   const { data: document } = await service
     .from("documents")
     .select("*")
-    .eq("id", params.id)
+    .eq("id", id)
     .eq("user_id", workspace.userId)
     .eq("category_slug", workspace.category)
     .maybeSingle();

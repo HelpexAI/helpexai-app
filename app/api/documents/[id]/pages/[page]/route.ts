@@ -6,14 +6,15 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   _request: Request,
-  { params }: { params: { id: string; page: string } },
+  { params }: { params: Promise<{ id: string; page: string }> },
 ) {
+  const { id, page: pageParam } = await params;
   const context = await getDocumentRequestContext();
   if (!context) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const page = Number.parseInt(params.page, 10);
+  const page = Number.parseInt(pageParam, 10);
   if (!Number.isInteger(page) || page < 1) {
     return NextResponse.json({ error: "Invalid page" }, { status: 400 });
   }
@@ -21,7 +22,7 @@ export async function GET(
   const { data: document } = await context.service
     .from("documents")
     .select("file_path, file_type")
-    .eq("id", params.id)
+    .eq("id", id)
     .eq("user_id", context.user.id)
     .eq("category_slug", context.category)
     .eq("file_type", "pdf")

@@ -41,14 +41,14 @@ CREATE TABLE categories (
 );
 
 -- ── Plans ─────────────────────────────────────────────────────────────────────
--- Free and Pro plan per category (separate Stripe price IDs per category)
+-- Free, Pro, and Premium plan per category
 
 CREATE TABLE plans (
   id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name                TEXT NOT NULL,
-  slug                TEXT NOT NULL CHECK (slug IN ('free', 'pro')),
+  slug                TEXT NOT NULL CHECK (slug IN ('free', 'pro', 'premium')),
   category_slug       TEXT NOT NULL CHECK (category_slug IN ('legal', 'business')),
-  price_monthly       INTEGER NOT NULL DEFAULT 0,           -- in cents (0 = free, 4900 = $49)
+  price_monthly       INTEGER NOT NULL DEFAULT 0,           -- in cents (2900 = $29)
   stripe_price_id     TEXT,                                 -- null for free plan
   max_documents       INTEGER NOT NULL,
   max_queries_day     INTEGER NOT NULL,
@@ -69,7 +69,7 @@ CREATE TABLE accounts (
   id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id                 UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   category_slug           TEXT NOT NULL CHECK (category_slug IN ('legal', 'business')),
-  plan                    TEXT NOT NULL DEFAULT 'free' CHECK (plan IN ('free', 'pro')),
+  plan                    TEXT NOT NULL DEFAULT 'free' CHECK (plan IN ('free', 'pro', 'premium')),
   stripe_customer_id      TEXT,
   stripe_subscription_id  TEXT,
   subscription_status     TEXT CHECK (subscription_status IN ('active', 'cancelled', 'past_due', 'trialing')),
@@ -204,14 +204,6 @@ CREATE POLICY "Users can view own accounts"
   ON accounts FOR SELECT
   USING (user_id = auth.uid());
 
-CREATE POLICY "Users can insert own accounts"
-  ON accounts FOR INSERT
-  WITH CHECK (user_id = auth.uid());
-
-CREATE POLICY "Users can update own accounts"
-  ON accounts FOR UPDATE
-  USING (user_id = auth.uid());
-
 -- Note: accounts are never deleted directly — use deletion_requested_at flow
 
 -- ── Documents RLS ─────────────────────────────────────────────────────────────
@@ -219,53 +211,17 @@ CREATE POLICY "Users can view own documents"
   ON documents FOR SELECT
   USING (user_id = auth.uid());
 
-CREATE POLICY "Users can insert own documents"
-  ON documents FOR INSERT
-  WITH CHECK (user_id = auth.uid());
-
-CREATE POLICY "Users can update own documents"
-  ON documents FOR UPDATE
-  USING (user_id = auth.uid());
-
-CREATE POLICY "Users can delete own documents"
-  ON documents FOR DELETE
-  USING (user_id = auth.uid());
-
 -- ── Conversations RLS ─────────────────────────────────────────────────────────
 CREATE POLICY "Users can view own conversations"
   ON conversations FOR SELECT
   USING (user_id = auth.uid());
 
-CREATE POLICY "Users can insert own conversations"
-  ON conversations FOR INSERT
-  WITH CHECK (user_id = auth.uid());
-
-CREATE POLICY "Users can update own conversations"
-  ON conversations FOR UPDATE
-  USING (user_id = auth.uid());
-
-CREATE POLICY "Users can delete own conversations"
-  ON conversations FOR DELETE
-  USING (user_id = auth.uid());
-
 -- ── Messages RLS ─────────────────────────────────────────────────────────────
 -- Messages don't have user_id — access is via conversation ownership
-ALTER TABLE conversations
-ADD COLUMN is_locked BOOLEAN NOT NULL DEFAULT false;
 
 CREATE POLICY "Users can view own messages"
   ON messages FOR SELECT
   USING (
-    EXISTS (
-      SELECT 1 FROM conversations
-      WHERE conversations.id = messages.conversation_id
-      AND conversations.user_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "Users can insert own messages"
-  ON messages FOR INSERT
-  WITH CHECK (
     EXISTS (
       SELECT 1 FROM conversations
       WHERE conversations.id = messages.conversation_id
@@ -281,11 +237,7 @@ CREATE POLICY "Users can view own usage"
   ON usage_logs FOR SELECT
   USING (user_id = auth.uid());
 
--- Usage logs are inserted by server-side API (service role key bypasses RLS)
--- Client never inserts usage logs directly
-CREATE POLICY "Service role can insert usage"
-  ON usage_logs FOR INSERT
-  WITH CHECK (true);
+-- Usage logs are inserted only by server-side service-role routes.
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- SEED DATA
@@ -322,13 +274,15 @@ INSERT INTO categories (slug, name, description, system_prompt, disclaimer_text,
 
 INSERT INTO plans (name, slug, category_slug, price_monthly, stripe_price_id, max_documents, max_queries_day) VALUES
 -- Helpex Legal plans
-('Free',  'free', 'legal',    0,    NULL,           1,  3),
-('Pro',   'pro',  'legal',    4900, 'price_XXXXXX', 50, 50),
+('Free',    'free',    'legal',    0,    NULL,           3,   5),
+('Pro',     'pro',     'legal',    2900, 'price_XXXXXX', 30,  30),
+('Premium', 'premium', 'legal',    4900, NULL,           100, 100),
 -- Helpex Business plans
-('Free',  'free', 'business', 0,    NULL,           1,  3),
-('Pro',   'pro',  'business', 4900, 'price_YYYYYY', 50, 50);
+('Free',    'free',    'business', 0,    NULL,           3,   5),
+('Pro',     'pro',     'business', 2900, 'price_YYYYYY', 30,  30),
+('Premium', 'premium', 'business', 4900, NULL,           100, 100);
 
--- Replace price_XXXXXX and price_YYYYYY with real Stripe price IDs after setup
+-- Prefer environment-based Stripe price IDs in application configuration.
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- SUPABASE STORAGE

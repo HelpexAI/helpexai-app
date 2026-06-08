@@ -5,9 +5,9 @@ import { Check, Lock, Zap } from "lucide-react";
 import Link from "next/link";
 
 const features = [
-  "50 documents",
-  "50 questions/day",
-  "Priority processing",
+  "30 documents",
+  "30 questions/day",
+  "Premium offers up to 100 documents and questions/day",
 ];
 
 export function PlanLimitModal({
@@ -32,7 +32,7 @@ export function PlanLimitModal({
           </div>
           <div className="flex flex-col items-center gap-2">
             <h2 className="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white">
-              You&apos;ve reached your free plan limit
+              You&apos;ve reached your plan limit
             </h2>
             <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 dark:border-amber-900 dark:bg-amber-950/40">
               <span className="size-2 rounded-full bg-amber-500" />
@@ -45,7 +45,7 @@ export function PlanLimitModal({
 
         <div className="space-y-3">
           <p className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">
-            Upgrade to Pro to unlock:
+            Upgrade your plan to unlock:
           </p>
           <div className="space-y-1">
             {features.map((feature) => (
@@ -60,8 +60,8 @@ export function PlanLimitModal({
         </div>
 
         <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-bold text-theme-primary">$49</span>
-          <span className="font-semibold text-zinc-950 dark:text-zinc-100">/month</span>
+          <span className="text-3xl font-bold text-theme-primary">$29</span>
+          <span className="font-semibold text-zinc-950 dark:text-zinc-100">/month and up</span>
           <span className="text-sm text-zinc-500 dark:text-zinc-400">· cancel anytime</span>
         </div>
 
@@ -71,7 +71,7 @@ export function PlanLimitModal({
             className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-theme-primary text-base font-semibold text-white transition hover:bg-theme-primary-hover"
           >
             <Zap className="size-4" />
-            Upgrade to Pro
+            View Upgrade Options
           </Link>
           <button
             type="button"

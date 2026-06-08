@@ -6,8 +6,9 @@ export const runtime = "nodejs";
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   const context = await getDocumentRequestContext();
   if (!context) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -16,7 +17,7 @@ export async function DELETE(
   const { data: document } = await context.service
     .from("documents")
     .select("id, file_path")
-    .eq("id", params.id)
+    .eq("id", id)
     .eq("user_id", context.user.id)
     .eq("category_slug", context.category)
     .maybeSingle();

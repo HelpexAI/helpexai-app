@@ -4,7 +4,7 @@
 
 export type CategorySlug = 'legal' | 'business'
 
-export type PlanSlug = 'free' | 'pro'
+export type PlanSlug = 'free' | 'pro' | 'premium'
 
 export type FileType = 'pdf' | 'docx' | 'txt'
 

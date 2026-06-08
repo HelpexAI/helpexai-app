@@ -1,4 +1,5 @@
 import type { CategorySlug, PlanSlug } from "@/types";
+import { PLAN_LIMITS } from "@/lib/stripe/plans";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export async function getDocumentLimitState(
@@ -21,7 +22,7 @@ export async function getDocumentLimitState(
       .eq("category_slug", category),
   ]);
 
-  const limit = planRow?.max_documents ?? (plan === "pro" ? 50 : 1);
+  const limit = planRow?.max_documents ?? PLAN_LIMITS[plan].max_documents;
   const used = count ?? 0;
 
   return {

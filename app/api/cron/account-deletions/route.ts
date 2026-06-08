@@ -1,9 +1,12 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { getVectorDBProvider } from "@/lib/ai/factory";
+import { generateNamespace } from "@/lib/utils";
+import { reportError } from "@/lib/monitoring";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-export async function POST(request: Request) {
+async function handleDeletionCron(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -31,11 +34,17 @@ export async function POST(request: Request) {
         .eq("user_id", userId);
       const paths = (documents ?? []).map((document) => document.file_path);
       if (paths.length) await service.storage.from("documents").remove(paths);
+      const vectorDB = getVectorDBProvider();
+      await Promise.all([
+        vectorDB.deleteNamespace(generateNamespace(userId, "legal")),
+        vectorDB.deleteNamespace(generateNamespace(userId, "business")),
+      ]);
 
       const { error: deleteError } = await service.auth.admin.deleteUser(userId);
       if (deleteError) throw deleteError;
       deleted.push(userId);
     } catch (deleteError) {
+      reportError(deleteError, { area: "account-deletion-cron", userId });
       failed.push({
         userId,
         error: deleteError instanceof Error ? deleteError.message : "Unknown deletion error",
@@ -45,3 +54,6 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ deleted, failed });
 }
+
+export const GET = handleDeletionCron;
+export const POST = handleDeletionCron;

@@ -105,17 +105,14 @@ export function SignupForm() {
     }
 
     if (data.session && data.user) {
-      const { error: accountError } = await supabase.from("accounts").upsert(
-        {
-          user_id: data.user.id,
-          category_slug: category,
-          plan: "free",
-        },
-        { onConflict: "user_id,category_slug" },
-      );
-
-      if (accountError) {
-        setError(accountError.message);
+      const accountResponse = await fetch("/api/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category }),
+      });
+      if (!accountResponse.ok) {
+        const result = await accountResponse.json();
+        setError(result.error ?? "Could not create your Helpex account.");
         setLoading(null);
         return;
       }
