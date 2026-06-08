@@ -114,7 +114,16 @@ export function DocumentViewer({
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] flex-col bg-[#18243a] text-white lg:h-screen lg:min-h-0">
+    <>
+      <MobileDocumentViewer
+        document={document}
+        downloadUrl={downloadUrl}
+        extractedText={extractedText}
+        pageCount={pageCount}
+        initialPage={initialPage}
+        highlightExcerpt={highlightExcerpt}
+      />
+      <div className="hidden min-h-[calc(100vh-4rem)] flex-col bg-[#18243a] text-white lg:flex lg:h-screen lg:min-h-0">
       <header className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#0a1628] px-3 py-3 sm:px-5 lg:px-8">
         <div className="flex min-w-0 items-center gap-2 text-sm">
           <Link href="/documents" className="flex shrink-0 items-center gap-1 text-white/60 transition hover:text-white">
@@ -222,7 +231,80 @@ export function DocumentViewer({
           </main>
         </div>
       </div>
+      </div>
+    </>
+  );
+}
+
+function MobileDocumentViewer({
+  document,
+  downloadUrl,
+  extractedText,
+  pageCount,
+  initialPage,
+  highlightExcerpt,
+}: {
+  document: DocumentRecord;
+  downloadUrl: string;
+  extractedText: string | null;
+  pageCount: number;
+  initialPage: number;
+  highlightExcerpt?: string | null;
+}) {
+  useEffect(() => {
+    if (document.file_type !== "pdf" || initialPage <= 1) return;
+    globalThis.document.getElementById(`mobile-pdf-page-${initialPage}`)?.scrollIntoView({ block: "start" });
+  }, [document.file_type, initialPage]);
+
+  return (
+    <div className="min-h-screen bg-[#18243a] pb-20 text-white lg:hidden">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0a1628]/95 px-3 py-3 backdrop-blur">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <Link href="/documents" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white/10" aria-label="Back to documents"><ChevronLeft className="size-4" /></Link>
+            <div className="min-w-0"><p className="truncate text-sm font-semibold">{document.name}</p><p className="text-[11px] text-white/45">{document.file_type === "pdf" ? `${pageCount} page${pageCount === 1 ? "" : "s"}` : document.file_type.toUpperCase()}</p></div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link href="/conversations" className="flex size-9 items-center justify-center rounded-lg bg-white/10" aria-label="Ask AI"><MessageSquare className="size-4" /></Link>
+            <a href={downloadUrl} className="flex size-9 items-center justify-center rounded-lg bg-theme-primary" aria-label="Download document"><Download className="size-4" /></a>
+          </div>
+        </div>
+      </header>
+
+      <main className="space-y-4 p-3">
+        {highlightExcerpt && (
+          <aside className="rounded-xl border border-amber-300/40 bg-amber-100 p-3 text-zinc-900">
+            <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-amber-800">Referenced content</p>
+            <mark className="bg-amber-300 text-sm leading-6 text-zinc-950">{highlightExcerpt}</mark>
+          </aside>
+        )}
+        {document.file_type === "pdf" ? (
+          Array.from({ length: pageCount }, (_, index) => index + 1).map(page => (
+            <MobilePdfPage key={page} documentId={document.id} documentName={document.name} page={page} />
+          ))
+        ) : (
+          <article className="min-h-[70vh] whitespace-pre-wrap rounded-xl bg-white p-5 text-sm leading-7 text-zinc-700 shadow-xl">
+            <div className="mb-5 flex items-center gap-2 border-b border-zinc-200 pb-4"><FileText className="size-5 text-theme-primary" /><h1 className="min-w-0 break-all font-bold text-zinc-900">{document.name}</h1></div>
+            <HighlightedDocumentText text={extractedText || "No readable text was found in this document."} excerpt={highlightExcerpt} />
+          </article>
+        )}
+      </main>
     </div>
+  );
+}
+
+function MobilePdfPage({ documentId, documentName, page }: { documentId: string; documentName: string; page: number }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <section id={`mobile-pdf-page-${page}`} className="scroll-mt-20 overflow-hidden rounded-xl border border-white/10 bg-[#10203a] shadow-xl">
+      <p className="px-3 py-2 text-xs font-semibold text-white/55">Page {page}</p>
+      {failed ? (
+        <div className="flex min-h-52 flex-col items-center justify-center gap-2 bg-white/5 p-5 text-center text-sm text-white/55"><AlertCircle className="size-6 text-red-300" /><span>Page {page} could not be displayed.</span></div>
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={`/api/documents/${documentId}/pages/${page}`} alt={`${documentName}, page ${page}`} loading={page === 1 ? "eager" : "lazy"} onError={() => setFailed(true)} className="h-auto w-full bg-white" />
+      )}
+    </section>
   );
 }
 

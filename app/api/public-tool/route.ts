@@ -32,7 +32,9 @@ export async function GET() {
   const service = createServiceClient();
   const { data } = await service
     .from("public_tool_sessions")
-    .select("document_name, email_captured, questions_used, messages, expires_at")
+    .select(
+      "document_name, email_captured, questions_used, messages, expires_at",
+    )
     .eq("token_hash", hashPublicValue(token))
     .gt("expires_at", new Date().toISOString())
     .maybeSingle();
@@ -42,7 +44,11 @@ export async function GET() {
 export async function POST(request: Request) {
   const ipHash = hashPublicValue(requestIp(request));
   // Version the key so previously failed deployments do not lock visitors out for 24 hours.
-  const limited = await enforceRateLimit(`public-tool-upload-attempt:v2:${ipHash}`, 10, 3600);
+  const limited = await enforceRateLimit(
+    `public-tool-upload-attempt:v2:${ipHash}`,
+    10,
+    3600,
+  );
   if (limited) return limited;
 
   const service = createServiceClient();
@@ -56,33 +62,51 @@ export async function POST(request: Request) {
     console.error("Public tool session lookup failed:", sessionLookupError);
     return NextResponse.json(
       {
-        error: "The free tool database is not configured. Apply migration 005_public_tool.sql to the Supabase project used by this deployment.",
+        error:
+          "The free tool database is not configured. Apply migration 005_public_tool.sql to the Supabase project used by this deployment.",
         code: "PUBLIC_TOOL_DATABASE_UNAVAILABLE",
       },
       { status: 503 },
     );
   }
-  if ((count ?? 0) >= 1) {
+  if ((count ?? 0) >= 3) {
     return NextResponse.json(
-      { error: "A free tool session has already been used from this connection today.", code: "PUBLIC_TRIAL_USED" },
+      {
+        error:
+          "A free tool session has already been used from this connection today.",
+        code: "PUBLIC_TRIAL_USED",
+      },
       { status: 403 },
     );
   }
 
   const formData = await request.formData();
   const file = formData.get("file");
-  if (!(file instanceof File)) return NextResponse.json({ error: "Choose a document to upload." }, { status: 400 });
+  if (!(file instanceof File))
+    return NextResponse.json(
+      { error: "Choose a document to upload." },
+      { status: 400 },
+    );
   const fileType = fileTypeFromFile(file);
   if (!fileType || file.size > MAX_FILE_SIZE) {
-    return NextResponse.json({ error: "Upload a PDF, DOCX, or TXT file no larger than 10MB." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Upload a PDF, DOCX, or TXT file no larger than 10MB." },
+      { status: 400 },
+    );
   }
 
   let text: string;
   try {
-    text = (await extractDocumentText(Buffer.from(await file.arrayBuffer()), fileType))
+    text = (
+      await extractDocumentText(Buffer.from(await file.arrayBuffer()), fileType)
+    )
       .trim()
       .slice(0, PUBLIC_TOOL_TEXT_LIMIT);
-    if (!text) return NextResponse.json({ error: "No readable text was found in this document." }, { status: 400 });
+    if (!text)
+      return NextResponse.json(
+        { error: "No readable text was found in this document." },
+        { status: 400 },
+      );
   } catch (error) {
     console.error("Public tool document extraction failed:", error);
     return NextResponse.json(
@@ -105,18 +129,27 @@ export async function POST(request: Request) {
         document_type: fileType,
         document_text: text,
       })
-      .select("document_name, email_captured, questions_used, messages, expires_at")
+      .select(
+        "document_name, email_captured, questions_used, messages, expires_at",
+      )
       .single();
     if (error) throw error;
 
-    const response = NextResponse.json({ session: sessionView(data) }, { status: 201 });
+    const response = NextResponse.json(
+      { session: sessionView(data) },
+      { status: 201 },
+    );
     const cookie = publicSessionCookie(token);
     response.cookies.set(cookie.name, cookie.value, cookie.options);
     return response;
   } catch (error) {
     console.error("Public tool session creation failed:", error);
     return NextResponse.json(
-      { error: "Could not create the free-tool session. Please try again shortly.", code: "PUBLIC_TOOL_SESSION_FAILED" },
+      {
+        error:
+          "Could not create the free-tool session. Please try again shortly.",
+        code: "PUBLIC_TOOL_SESSION_FAILED",
+      },
       { status: 500 },
     );
   }
