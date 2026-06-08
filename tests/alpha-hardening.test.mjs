@@ -19,6 +19,7 @@ const businessPrompt = await readFile(new URL("../lib/ai/prompts/business.ts", i
 const ingestion = await readFile(new URL("../lib/ai/pipeline/ingest.ts", import.meta.url), "utf8");
 const queryPipeline = await readFile(new URL("../lib/ai/pipeline/query.ts", import.meta.url), "utf8");
 const activeConversation = await readFile(new URL("../components/conversations/active-conversation.tsx", import.meta.url), "utf8");
+const markdownMessage = await readFile(new URL("../components/conversations/markdown-message.tsx", import.meta.url), "utf8");
 const citationPanel = await readFile(new URL("../components/conversations/citation-preview-panel.tsx", import.meta.url), "utf8");
 const documentViewerPage = await readFile(new URL("../app/(dashboard)/documents/[id]/page.tsx", import.meta.url), "utf8");
 const middleware = await readFile(new URL("../middleware.ts", import.meta.url), "utf8");
@@ -114,6 +115,13 @@ test("conversation citations open a page-aware highlighted preview", () => {
   assert.match(citationPanel, /Referenced content/);
   assert.match(citationPanel, /pageNumber/);
   assert.match(documentViewerPage, /highlightExcerpt/);
+});
+
+test("assistant conversation messages render safe styled Markdown", () => {
+  assert.match(activeConversation, /MarkdownMessage/);
+  assert.match(markdownMessage, /ReactMarkdown/);
+  assert.match(markdownMessage, /remarkGfm/);
+  assert.match(queryPipeline, /Format the answer as clean Markdown/);
 });
 
 test("public APIs avoid auth middleware and free tool restores sessions in background", () => {

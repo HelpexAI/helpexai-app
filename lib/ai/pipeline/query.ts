@@ -16,6 +16,12 @@ import {
 const TOP_K = 5
 const FALLBACK_DOCUMENT_CHARACTER_LIMIT = 12_000
 const FALLBACK_TOTAL_CHARACTER_LIMIT = 30_000
+const MARKDOWN_RESPONSE_INSTRUCTION = `Format the answer as clean Markdown:
+- Use short paragraphs and descriptive headings when helpful.
+- Use bullet or numbered lists for multiple points.
+- Use tables only when they make comparisons clearer.
+- Use bold text sparingly for important facts.
+- Do not wrap the entire answer in a code block.`
 
 export interface QueryOptions {
   userId: string
@@ -71,7 +77,7 @@ function buildPromptWithContext(
   categorySlug: CategorySlug
 ): string {
   if (!hasContext) {
-    return `${getNoContextNote(categorySlug)}\n\nUser Question: ${question}`
+    return `${getNoContextNote(categorySlug)}\n\n${MARKDOWN_RESPONSE_INSTRUCTION}\n\nUser Question: ${question}`
   }
 
   const contextBlock = chunks
@@ -80,7 +86,7 @@ function buildPromptWithContext(
     )
     .join('\n\n---\n\n')
 
-  return `DOCUMENT CONTEXT:\n${contextBlock}\n\n---\n\nUser Question: ${question}\n\nAnswer based ONLY on the document context above. Cite specific sources (document name, clause, page) in your answer.`
+  return `DOCUMENT CONTEXT:\n${contextBlock}\n\n---\n\nUser Question: ${question}\n\nAnswer based ONLY on the document context above. Cite specific sources (document name, clause, page) in your answer.\n\n${MARKDOWN_RESPONSE_INSTRUCTION}`
 }
 
 export async function queryDocuments(options: QueryOptions): Promise<QueryResult> {
@@ -182,7 +188,7 @@ export async function queryDocumentsFromRawText(
   const context = pages
     .map((page, index) => `[Source ${index + 1}] Document: "${page.docName}"${page.pageNumber ? ` | Page ${page.pageNumber}` : ''}\n${page.text}`)
     .join('\n\n---\n\n')
-  const prompt = `DOCUMENT CONTEXT:\n${context}\n\n---\n\nUser Question: ${question}\n\nAnswer based ONLY on the document context above. Cite document names and page numbers when available.`
+  const prompt = `DOCUMENT CONTEXT:\n${context}\n\n---\n\nUser Question: ${question}\n\nAnswer based ONLY on the document context above. Cite document names and page numbers when available.\n\n${MARKDOWN_RESPONSE_INSTRUCTION}`
   const answer = stripAiDisclaimer(await getLLMProvider().complete(prompt, getSystemPrompt(categorySlug)))
 
   return {
