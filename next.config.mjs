@@ -6,6 +6,12 @@ const nextConfig = {
     "@napi-rs/canvas",
     "mammoth",
   ],
+  outputFileTracingIncludes: {
+    "/*": [
+      "./node_modules/@napi-rs/canvas/**/*",
+      "./node_modules/@napi-rs/canvas-linux-x64-gnu/**/*",
+    ],
+  },
   images: {
     remotePatterns: [
       {
@@ -13,19 +19,6 @@ const nextConfig = {
         hostname: "*.supabase.co",
       },
     ],
-  },
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      config.externals = [
-        ...(config.externals || []),
-        "pdf-parse",
-        "pdfjs-dist",
-        "@napi-rs/canvas",
-        "canvas",
-        "jsdom",
-      ];
-    }
-    return config;
   },
 };
 
