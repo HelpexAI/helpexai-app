@@ -41,16 +41,27 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const ipHash = hashPublicValue(requestIp(request));
-  const limited = await enforceRateLimit(`public-tool-upload:${ipHash}`, 3, 86400);
+  // Version the key so previously failed deployments do not lock visitors out for 24 hours.
+  const limited = await enforceRateLimit(`public-tool-upload-attempt:v2:${ipHash}`, 10, 3600);
   if (limited) return limited;
 
   const service = createServiceClient();
   const since = new Date(Date.now() - 86400000).toISOString();
-  const { count } = await service
+  const { count, error: sessionLookupError } = await service
     .from("public_tool_sessions")
     .select("*", { count: "exact", head: true })
     .eq("ip_hash", ipHash)
     .gte("created_at", since);
+  if (sessionLookupError) {
+    console.error("Public tool session lookup failed:", sessionLookupError);
+    return NextResponse.json(
+      {
+        error: "The free tool database is not configured. Apply migration 005_public_tool.sql to the Supabase project used by this deployment.",
+        code: "PUBLIC_TOOL_DATABASE_UNAVAILABLE",
+      },
+      { status: 503 },
+    );
+  }
   if ((count ?? 0) >= 1) {
     return NextResponse.json(
       { error: "A free tool session has already been used from this connection today.", code: "PUBLIC_TRIAL_USED" },
@@ -66,12 +77,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Upload a PDF, DOCX, or TXT file no larger than 10MB." }, { status: 400 });
   }
 
+  let text: string;
   try {
-    const text = (await extractDocumentText(Buffer.from(await file.arrayBuffer()), fileType))
+    text = (await extractDocumentText(Buffer.from(await file.arrayBuffer()), fileType))
       .trim()
       .slice(0, PUBLIC_TOOL_TEXT_LIMIT);
     if (!text) return NextResponse.json({ error: "No readable text was found in this document." }, { status: 400 });
+  } catch (error) {
+    console.error("Public tool document extraction failed:", error);
+    return NextResponse.json(
+      {
+        error: `Could not read this ${fileType.toUpperCase()} document. Try a text-based file without password protection.`,
+        code: "PUBLIC_TOOL_EXTRACTION_FAILED",
+      },
+      { status: 422 },
+    );
+  }
 
+  try {
     const token = createPublicSessionToken();
     const { data, error } = await service
       .from("public_tool_sessions")
@@ -91,8 +114,11 @@ export async function POST(request: Request) {
     response.cookies.set(cookie.name, cookie.value, cookie.options);
     return response;
   } catch (error) {
-    console.error("Public tool upload failed:", error);
-    return NextResponse.json({ error: "Could not process this document. Please try another file." }, { status: 500 });
+    console.error("Public tool session creation failed:", error);
+    return NextResponse.json(
+      { error: "Could not create the free-tool session. Please try again shortly.", code: "PUBLIC_TOOL_SESSION_FAILED" },
+      { status: 500 },
+    );
   }
 }
 

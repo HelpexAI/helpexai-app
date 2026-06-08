@@ -10,6 +10,7 @@ const pricingMigration = await readFile(new URL("../supabase/migrations/004_thre
 const plans = await readFile(new URL("../lib/stripe/plans.ts", import.meta.url), "utf8");
 const publicToolMigration = await readFile(new URL("../supabase/migrations/005_public_tool.sql", import.meta.url), "utf8");
 const publicQuestionRoute = await readFile(new URL("../app/api/public-tool/question/route.ts", import.meta.url), "utf8");
+const publicToolRoute = await readFile(new URL("../app/api/public-tool/route.ts", import.meta.url), "utf8");
 const publicToolReservationFix = await readFile(new URL("../supabase/migrations/006_fix_public_tool_question_reservation.sql", import.meta.url), "utf8");
 const platformKnowledge = await readFile(new URL("../lib/ai/knowledge/helpexai-platform.ts", import.meta.url), "utf8");
 const publicQuery = await readFile(new URL("../lib/ai/public-query.ts", import.meta.url), "utf8");
@@ -53,6 +54,8 @@ test("public tool enforces one email trial and five atomic answers", () => {
   assert.match(publicQuestionRoute, /reserve_public_tool_question/);
   assert.match(publicQuestionRoute, /release_public_tool_question/);
   assert.match(publicToolReservationFix, /session\.questions_used \+ 1/);
+  assert.match(publicToolRoute, /public-tool-upload-attempt:v2/);
+  assert.match(publicToolRoute, /PUBLIC_TOOL_DATABASE_UNAVAILABLE/);
 });
 
 test("public tool can answer HelpexAI platform questions without document citations", () => {
