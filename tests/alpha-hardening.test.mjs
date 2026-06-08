@@ -21,6 +21,8 @@ const queryPipeline = await readFile(new URL("../lib/ai/pipeline/query.ts", impo
 const activeConversation = await readFile(new URL("../components/conversations/active-conversation.tsx", import.meta.url), "utf8");
 const citationPanel = await readFile(new URL("../components/conversations/citation-preview-panel.tsx", import.meta.url), "utf8");
 const documentViewerPage = await readFile(new URL("../app/(dashboard)/documents/[id]/page.tsx", import.meta.url), "utf8");
+const middleware = await readFile(new URL("../middleware.ts", import.meta.url), "utf8");
+const publicToolClient = await readFile(new URL("../components/public-tool/public-document-tool.tsx", import.meta.url), "utf8");
 
 test("account protected writes are revoked from authenticated clients", () => {
   assert.match(migration, /DROP POLICY IF EXISTS "Users can update own accounts"/);
@@ -73,7 +75,8 @@ test("category personas enforce evidence-first domain analysis", () => {
 });
 
 test("PDF ingestion preserves page metadata for citations", () => {
-  assert.match(ingestion, /data\.pages\.map/);
+  assert.match(ingestion, /pdfjs-dist\/legacy\/build\/pdf\.mjs/);
+  assert.match(ingestion, /getTextContent/);
   assert.match(ingestion, /pageNumber: chunk\.pageNumber/);
   assert.match(queryPipeline, /pageNumber: page\.pageNumber/);
   assert.match(queryPipeline, /lexicalScore/);
@@ -85,4 +88,11 @@ test("conversation citations open a page-aware highlighted preview", () => {
   assert.match(citationPanel, /Referenced content/);
   assert.match(citationPanel, /pageNumber/);
   assert.match(documentViewerPage, /highlightExcerpt/);
+});
+
+test("public APIs avoid auth middleware and free tool restores sessions in background", () => {
+  assert.doesNotMatch(middleware, /\/\(\(\?!_next/);
+  assert.match(middleware, /if \(!isProtected && !isAuthRoute\) return NextResponse\.next/);
+  assert.match(publicToolClient, /restoringSession/);
+  assert.match(publicToolClient, /interactedRef/);
 });

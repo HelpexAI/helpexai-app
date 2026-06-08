@@ -95,23 +95,7 @@ export default async function DashboardPage() {
   const workspace = await getCurrentWorkspace();
   const supabase = await createClient();
 
-  const [
-    planResult,
-    documentsResult,
-    questionsResult,
-    recentResult,
-  ] = await Promise.all([
-    supabase
-      .from("plans")
-      .select("max_documents, max_queries_day")
-      .eq("slug", workspace.plan)
-      .eq("category_slug", workspace.category)
-      .maybeSingle(),
-    supabase
-      .from("documents")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", workspace.userId)
-      .eq("category_slug", workspace.category),
+  const [questionsResult, recentResult] = await Promise.all([
     supabase
       .from("usage_logs")
       .select("*", { count: "exact", head: true })
@@ -128,8 +112,8 @@ export default async function DashboardPage() {
       .limit(3),
   ]);
 
-  const limits = planResult.data ?? PLAN_LIMITS[workspace.plan];
-  const documentsCount = documentsResult.count ?? 0;
+  const limits = PLAN_LIMITS[workspace.plan];
+  const documentsCount = workspace.documentsUsed;
   const questionsCount = questionsResult.count ?? 0;
   const recentConversations = recentResult.data ?? [];
   const business = workspace.category === "business";

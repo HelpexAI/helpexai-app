@@ -36,12 +36,8 @@ export default async function BillingPage({
     .eq("category_slug", workspace.category)
     .maybeSingle();
   const currentPlan = normalizePlanSlug(account?.plan);
-  const [planResult, documentsResult, questionsResult] = await Promise.all([
-    supabase.from("plans").select("max_documents, max_queries_day").eq("slug", currentPlan).eq("category_slug", workspace.category).maybeSingle(),
-    supabase.from("documents").select("*", { count: "exact", head: true }).eq("user_id", workspace.userId).eq("category_slug", workspace.category),
-    supabase.from("usage_logs").select("*", { count: "exact", head: true }).eq("user_id", workspace.userId).eq("category_slug", workspace.category).eq("action", "query").gte("created_at", startOfTodayUtc()),
-  ]);
-  const limits = planResult.data ?? PLAN_LIMITS[currentPlan];
+  const questionsResult = await supabase.from("usage_logs").select("*", { count: "exact", head: true }).eq("user_id", workspace.userId).eq("category_slug", workspace.category).eq("action", "query").gte("created_at", startOfTodayUtc());
+  const limits = PLAN_LIMITS[currentPlan];
 
   const invoices = [];
   if (account?.stripe_customer_id) {
@@ -67,7 +63,7 @@ export default async function BillingPage({
       subscriptionStatus={account?.subscription_status ?? null}
       notice={resolvedSearchParams.checkout === "success" ? "success" : resolvedSearchParams.checkout === "cancelled" ? "cancelled" : undefined}
       usage={[
-        { label: "Documents", current: documentsResult.count ?? 0, limit: limits.max_documents },
+        { label: "Documents", current: workspace.documentsUsed, limit: limits.max_documents },
         { label: "Questions Today", current: questionsResult.count ?? 0, limit: limits.max_queries_day },
       ]}
       invoices={invoices}

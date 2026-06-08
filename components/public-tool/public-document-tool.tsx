@@ -16,8 +16,10 @@ type Session = {
 
 export function PublicDocumentTool() {
   const inputRef = useRef<HTMLInputElement>(null);
+  const interactedRef = useRef(false);
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState<"session" | "upload" | "email" | "question" | null>("session");
+  const [loading, setLoading] = useState<"upload" | "email" | "question" | null>(null);
+  const [restoringSession, setRestoringSession] = useState(true);
   const [dragging, setDragging] = useState(false);
   const [email, setEmail] = useState("");
   const [consent, setConsent] = useState(false);
@@ -29,12 +31,15 @@ export function PublicDocumentTool() {
   useEffect(() => {
     fetch("/api/public-tool")
       .then((response) => response.json())
-      .then((body) => setSession(body.session ?? null))
+      .then((body) => {
+        if (!interactedRef.current) setSession(body.session ?? null);
+      })
       .catch(() => undefined)
-      .finally(() => setLoading(null));
+      .finally(() => setRestoringSession(false));
   }, []);
   async function upload(file?: File) {
     if (!file || loading) return;
+    interactedRef.current = true;
     setLoading("upload");
     setError("");
     const form = new FormData();
@@ -110,13 +115,10 @@ export function PublicDocumentTool() {
     setLimitPromptOpen(false);
   }
 
-  if (loading === "session") {
-    return <PublicToolSkeleton />;
-  }
-
   if (!session) {
     return (
       <div className="space-y-4">
+        {restoringSession && <p className="flex items-center justify-center gap-2 text-xs text-zinc-400"><Loader2 className="size-3.5 animate-spin text-theme-primary" />Checking for a previous session in the background...</p>}
         <div
           onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
@@ -179,54 +181,4 @@ function ChatMessage({ message }: { message: ToolMessage }) {
 
 function ErrorMessage({ message }: { message: string }) {
   return <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">{message}</div>;
-}
-
-function PublicToolSkeleton() {
-  return (
-    <div
-      className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-900"
-      aria-label="Loading public document tool"
-      aria-busy="true"
-    >
-      <div className="flex items-center justify-between gap-4 border-b border-zinc-200 px-4 py-4 dark:border-zinc-800 sm:px-6">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <div className="size-9 shrink-0 animate-pulse rounded-full bg-theme-soft dark:bg-theme-soft-dark" />
-          <div className="flex w-full max-w-56 flex-col gap-2">
-            <div className="h-3.5 w-3/4 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
-            <div className="h-2.5 w-1/2 animate-pulse rounded-full bg-zinc-100 dark:bg-zinc-800" />
-          </div>
-        </div>
-        <div className="h-7 w-16 animate-pulse rounded-full bg-zinc-100 dark:bg-zinc-800" />
-      </div>
-
-      <div className="h-[360px] space-y-5 bg-zinc-50 px-4 py-6 dark:bg-zinc-950/50 sm:h-[480px] sm:px-6">
-        <div className="ml-auto h-14 w-3/4 animate-pulse rounded-2xl rounded-br-sm bg-theme-soft dark:bg-theme-soft-dark sm:w-1/2" />
-        <div className="flex gap-3">
-          <div className="size-8 shrink-0 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
-          <div className="w-4/5 space-y-2 rounded-2xl rounded-bl-sm border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 sm:w-2/3">
-            <div className="h-3 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
-            <div className="h-3 w-11/12 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
-            <div className="h-3 w-3/5 animate-pulse rounded-full bg-zinc-100 dark:bg-zinc-800" />
-            <div className="mt-4 h-12 animate-pulse rounded-lg bg-theme-soft dark:bg-theme-soft-dark" />
-          </div>
-        </div>
-        <div className="ml-auto h-12 w-2/3 animate-pulse rounded-2xl rounded-br-sm bg-theme-soft dark:bg-theme-soft-dark sm:w-2/5" />
-      </div>
-
-      <div className="space-y-4 border-t border-zinc-200 px-4 py-4 dark:border-zinc-800 sm:px-6">
-        <div className="flex items-center justify-between">
-          <div className="h-3 w-24 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
-          <div className="flex gap-1">
-            {Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="size-2 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
-            ))}
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <div className="h-12 flex-1 animate-pulse rounded-full bg-zinc-100 dark:bg-zinc-800" />
-          <div className="size-12 animate-pulse rounded-full bg-theme-soft dark:bg-theme-soft-dark" />
-        </div>
-      </div>
-    </div>
-  );
 }

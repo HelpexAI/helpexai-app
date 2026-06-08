@@ -24,30 +24,43 @@ export interface ExtractedDocumentPage {
   text: string
 }
 
+async function extractPdfPages(buffer: Buffer): Promise<ExtractedDocumentPage[]> {
+  const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs')
+  const task = getDocument({
+    data: Uint8Array.from(buffer),
+    disableFontFace: true,
+    isEvalSupported: false,
+    useSystemFonts: false,
+  })
+  const pdf = await task.promise
+  try {
+    const pages: ExtractedDocumentPage[] = []
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber)
+      const content = await page.getTextContent()
+      const text = content.items
+        .map(item => ('str' in item ? item.str : ''))
+        .filter(Boolean)
+        .join(' ')
+      pages.push({ pageNumber, text })
+      page.cleanup()
+    }
+    return pages
+  } finally {
+    await pdf.destroy()
+  }
+}
+
 export async function extractDocumentPages(buffer: Buffer, fileType: string): Promise<ExtractedDocumentPage[]> {
   if (fileType === 'pdf') {
-    const { PDFParse } = await import('pdf-parse')
-    const parser = new PDFParse({ data: buffer })
-    try {
-      const data = await parser.getText()
-      return data.pages.map(page => ({ pageNumber: page.num, text: page.text }))
-    } finally {
-      await parser.destroy()
-    }
+    return extractPdfPages(buffer)
   }
   return [{ pageNumber: null, text: await extractDocumentText(buffer, fileType) }]
 }
 
 export async function extractDocumentText(buffer: Buffer, fileType: string): Promise<string> {
   if (fileType === 'pdf') {
-    const { PDFParse } = await import('pdf-parse')
-    const parser = new PDFParse({ data: buffer })
-    try {
-      const data = await parser.getText()
-      return data.text
-    } finally {
-      await parser.destroy()
-    }
+    return (await extractPdfPages(buffer)).map(page => page.text).join('\n\n')
   }
 
   if (fileType === 'docx') {

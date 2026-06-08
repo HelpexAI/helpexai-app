@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   const state = await getDocumentLimitState(context.service, context.user.id, context.category, context.plan);
   const keepIds = Array.from(new Set(parsed.data.keep_document_ids));
   if (keepIds.length !== state.limit) {
-    return NextResponse.json({ error: `Select exactly ${state.limit} document${state.limit === 1 ? "" : "s"} to keep.` }, { status: 400 });
+    return NextResponse.json({ error: `Select exactly ${state.limit} documents to keep.` }, { status: 400 });
   }
 
   const { data: documents } = await context.service

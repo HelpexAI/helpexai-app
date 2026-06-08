@@ -5,6 +5,11 @@ const PROTECTED_ROUTES = ['/dashboard', '/documents', '/conversations', '/billin
 const AUTH_ROUTES = ['/login', '/signup', '/verify-email']
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+  const isProtected = PROTECTED_ROUTES.some(r => pathname.startsWith(r))
+  const isAuthRoute = AUTH_ROUTES.some(r => pathname.startsWith(r))
+  if (!isProtected && !isAuthRoute) return NextResponse.next({ request })
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -32,11 +37,7 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const pathname = request.nextUrl.pathname
-
   // Redirect unauthenticated users away from protected routes
-  const isProtected = PROTECTED_ROUTES.some(r => pathname.startsWith(r))
-
   if (isProtected && user) {
     const { data: accounts } = await supabase
       .from('accounts')
@@ -86,7 +87,6 @@ export async function middleware(request: NextRequest) {
   }
 
   // Redirect authenticated users away from auth routes
-  const isAuthRoute = AUTH_ROUTES.some(r => pathname.startsWith(r))
   if (isAuthRoute && user) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
@@ -98,6 +98,14 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/dashboard/:path*',
+    '/documents/:path*',
+    '/conversations/:path*',
+    '/billing/:path*',
+    '/settings/:path*',
+    '/select-workspace/:path*',
+    '/login',
+    '/signup',
+    '/verify-email',
   ],
 }
