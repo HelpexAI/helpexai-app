@@ -2,6 +2,7 @@
 
 import type { Document as DocumentRecord } from "@/types";
 import {
+  AlertCircle,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -16,7 +17,6 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -45,12 +45,10 @@ function ToolButton({
 function PageThumbnail({
   page,
   active,
-  documentId,
   onClick,
 }: {
   page: number;
   active: boolean;
-  documentId: string;
   onClick: () => void;
 }) {
   return (
@@ -61,16 +59,8 @@ function PageThumbnail({
         active ? "border-theme-primary" : "border-white/10"
       }`}
     >
-      <div className="relative h-36 overflow-hidden bg-white">
-        {/* The full-resolution page is scaled down by the browser for a sharp thumbnail. */}
-        <Image
-          src={`/api/documents/${documentId}/pages/${page}`}
-          alt={`Page ${page}`}
-          fill
-          unoptimized
-          sizes="136px"
-          className="h-full w-full object-contain"
-        />
+      <div className="flex h-20 items-center justify-center bg-white text-2xl font-bold text-zinc-300">
+        {page}
       </div>
       <div className={`py-1 text-center text-xs font-semibold ${active ? "bg-theme-primary text-white" : "bg-[#10203a] text-white/40"}`}>
         {page}
@@ -100,12 +90,19 @@ export function DocumentViewer({
   const [currentPage, setCurrentPage] = useState(() => Math.min(Math.max(initialPage, 1), pageCount));
   const [pagesOpen, setPagesOpen] = useState(true);
   const [shared, setShared] = useState(false);
+  const [pageLoading, setPageLoading] = useState(document.file_type === "pdf");
+  const [pageError, setPageError] = useState(false);
 
   useEffect(() => {
     if (!shared) return;
     const timeout = window.setTimeout(() => setShared(false), 1800);
     return () => window.clearTimeout(timeout);
   }, [shared]);
+
+  useEffect(() => {
+    setPageLoading(document.file_type === "pdf");
+    setPageError(false);
+  }, [currentPage, document.file_type]);
 
   async function shareDocument() {
     try {
@@ -175,7 +172,6 @@ export function DocumentViewer({
                     key={page}
                     page={page}
                     active={page === currentPage}
-                    documentId={document.id}
                     onClick={() => setCurrentPage(page)}
                   />
                 ))}
@@ -186,19 +182,27 @@ export function DocumentViewer({
           <main className="min-w-0 flex-1 overflow-auto p-3 sm:p-6 lg:p-8">
             <div className="mx-auto flex min-h-[70vh] max-w-5xl flex-col items-center gap-5">
               {document.file_type === "pdf" ? (
-                <Image
-                  key={currentPage}
-                  src={`/api/documents/${document.id}/pages/${currentPage}`}
-                  alt={`${document.name}, page ${currentPage}`}
-                  width={1800}
-                  height={2400}
-                  unoptimized
-                  className="h-auto max-w-none self-start rounded-lg bg-white shadow-2xl transition-[width,transform] duration-200"
-                  style={{
-                    width: `${Math.round(850 * (zoom / 100))}px`,
-                    transform: rotation ? `rotate(${rotation}deg)` : undefined,
-                  }}
-                />
+                <div className="relative flex min-h-[50vh] w-full justify-center">
+                  {pageLoading && !pageError && <div className="absolute inset-x-0 top-16 mx-auto flex max-w-xs flex-col items-center gap-3 rounded-xl bg-[#10203a] p-5 text-center text-sm text-white/60"><LoaderDocumentPage /><span>Rendering page {currentPage}...</span></div>}
+                  {pageError ? (
+                    <div className="mt-16 flex max-w-sm flex-col items-center gap-3 rounded-xl border border-red-400/30 bg-red-950/30 p-6 text-center"><AlertCircle className="size-7 text-red-300" /><p className="font-semibold">This page could not be displayed.</p><p className="text-sm text-white/60">Download the original document to view it on this device.</p><a href={downloadUrl} className="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold">Download document</a></div>
+                  ) : (
+                    // The authenticated page endpoint cannot use Next Image optimization.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={currentPage}
+                      src={`/api/documents/${document.id}/pages/${currentPage}`}
+                      alt={`${document.name}, page ${currentPage}`}
+                      onLoad={() => setPageLoading(false)}
+                      onError={() => { setPageLoading(false); setPageError(true); }}
+                      className={`h-auto max-w-full self-start rounded-lg bg-white shadow-2xl transition-[width,transform,opacity] duration-200 sm:max-w-none ${pageLoading ? "opacity-0" : "opacity-100"}`}
+                      style={{
+                        width: `${Math.round(850 * (zoom / 100))}px`,
+                        transform: rotation ? `rotate(${rotation}deg)` : undefined,
+                      }}
+                    />
+                  )}
+                </div>
               ) : (
                 <article className="mx-auto min-h-[80vh] max-w-3xl whitespace-pre-wrap rounded-lg bg-white p-6 text-sm leading-7 text-zinc-700 shadow-2xl sm:p-10 lg:p-14">
                   <div className="mb-8 flex items-center gap-3 border-b border-zinc-200 pb-5">
@@ -220,6 +224,10 @@ export function DocumentViewer({
       </div>
     </div>
   );
+}
+
+function LoaderDocumentPage() {
+  return <div className="size-8 animate-spin rounded-full border-2 border-white/20 border-t-theme-primary" />;
 }
 
 function HighlightedDocumentText({ text, excerpt }: { text: string; excerpt?: string | null }) {

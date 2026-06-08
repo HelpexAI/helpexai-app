@@ -10,6 +10,7 @@ import {
   EyeOff,
   Loader2,
   Lock,
+  LogOut,
   Save,
   User,
 } from "lucide-react";
@@ -108,6 +109,7 @@ export function SettingsPanel({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [loading, setLoading] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -153,6 +155,19 @@ export function SettingsPanel({
     router.refresh();
   }
 
+  async function signOut() {
+    setSigningOut(true);
+    setError("");
+    const { error: signOutError } = await supabase.auth.signOut();
+    if (signOutError) {
+      setSigningOut(false);
+      setError(signOutError.message);
+      return;
+    }
+    router.replace("/login");
+    router.refresh();
+  }
+
   const tabs = [
     { id: "profile" as const, label: "Profile", icon: User },
     { id: "password" as const, label: "Password", icon: Lock },
@@ -181,6 +196,7 @@ export function SettingsPanel({
             <label className="block space-y-1"><span className="text-sm font-semibold">Email</span><input value={workspace.email} disabled className="h-11 w-full cursor-not-allowed rounded-lg border border-zinc-200 bg-zinc-100/60 px-4 text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800" /><span className="text-xs text-zinc-500">Cannot be changed</span></label>
             <div className="border-t border-zinc-200 pt-5 dark:border-zinc-800"><SettingRow title="Show source citations" description="Display document sources alongside AI responses" checked={preferences.showCitations} onChange={() => setPreferences((value) => ({ ...value, showCitations: !value.showCitations }))} /><SettingRow title="AI Disclaimer" description="Required - cannot be disabled" checked disabled /></div>
             <button onClick={() => void saveMetadata()} disabled={loading || !name.trim()} className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-theme-primary text-sm font-semibold text-white disabled:opacity-60">{loading ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}Save Changes</button>
+            <button type="button" onClick={() => void signOut()} disabled={signingOut} className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white text-sm font-semibold text-zinc-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:border-red-900 dark:hover:bg-red-950/30 dark:hover:text-red-400 sm:hidden">{signingOut ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}{signingOut ? "Logging out..." : "Log out"}</button>
           </div>}
 
           {tab === "password" && <form onSubmit={changePassword} className="space-y-6"><div><h2 className="text-lg font-bold">Change Password</h2><p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Update your password to keep your account secure.</p></div><PasswordInput label="Current Password" value={currentPassword} onChange={setCurrentPassword} /><PasswordInput label="New Password" value={newPassword} onChange={setNewPassword} /><div className="flex gap-1">{[1,2,3,4].map((value) => <span key={value} className={`h-1.5 flex-1 rounded-full ${value <= strength ? strength >= 4 ? "bg-emerald-500" : "bg-amber-400" : "bg-zinc-200 dark:bg-zinc-700"}`} />)}</div><PasswordInput label="Confirm New Password" value={confirmPassword} onChange={setConfirmPassword} /><button disabled={loading} className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-theme-primary text-sm font-semibold text-white disabled:opacity-60">{loading ? <Loader2 className="size-4 animate-spin" /> : <Lock className="size-4" />}Save Password</button></form>}

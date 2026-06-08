@@ -4,7 +4,7 @@ import { ConversationSidebar, type ConversationSummary } from "@/components/conv
 import { ResponsiveModal } from "@/components/dashboard/responsive-modal";
 import { formatFileSize } from "@/lib/utils";
 import type { CategorySlug, Document } from "@/types";
-import { ArrowRight, Check, FileText, Loader2, Lock, MessageSquarePlus, Plus } from "lucide-react";
+import { ArrowRight, Check, FileText, List, Loader2, Lock, MessageSquarePlus, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -22,6 +22,7 @@ export function ConversationHub({
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [mobileConversationsOpen, setMobileConversationsOpen] = useState(false);
 
   async function startConversation() {
     setLoading(true);
@@ -43,9 +44,11 @@ export function ConversationHub({
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)]">
-      {conversations.length > 0 && <ConversationSidebar conversations={conversations} />}
+      {conversations.length > 0 && <ConversationSidebar conversations={conversations} mobileOpen={mobileConversationsOpen} onMobileClose={() => setMobileConversationsOpen(false)} />}
       <section className="flex flex-1 items-start justify-center bg-slate-50 p-4 pt-10 dark:bg-zinc-950 sm:p-8 sm:pt-16">
-        <div className="w-full max-w-lg rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8">
+        <div className="w-full max-w-lg">
+          {conversations.length > 0 && <button type="button" onClick={() => setMobileConversationsOpen(true)} className="mb-4 flex h-10 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-semibold shadow-sm dark:border-zinc-700 dark:bg-zinc-900 md:hidden"><List className="size-4 text-theme-primary" />View conversations</button>}
+          <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8">
           <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark"><MessageSquarePlus className="size-8" /></div>
           <h2 className="mt-5 text-2xl font-bold">Start New Conversation</h2>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">Choose the documents HelpexAI should use for this chat.</p>
@@ -54,6 +57,7 @@ export function ConversationHub({
           ) : (
             <button onClick={() => router.push("/documents/upload")} className="mt-7 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-theme-primary px-6 text-sm font-semibold text-white">Upload a Document</button>
           )}
+          </div>
         </div>
       </section>
 
@@ -80,4 +84,3 @@ export function ConversationHub({
     </div>
   );
 }
-

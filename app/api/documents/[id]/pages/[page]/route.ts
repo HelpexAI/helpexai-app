@@ -49,7 +49,7 @@ export async function GET(
   try {
     const result = await parser.getScreenshot({
       partial: [page],
-      desiredWidth: 1800,
+      desiredWidth: 1200,
       imageDataUrl: false,
       imageBuffer: true,
     });
@@ -63,7 +63,7 @@ export async function GET(
     return new Response(png, {
       headers: {
         "Content-Type": "image/png",
-        "Cache-Control": "private, max-age=3600",
+        "Cache-Control": "private, max-age=86400, immutable",
       },
     });
   } catch (error) {

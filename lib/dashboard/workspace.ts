@@ -4,6 +4,7 @@ import { getDocumentLimitState } from "@/lib/usage/limits";
 import type { CategorySlug, PlanSlug } from "@/types";
 import { normalizePlanSlug } from "@/lib/stripe/plans";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 
 export interface CurrentWorkspace {
   userId: string;
@@ -17,7 +18,7 @@ export interface CurrentWorkspace {
   documentsLimit: number;
 }
 
-export async function getCurrentWorkspace(): Promise<CurrentWorkspace> {
+export const getCurrentWorkspace = cache(async (): Promise<CurrentWorkspace> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -81,4 +82,4 @@ export async function getCurrentWorkspace(): Promise<CurrentWorkspace> {
     documentsUsed: documentLimit.used,
     documentsLimit: documentLimit.limit,
   };
-}
+});

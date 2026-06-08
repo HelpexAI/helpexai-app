@@ -7,7 +7,15 @@ const nextConfig = {
     "mammoth",
   ],
   outputFileTracingIncludes: {
-    "/*": [
+    "/api/public-tool": [
+      "./node_modules/@napi-rs/canvas/**/*",
+      "./node_modules/@napi-rs/canvas-linux-x64-gnu/**/*",
+    ],
+    "/api/documents/*": [
+      "./node_modules/@napi-rs/canvas/**/*",
+      "./node_modules/@napi-rs/canvas-linux-x64-gnu/**/*",
+    ],
+    "/documents/*": [
       "./node_modules/@napi-rs/canvas/**/*",
       "./node_modules/@napi-rs/canvas-linux-x64-gnu/**/*",
     ],

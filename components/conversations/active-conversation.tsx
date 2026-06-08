@@ -5,7 +5,7 @@ import { CitationPreviewPanel } from "@/components/conversations/citation-previe
 import { PlanLimitModal } from "@/components/dashboard/plan-limit-modal";
 import { AI_DISCLAIMERS, stripAiDisclaimer } from "@/lib/ai/disclaimer";
 import type { CategorySlug, Message, MessageSource } from "@/types";
-import { AlertTriangle, Bot, ChevronDown, ChevronLeft, ChevronUp, Eye, FileText, Loader2, Lock, Send } from "lucide-react";
+import { AlertTriangle, Bot, ChevronDown, ChevronUp, Eye, FileText, List, Loader2, Lock, Send } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useRef, useState } from "react";
@@ -52,6 +52,7 @@ export function ActiveConversation({
   const [used, setUsed] = useState(questionsUsed);
   const [limitModalOpen, setLimitModalOpen] = useState(questionsUsed >= questionsLimit);
   const [activeCitation, setActiveCitation] = useState<MessageSource | null>(null);
+  const [mobileConversationsOpen, setMobileConversationsOpen] = useState(false);
   const limitReached = used >= questionsLimit;
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), [messages, loading]);
@@ -92,10 +93,10 @@ export function ActiveConversation({
 
   return (
     <div className="flex h-screen min-h-[620px] overflow-hidden">
-      <ConversationSidebar conversations={conversations} activeId={conversation.id} />
+      <ConversationSidebar conversations={conversations} activeId={conversation.id} mobileOpen={mobileConversationsOpen} onMobileClose={() => setMobileConversationsOpen(false)} />
       <section className="flex min-w-0 flex-1 flex-col">
         <header className="relative flex min-h-16 shrink-0 items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 dark:border-zinc-800 dark:bg-zinc-900 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3"><Link href="/conversations" className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-zinc-200 md:hidden"><ChevronLeft className="size-4" /></Link><div className="min-w-0"><h2 className="truncate font-bold">{title}</h2><p className="text-xs text-zinc-400"><Lock className="mr-1 inline size-3" />Documents locked</p></div></div>
+          <div className="flex min-w-0 items-center gap-3"><button type="button" onClick={() => setMobileConversationsOpen(true)} className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-700 md:hidden" aria-label="Open conversations"><List className="size-4" /></button><div className="min-w-0"><h2 className="truncate font-bold">{title}</h2><p className="text-xs text-zinc-400"><Lock className="mr-1 inline size-3" />Documents locked</p></div></div>
           <div className="relative">
             <button onClick={() => setDocsOpen((value) => !value)} className="flex h-9 items-center gap-2 rounded-full border border-theme-border bg-theme-soft px-3 text-xs font-semibold text-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark"><FileText className="size-3.5" />{documents.length} document{documents.length === 1 ? "" : "s"}<ChevronDown className="size-3" /></button>
             {docsOpen && <div className="absolute right-0 top-11 z-20 w-72 rounded-xl border border-zinc-200 bg-white p-2 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">{documents.map((document) => <Link key={document.id} href={`/documents/${document.id}`} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-theme-soft hover:text-theme-primary dark:hover:bg-theme-soft-dark"><FileText className="size-4 shrink-0" /><span className="truncate">{document.name}</span></Link>)}</div>}
