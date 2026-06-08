@@ -17,17 +17,7 @@ async function queryWithSelectedDocumentFallback(
   question: string,
   selectedDocumentIds: string[],
 ) {
-  try {
-    return { result: await queryDocuments({
-      userId: context.user.id,
-      categorySlug: context.category,
-      question,
-      selectedDocumentIds,
-    }), fallbackUsed: false };
-  } catch (error) {
-    if (!isEmbeddingUnavailable(error)) throw error;
-    console.warn("OpenAI embeddings unavailable; using direct document context with Groq.");
-
+  async function querySelectedDocumentsDirectly() {
     const { data: documents, error: documentsError } = await context.service
       .from("documents")
       .select("id, name, file_path, file_type")
@@ -53,12 +43,30 @@ async function queryWithSelectedDocumentFallback(
       }
     }
 
+    return queryDocumentsFromRawText({
+      categorySlug: context.category,
+      question,
+      documents: rawDocuments,
+    });
+  }
+
+  try {
+    const result = await queryDocuments({
+      userId: context.user.id,
+      categorySlug: context.category,
+      question,
+      selectedDocumentIds,
+    });
+    if (result.answerType === "document" || selectedDocumentIds.length === 0) {
+      return { result, fallbackUsed: false };
+    }
+    console.warn("Semantic search returned no grounded context; using selected documents directly.");
+    return { result: await querySelectedDocumentsDirectly(), fallbackUsed: true };
+  } catch (error) {
+    if (!isEmbeddingUnavailable(error)) throw error;
+    console.warn("OpenAI embeddings unavailable; using direct document context with Groq.");
     return {
-      result: await queryDocumentsFromRawText({
-        categorySlug: context.category,
-        question,
-        documents: rawDocuments,
-      }),
+      result: await querySelectedDocumentsDirectly(),
       fallbackUsed: true,
     };
   }

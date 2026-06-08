@@ -43,6 +43,8 @@ test("auth callback rejects protocol-relative redirects", () => {
 test("successful query usage is reserved atomically", () => {
   assert.match(messages, /reserve_daily_query/);
   assert.match(messages, /request_id/);
+  assert.match(messages, /Semantic search returned no grounded context/);
+  assert.match(messages, /querySelectedDocumentsDirectly/);
 });
 
 test("three-tier pricing is consistent in code and migration", () => {
