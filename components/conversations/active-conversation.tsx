@@ -10,6 +10,7 @@ import { AlertTriangle, Bot, ChevronDown, ChevronUp, Eye, FileText, List, Loader
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { conversationCacheKeys, updateConversationCache } from "@/lib/client/conversation-cache";
 
 type ChatDocument = { id: string; name: string };
 
@@ -88,6 +89,18 @@ export function ActiveConversation({
     }
     setMessages((current) => [...current, result.assistantMessage!]);
     if (result.counted) setUsed((value) => value + 1);
+    updateConversationCache<{
+      messages?: Message[];
+      questionsUsed?: number;
+      conversation?: ConversationSummary;
+    }>(conversationCacheKeys.detail(conversation.id), (cached) => ({
+      ...cached,
+      messages: [...(cached.messages ?? initialMessages), optimistic, result.assistantMessage!],
+      questionsUsed: (cached.questionsUsed ?? questionsUsed) + (result.counted ? 1 : 0),
+      conversation: cached.conversation
+        ? { ...cached.conversation, title: title === "New Conversation" ? content.split(/\s+/).slice(0, 7).join(" ") : title }
+        : cached.conversation,
+    }));
     setLoading(false);
     router.refresh();
   }

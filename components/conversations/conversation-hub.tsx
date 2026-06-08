@@ -7,6 +7,7 @@ import type { CategorySlug, Document } from "@/types";
 import { ArrowRight, Check, FileText, List, Loader2, Lock, MessageSquarePlus, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { conversationCacheKeys, invalidateConversationCache } from "@/lib/client/conversation-cache";
 
 export function ConversationHub({
   conversations,
@@ -38,6 +39,7 @@ export function ConversationHub({
       setLoading(false);
       return;
     }
+    invalidateConversationCache(conversationCacheKeys.list);
     router.push(`/conversations/${result.conversation.id}`);
     router.refresh();
   }

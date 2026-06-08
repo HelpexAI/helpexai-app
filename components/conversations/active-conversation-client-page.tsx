@@ -6,6 +6,7 @@ import { ConversationsLocked } from "@/components/conversations/conversations-lo
 import { ConversationSkeleton } from "@/components/conversations/conversation-skeleton";
 import type { ConversationSummary } from "@/components/conversations/conversation-sidebar";
 import type { CategorySlug, Message } from "@/types";
+import { conversationCacheKeys, getConversationCache, setConversationCache } from "@/lib/client/conversation-cache";
 import { useCallback, useEffect, useState } from "react";
 
 type ActiveConversationResponse = {
@@ -23,7 +24,8 @@ type ActiveConversationResponse = {
 };
 
 export function ActiveConversationClientPage({ id }: { id: string }) {
-  const [data, setData] = useState<ActiveConversationResponse | null>(null);
+  const cacheKey = conversationCacheKeys.detail(id);
+  const [data, setData] = useState<ActiveConversationResponse | null>(() => getConversationCache(cacheKey));
   const [error, setError] = useState("");
   const load = useCallback(async () => {
     setError("");
@@ -32,11 +34,14 @@ export function ActiveConversationClientPage({ id }: { id: string }) {
       const result = await response.json() as ActiveConversationResponse;
       if (!response.ok) throw new Error(result.error ?? "Could not load conversation.");
       setData(result);
+      setConversationCache(cacheKey, result);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Could not load conversation.");
     }
-  }, [id]);
-  useEffect(() => { void load(); }, [load]);
+  }, [cacheKey, id]);
+  useEffect(() => {
+    if (!data) void load();
+  }, [data, load]);
   if (error) return <ClientPageError message={error} onRetry={() => void load()} />;
   if (!data) return <ConversationSkeleton />;
   if (data.locked) return <ConversationsLocked used={data.used ?? 0} limit={data.limit ?? 0} />;

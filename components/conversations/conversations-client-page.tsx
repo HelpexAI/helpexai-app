@@ -6,6 +6,7 @@ import { ConversationsLocked } from "@/components/conversations/conversations-lo
 import { ConversationSkeleton } from "@/components/conversations/conversation-skeleton";
 import type { ConversationSummary } from "@/components/conversations/conversation-sidebar";
 import type { CategorySlug, Document } from "@/types";
+import { conversationCacheKeys, getConversationCache, setConversationCache } from "@/lib/client/conversation-cache";
 import { useCallback, useEffect, useState } from "react";
 
 type ConversationsResponse = {
@@ -19,7 +20,7 @@ type ConversationsResponse = {
 };
 
 export function ConversationsClientPage() {
-  const [data, setData] = useState<ConversationsResponse | null>(null);
+  const [data, setData] = useState<ConversationsResponse | null>(() => getConversationCache(conversationCacheKeys.list));
   const [error, setError] = useState("");
   const load = useCallback(async () => {
     setError("");
@@ -28,11 +29,14 @@ export function ConversationsClientPage() {
       const result = await response.json() as ConversationsResponse;
       if (!response.ok) throw new Error(result.error ?? "Could not load conversations.");
       setData(result);
+      setConversationCache(conversationCacheKeys.list, result);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Could not load conversations.");
     }
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (!data) void load();
+  }, [data, load]);
   if (error) return <ClientPageError message={error} onRetry={() => void load()} />;
   if (!data) return <ConversationSkeleton root />;
   if (data.locked) return <ConversationsLocked used={data.used ?? 0} limit={data.limit ?? 0} />;

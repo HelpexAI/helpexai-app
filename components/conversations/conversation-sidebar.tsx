@@ -7,6 +7,7 @@ import { FileText, Loader2, MessageSquare, MoreHorizontal, Pencil, Search, Trash
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { conversationCacheKeys, invalidateConversationCache } from "@/lib/client/conversation-cache";
 
 export type ConversationSummary = {
   id: string;
@@ -72,6 +73,8 @@ export function ConversationSidebar({
     setConversations((current) => current.map((item) => item.id === result.conversation!.id ? { ...item, ...result.conversation } : item));
     setRenaming(null);
     setSaving(false);
+    invalidateConversationCache(conversationCacheKeys.list);
+    invalidateConversationCache(conversationCacheKeys.detail(result.conversation.id));
     router.refresh();
   }
 
@@ -89,6 +92,8 @@ export function ConversationSidebar({
     setConversations((current) => current.filter((item) => item.id !== deletedId));
     setDeleting(null);
     setSaving(false);
+    invalidateConversationCache(conversationCacheKeys.list);
+    invalidateConversationCache(conversationCacheKeys.detail(deletedId));
     if (activeId === deletedId || pathname === `/conversations/${deletedId}`) {
       router.replace("/conversations");
     } else {
