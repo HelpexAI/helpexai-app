@@ -25,6 +25,7 @@ const middleware = await readFile(new URL("../middleware.ts", import.meta.url), 
 const publicToolClient = await readFile(new URL("../components/public-tool/public-document-tool.tsx", import.meta.url), "utf8");
 const openAIEmbeddings = await readFile(new URL("../lib/ai/providers/embeddings/openai.ts", import.meta.url), "utf8");
 const qdrantProvider = await readFile(new URL("../lib/ai/providers/vectordb/qdrant.ts", import.meta.url), "utf8");
+const nextConfig = await readFile(new URL("../next.config.mjs", import.meta.url), "utf8");
 
 test("account protected writes are revoked from authenticated clients", () => {
   assert.match(migration, /DROP POLICY IF EXISTS "Users can update own accounts"/);
@@ -80,10 +81,19 @@ test("category personas enforce evidence-first domain analysis", () => {
 
 test("PDF ingestion preserves page metadata for citations", () => {
   assert.match(ingestion, /pdfjs-dist\/legacy\/build\/pdf\.mjs/);
+  assert.match(ingestion, /pdfjs-dist\/legacy\/build\/pdf\.worker\.mjs/);
   assert.match(ingestion, /getTextContent/);
   assert.match(ingestion, /pageNumber: chunk\.pageNumber/);
   assert.match(queryPipeline, /pageNumber: page\.pageNumber/);
   assert.match(queryPipeline, /lexicalScore/);
+});
+
+test("Vercel traces the PDF.js worker for every PDF extraction route", () => {
+  assert.match(nextConfig, /pdfjs-dist\/legacy\/build\/pdf\.worker\.mjs/);
+  assert.match(nextConfig, /"\/api\/public-tool": pdfTextAssets/);
+  assert.match(nextConfig, /"\/api\/conversations\/\*": pdfTextAssets/);
+  assert.match(nextConfig, /"\/api\/documents\/\*": pdfRenderAssets/);
+  assert.match(nextConfig, /"\/documents\/\*": pdfRenderAssets/);
 });
 
 test("Qdrant ingestion uses valid UUID point IDs and correct docId filters", () => {

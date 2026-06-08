@@ -17,13 +17,13 @@ async function extractReadableText(buffer: Buffer, fileType: DocumentRecord["fil
 }
 
 async function getPdfPageCount(buffer: Buffer) {
-  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const task = getDocument({ data: Uint8Array.from(buffer), disableFontFace: true, isEvalSupported: false, useSystemFonts: false });
-  const pdf = await task.promise;
+  const { PDFParse } = await import("pdf-parse");
+  const parser = new PDFParse({ data: buffer });
   try {
-    return pdf.numPages;
+    const info = await parser.getInfo();
+    return info.total;
   } finally {
-    await pdf.destroy();
+    await parser.destroy();
   }
 }
 

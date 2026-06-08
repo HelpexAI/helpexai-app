@@ -24,6 +24,9 @@ export interface ExtractedDocumentPage {
 }
 
 async function extractPdfPages(buffer: Buffer): Promise<ExtractedDocumentPage[]> {
+  // Vercel does not automatically trace PDF.js' dynamically loaded fake worker.
+  // Importing it explicitly both registers the worker globally and bundles it.
+  await import('pdfjs-dist/legacy/build/pdf.worker.mjs')
   const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs')
   const task = getDocument({
     data: Uint8Array.from(buffer),
