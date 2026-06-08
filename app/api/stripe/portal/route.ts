@@ -19,10 +19,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No Stripe billing account was found." }, { status: 404 });
   }
 
-  const session = await stripe.billingPortal.sessions.create({
-    customer: account.stripe_customer_id,
-    return_url: `${new URL(request.url).origin}/billing`,
-  });
-  return NextResponse.json({ url: session.url });
+  try {
+    const configurations = await stripe.billingPortal.configurations.list({ active: true, limit: 1 });
+    const configuration = configurations.data[0] ?? await stripe.billingPortal.configurations.create({
+      business_profile: { headline: "Manage your HelpexAI Pro subscription" },
+      features: {
+        customer_update: { enabled: true, allowed_updates: ["email", "address"] },
+        invoice_history: { enabled: true },
+        payment_method_update: { enabled: true },
+        subscription_cancel: { enabled: true, mode: "at_period_end" },
+      },
+    });
+    const session = await stripe.billingPortal.sessions.create({
+      customer: account.stripe_customer_id,
+      configuration: configuration.id,
+      return_url: `${new URL(request.url).origin}/billing`,
+    });
+    return NextResponse.json({ url: session.url });
+  } catch (error) {
+    console.error("Stripe portal creation failed:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Could not open Stripe billing portal." },
+      { status: 502 },
+    );
+  }
 }
-

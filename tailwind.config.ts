@@ -66,6 +66,17 @@ const config = {
           navy: "#0a1628",
           "navy-light": "#0f2044",
         },
+        theme: {
+          primary: "rgb(var(--theme-primary) / <alpha-value>)",
+          "primary-hover": "rgb(var(--theme-primary-hover) / <alpha-value>)",
+          "primary-foreground": "rgb(var(--theme-primary-foreground) / <alpha-value>)",
+          soft: "rgb(var(--theme-soft) / <alpha-value>)",
+          "soft-dark": "rgb(var(--theme-soft-dark) / <alpha-value>)",
+          "soft-foreground": "rgb(var(--theme-soft-foreground) / <alpha-value>)",
+          "soft-foreground-dark": "rgb(var(--theme-soft-foreground-dark) / <alpha-value>)",
+          border: "rgb(var(--theme-border) / <alpha-value>)",
+          "border-dark": "rgb(var(--theme-border-dark) / <alpha-value>)",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

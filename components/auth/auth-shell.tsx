@@ -11,7 +11,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
         <main className="relative flex min-h-screen w-full items-center justify-center px-4 py-20 sm:px-8 lg:w-[58%] lg:px-12 lg:py-12 xl:w-[60%]">
           <div className="absolute left-4 top-4 lg:hidden">
             <Link href="/" className="flex items-center gap-2">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-[#2b7fff] text-white">
+              <div className="flex size-9 items-center justify-center rounded-xl bg-theme-primary text-white">
                 <LayoutDashboard className="size-4" />
               </div>
               <span className="font-bold tracking-tight">HelpexAI</span>

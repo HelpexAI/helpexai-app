@@ -19,7 +19,7 @@ export interface IngestResult {
   chunkCount: number
 }
 
-async function extractText(buffer: Buffer, fileType: string): Promise<string> {
+export async function extractDocumentText(buffer: Buffer, fileType: string): Promise<string> {
   if (fileType === 'pdf') {
     const { PDFParse } = await import('pdf-parse')
     const parser = new PDFParse({ data: buffer })
@@ -45,7 +45,7 @@ export async function ingestDocument(options: IngestOptions): Promise<IngestResu
   const { userId, categorySlug, docId, docName, fileBuffer, fileType } = options
 
   // 1. Extract text
-  const rawText = await extractText(fileBuffer, fileType)
+  const rawText = await extractDocumentText(fileBuffer, fileType)
   if (!rawText.trim()) {
     throw new Error('No text content could be extracted from this document')
   }

@@ -1,6 +1,7 @@
 import { getLLMProvider, getEmbeddingProvider, getVectorDBProvider } from '../factory'
 import { generateNamespace } from '@/lib/utils'
 import { CategorySlug, MessageSource, VectorSearchResult } from '@/types'
+import { stripAiDisclaimer } from '@/lib/ai/disclaimer'
 import {
   LEGAL_SYSTEM_PROMPT,
   LEGAL_NO_CONTEXT_NOTE,
@@ -13,6 +14,8 @@ import {
 } from '../prompts/business'
 
 const TOP_K = 5
+const FALLBACK_DOCUMENT_CHARACTER_LIMIT = 12_000
+const FALLBACK_TOTAL_CHARACTER_LIMIT = 30_000
 
 export interface QueryOptions {
   userId: string
@@ -26,6 +29,12 @@ export interface QueryResult {
   sources: MessageSource[]
   answerType: 'document' | 'general_knowledge' | 'off_topic'
   tokensUsed: number
+}
+
+export interface RawDocumentContext {
+  id: string
+  name: string
+  text: string
 }
 
 function getSystemPrompt(categorySlug: CategorySlug): string {
@@ -103,7 +112,7 @@ export async function queryDocuments(options: QueryOptions): Promise<QueryResult
 
   // 5. Get LLM answer
   const llm = getLLMProvider()
-  const answer = await llm.complete(prompt, systemPrompt)
+  const answer = stripAiDisclaimer(await llm.complete(prompt, systemPrompt))
 
   // 6. Build sources array
   const sources: MessageSource[] = hasContext
@@ -121,5 +130,56 @@ export async function queryDocuments(options: QueryOptions): Promise<QueryResult
     sources,
     answerType: hasContext ? 'document' : 'general_knowledge',
     tokensUsed: Math.ceil(answer.length / 4), // rough estimate
+  }
+}
+
+export function isEmbeddingUnavailable(error: unknown): boolean {
+  const message = error instanceof Error ? `${error.name} ${error.message}` : String(error)
+  return /insufficientquota|insufficient_quota|quota|429|rate.?limit/i.test(message)
+}
+
+export async function queryDocumentsFromRawText(
+  options: Pick<QueryOptions, 'categorySlug' | 'question'> & { documents: RawDocumentContext[] },
+): Promise<QueryResult> {
+  const { categorySlug, question } = options
+  if (isOffTopic(question)) {
+    return {
+      answer: getOffTopicResponse(categorySlug),
+      sources: [],
+      answerType: 'off_topic',
+      tokensUsed: 0,
+    }
+  }
+
+  let remaining = FALLBACK_TOTAL_CHARACTER_LIMIT
+  const documents = options.documents
+    .map((document) => {
+      const text = document.text.trim().slice(0, Math.min(FALLBACK_DOCUMENT_CHARACTER_LIMIT, remaining))
+      remaining -= text.length
+      return { ...document, text }
+    })
+    .filter((document) => document.text.length > 0 && remaining >= 0)
+
+  if (!documents.length) {
+    throw new Error('No readable text was found in the selected documents.')
+  }
+
+  const context = documents
+    .map((document, index) => `[Source ${index + 1}] Document: "${document.name}"\n${document.text}`)
+    .join('\n\n---\n\n')
+  const prompt = `DOCUMENT CONTEXT:\n${context}\n\n---\n\nUser Question: ${question}\n\nAnswer based ONLY on the document context above. Cite document names in your answer.`
+  const answer = stripAiDisclaimer(await getLLMProvider().complete(prompt, getSystemPrompt(categorySlug)))
+
+  return {
+    answer,
+    sources: documents.map((document) => ({
+      docId: document.id,
+      docName: document.name,
+      chunkIndex: 0,
+      pageNumber: null,
+      excerpt: document.text.slice(0, 300),
+    })),
+    answerType: 'document',
+    tokensUsed: Math.ceil(answer.length / 4),
   }
 }

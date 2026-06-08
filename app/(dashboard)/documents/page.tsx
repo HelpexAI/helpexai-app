@@ -25,6 +25,7 @@ export default async function DocumentsPage() {
       documents={documents ?? []}
       category={workspace.category}
       maxDocuments={plan?.max_documents ?? (workspace.plan === "pro" ? 50 : 1)}
+      requiresResolution={workspace.documentsOverLimit}
     />
   );
 }

@@ -58,7 +58,7 @@ function PageThumbnail({
       type="button"
       onClick={onClick}
       className={`overflow-hidden rounded-lg border-2 ${
-        active ? "border-[#2b7fff]" : "border-white/10"
+        active ? "border-theme-primary" : "border-white/10"
       }`}
     >
       <div className="relative h-36 overflow-hidden bg-white">
@@ -72,7 +72,7 @@ function PageThumbnail({
           className="h-full w-full object-contain"
         />
       </div>
-      <div className={`py-1 text-center text-xs font-semibold ${active ? "bg-[#2b7fff] text-white" : "bg-[#10203a] text-white/40"}`}>
+      <div className={`py-1 text-center text-xs font-semibold ${active ? "bg-theme-primary text-white" : "bg-[#10203a] text-white/40"}`}>
         {page}
       </div>
     </button>
@@ -132,7 +132,7 @@ export function DocumentViewer({
             <Download className="size-4" />
             <span className="hidden sm:inline">Download</span>
           </a>
-          <button type="button" onClick={shareDocument} className="flex h-9 items-center gap-2 rounded-lg bg-[#2b7fff] px-3 text-sm font-medium transition hover:bg-blue-600">
+          <button type="button" onClick={shareDocument} className="flex h-9 items-center gap-2 rounded-lg bg-theme-primary px-3 text-sm font-medium transition hover:bg-theme-primary-hover">
             {shared ? <Check className="size-4" /> : <Share2 className="size-4" />}
             <span className="hidden sm:inline">{shared ? "Copied" : "Share"}</span>
           </button>
@@ -198,7 +198,7 @@ export function DocumentViewer({
               ) : (
                 <article className="mx-auto min-h-[80vh] max-w-3xl whitespace-pre-wrap rounded-lg bg-white p-6 text-sm leading-7 text-zinc-700 shadow-2xl sm:p-10 lg:p-14">
                   <div className="mb-8 flex items-center gap-3 border-b border-zinc-200 pb-5">
-                    <FileText className="size-6 text-[#2b7fff]" />
+                    <FileText className="size-6 text-theme-primary" />
                     <h1 className="break-all text-lg font-bold text-zinc-900">{document.name}</h1>
                   </div>
                   {extractedText || "No readable text was found in this document."}

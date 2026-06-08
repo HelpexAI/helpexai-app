@@ -5,12 +5,10 @@ export const PLAN_LIMITS = {
   free: {
     max_documents: 1,
     max_queries_day: 3,
-    max_conversations: 1,
   },
   pro: {
     max_documents: 50,
     max_queries_day: 50,
-    max_conversations: 30,
   },
 } as const
 

@@ -177,11 +177,11 @@ export function DocumentUploader() {
         onClick={() => inputRef.current?.click()}
         className={`flex cursor-pointer flex-col items-center gap-4 rounded-2xl border-2 border-dashed bg-white p-8 text-center transition dark:bg-zinc-900 sm:p-12 ${
           dragging
-            ? "border-[#2b7fff] bg-blue-50 dark:bg-blue-950/20"
-            : "border-zinc-300 hover:border-[#2b7fff]/60 dark:border-zinc-700"
+            ? "border-theme-primary bg-theme-soft dark:bg-theme-soft-dark"
+            : "border-zinc-300 hover:border-theme-primary/60 dark:border-zinc-700"
         }`}
       >
-        <CloudUpload className="size-14 text-[#2b7fff]" />
+        <CloudUpload className="size-14 text-theme-primary" />
         <div>
           <h3 className="text-xl font-bold text-zinc-950 dark:text-white">Drop files here</h3>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">or click to browse</p>
@@ -193,7 +193,7 @@ export function DocumentUploader() {
           {["PDF", "DOCX", "TXT"].map((type) => (
             <span
               key={type}
-              className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-[#2b7fff] dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-400"
+              className="rounded-full border border-theme-border bg-theme-soft px-3 py-1 text-xs font-medium text-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark"
             >
               {type}
             </span>
@@ -201,7 +201,7 @@ export function DocumentUploader() {
         </div>
         <button
           type="button"
-          className="mt-1 flex h-10 items-center gap-2 rounded-full bg-[#2b7fff] px-6 text-sm font-semibold text-white"
+          className="mt-1 flex h-10 items-center gap-2 rounded-full bg-theme-primary px-6 text-sm font-semibold text-white"
         >
           <FolderOpen className="size-4" />
           Browse Files
@@ -228,7 +228,7 @@ export function DocumentUploader() {
                 key={item.key}
                 className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:gap-4 sm:px-5"
               >
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[#2b7fff] dark:bg-blue-950/40 dark:text-blue-400">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark">
                   <FileText className="size-4" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -243,7 +243,7 @@ export function DocumentUploader() {
                   <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
                     <div
                       className={`h-full rounded-full transition-all duration-300 ${
-                        item.status === "failed" ? "bg-red-500" : "bg-[#2b7fff]"
+                        item.status === "failed" ? "bg-red-500" : "bg-theme-primary"
                       }`}
                       style={{ width: `${item.progress}%` }}
                     />
@@ -257,7 +257,7 @@ export function DocumentUploader() {
                         ? "border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-400"
                         : item.status === "failed"
                           ? "border-red-200 bg-red-50 text-red-600 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400"
-                          : "border-blue-200 bg-blue-50 text-[#2b7fff] dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-400"
+                          : "border-theme-border bg-theme-soft text-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark"
                     }`}
                   >
                     {item.status === "ready" ? (
@@ -288,7 +288,7 @@ export function DocumentUploader() {
             {items.every((item) => item.status === "ready") ? (
               <Link
                 href="/documents"
-                className="flex h-11 items-center justify-center rounded-lg bg-[#2b7fff] px-5 text-sm font-semibold text-white"
+                className="flex h-11 items-center justify-center rounded-lg bg-theme-primary px-5 text-sm font-semibold text-white"
               >
                 View Documents
               </Link>
@@ -297,7 +297,7 @@ export function DocumentUploader() {
                 type="button"
                 onClick={uploadFiles}
                 disabled={uploading || !items.some((item) => item.status === "selected" || item.status === "failed")}
-                className="flex h-11 items-center justify-center gap-2 rounded-lg bg-[#2b7fff] px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex h-11 items-center justify-center gap-2 rounded-lg bg-theme-primary px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {uploading && <Loader2 className="size-4 animate-spin" />}
                 Upload {items.filter((item) => item.status === "selected" || item.status === "failed").length} File(s)
@@ -308,7 +308,7 @@ export function DocumentUploader() {
       )}
 
       <div className="flex items-center justify-center gap-2 py-2 text-xs text-zinc-500 dark:text-zinc-400">
-        <ShieldCheck className="size-4 text-[#2b7fff]" />
+        <ShieldCheck className="size-4 text-theme-primary" />
         Documents encrypted and stored securely
       </div>
 

@@ -25,14 +25,18 @@ const categories = [
 ];
 
 const inputClass =
-  "h-11 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-[#2b7fff] focus:ring-2 focus:ring-[#2b7fff]/15 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500";
+  "h-11 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/15 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500";
 
 export function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedCategory = searchParams.get("category");
-  const [category, setCategory] = useState<CategorySlug>(
-    requestedCategory === "business" ? "business" : "legal",
+  const [category, setCategory] = useState<CategorySlug | null>(
+    requestedCategory === "business"
+      ? "business"
+      : requestedCategory === "legal"
+        ? "legal"
+        : null,
   );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,10 +45,11 @@ export function SignupForm() {
   const [error, setError] = useState("");
 
   async function continueWithGoogle() {
+    if (!category) return;
     setLoading("google");
     setError("");
     const supabase = createClient();
-    const redirectTo = `${window.location.origin}/auth/callback?category=${category}`;
+    const redirectTo = `${window.location.origin}/auth/callback?mode=signup&category=${category}`;
     const { error: authError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo, queryParams: { prompt: "select_account" } },
@@ -59,6 +64,11 @@ export function SignupForm() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+
+    if (!category) {
+      setError("Choose Helpex Legal or Helpex Business first.");
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
@@ -78,7 +88,7 @@ export function SignupForm() {
 
     setLoading("email");
     const supabase = createClient();
-    const emailRedirectTo = `${window.location.origin}/auth/callback?category=${category}`;
+    const emailRedirectTo = `${window.location.origin}/auth/callback?mode=signup&category=${category}`;
     const { data, error: authError } = await supabase.auth.signUp({
       email: parsed.data.email,
       password: parsed.data.password,
@@ -110,6 +120,19 @@ export function SignupForm() {
         return;
       }
 
+      const workspaceResponse = await fetch("/api/workspace/select", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category }),
+      });
+
+      if (!workspaceResponse.ok) {
+        const result = (await workspaceResponse.json()) as { error?: string };
+        setError(result.error ?? "Could not open your new Helpex account.");
+        setLoading(null);
+        return;
+      }
+
       router.push("/dashboard");
       router.refresh();
       return;
@@ -131,63 +154,61 @@ export function SignupForm() {
         </p>
       </div>
 
-      <div className="space-y-3">
-        <p className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">
-          Choose your product
-        </p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {categories.map(({ slug, name, description, icon: Icon }) => {
-            const selected = category === slug;
-            const business = slug === "business";
+      {!category && (
+        <div className="space-y-3">
+          <p className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">
+            Choose your product
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {categories.map(({ slug, name, description, icon: Icon }) => {
+              const business = slug === "business";
 
-            return (
-              <button
-                key={slug}
-                type="button"
-                onClick={() => setCategory(slug)}
-                className={`relative flex min-h-40 flex-col items-center justify-center gap-3 rounded-xl border-2 p-5 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                  selected
-                    ? business
-                      ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20"
-                      : "border-[#2b7fff] bg-blue-50 dark:bg-blue-950/20"
-                    : "border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900"
-                }`}
-                aria-pressed={selected}
-              >
-                <div
-                  className={`flex size-12 items-center justify-center rounded-xl ${
+              return (
+                <button
+                  key={slug}
+                  type="button"
+                  onClick={() => setCategory(slug)}
+                  className={`relative flex min-h-40 flex-col items-center justify-center gap-3 rounded-xl border-2 p-5 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
                     business
-                      ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"
-                      : "bg-blue-100 text-[#2b7fff] dark:bg-blue-950 dark:text-blue-400"
+                      ? "border-emerald-200 bg-emerald-50 hover:border-emerald-500 dark:border-emerald-900 dark:bg-emerald-950/20"
+                      : "border-theme-border bg-theme-soft hover:border-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark"
                   }`}
                 >
-                  <Icon className="size-6" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-zinc-950 dark:text-white">
-                    {name}
-                  </p>
-                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                    {description}
-                  </p>
-                </div>
-                <div
-                  className={`flex size-5 items-center justify-center rounded-full border-2 ${
-                    selected
-                      ? business
-                        ? "border-emerald-500 bg-emerald-500 text-white"
-                        : "border-[#2b7fff] bg-[#2b7fff] text-white"
-                      : "border-zinc-300 dark:border-zinc-600"
-                  }`}
-                >
-                  {selected && <Check className="size-3" />}
-                </div>
-              </button>
-            );
-          })}
+                  <div
+                    className={`flex size-12 items-center justify-center rounded-xl ${
+                      business
+                        ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"
+                        : "bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark"
+                    }`}
+                  >
+                    <Icon className="size-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-950 dark:text-white">
+                      {name}
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                      {description}
+                    </p>
+                  </div>
+                  <div
+                    className={`flex size-5 items-center justify-center rounded-full border-2 text-white ${
+                      business
+                        ? "border-emerald-500 bg-emerald-500"
+                        : "border-theme-primary bg-theme-primary"
+                    }`}
+                  >
+                    <Check className="size-3" />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
+      {category && (
+        <>
       <button
         type="button"
         onClick={continueWithGoogle}
@@ -258,7 +279,7 @@ export function SignupForm() {
         <button
           type="submit"
           disabled={loading !== null}
-          className="mt-1 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#2b7fff] text-sm font-semibold text-white shadow-sm transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-1 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-theme-primary text-sm font-semibold text-white shadow-sm transition hover:bg-theme-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading === "email" && <Loader2 className="size-4 animate-spin" />}
           Create Account
@@ -268,12 +289,14 @@ export function SignupForm() {
       <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
         Already have an account?{" "}
         <Link
-          href={`/login?category=${category}`}
-          className="font-semibold text-[#2b7fff]"
+          href="/login"
+          className="font-semibold text-theme-primary"
         >
           Sign in
         </Link>
       </p>
+        </>
+      )}
       <p className="text-center text-xs leading-5 text-zinc-400 dark:text-zinc-500">
         By creating an account, you agree to our terms and{" "}
         <Link href="/privacy" className="underline underline-offset-2">

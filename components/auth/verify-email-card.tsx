@@ -29,7 +29,7 @@ export function VerifyEmailCard({
 
     setLoading(true);
     const supabase = createClient();
-    const callbackQuery = category ? `?category=${category}` : "";
+    const callbackQuery = category ? `?mode=signup&category=${category}` : "";
     const { error: resendError } = await supabase.auth.resend({
       type: "signup",
       email,
@@ -50,8 +50,8 @@ export function VerifyEmailCard({
     <div className="flex w-full flex-col items-center gap-6 sm:gap-8">
       <div className="w-full rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8">
         <div className="flex flex-col items-center gap-6">
-          <div className="flex size-20 items-center justify-center rounded-full bg-[#2b7fff]/10">
-            <Mail className="size-10 text-[#2b7fff]" strokeWidth={1.5} />
+          <div className="flex size-20 items-center justify-center rounded-full bg-theme-primary/10">
+            <Mail className="size-10 text-theme-primary" strokeWidth={1.5} />
           </div>
 
           <div className="flex flex-col items-center gap-2 text-center">
@@ -78,7 +78,7 @@ export function VerifyEmailCard({
               type="button"
               onClick={resendVerification}
               disabled={loading}
-              className="flex items-center gap-2 font-medium text-[#2b7fff] underline underline-offset-4 transition-colors hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex items-center gap-2 font-medium text-theme-primary underline underline-offset-4 transition-colors hover:text-theme-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading && <Loader2 className="size-3.5 animate-spin" />}
               {loading ? "Sending..." : "Resend verification email"}
@@ -88,7 +88,7 @@ export function VerifyEmailCard({
               className="text-zinc-500 transition-colors hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
             >
               Wrong email address?{" "}
-              <span className="font-medium text-[#2b7fff] underline underline-offset-4">
+              <span className="font-medium text-theme-primary underline underline-offset-4">
                 Go back
               </span>
             </Link>
@@ -118,7 +118,7 @@ export function VerifyEmailCard({
           <div className="h-px w-full bg-zinc-200 dark:bg-zinc-800" />
 
           <Link
-            href={`/login${categoryQuery}`}
+            href="/login"
             className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
           >
             <ArrowLeft className="size-4" />

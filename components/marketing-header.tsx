@@ -31,7 +31,7 @@ export function MarketingHeader() {
     <header className="relative rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:px-6 sm:py-4">
       <div className="flex items-center justify-between gap-3">
         <Link href="/" className="flex min-w-0 items-center gap-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#2b7fff] text-blue-50 shadow-sm sm:size-10">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-theme-primary text-theme-primary-foreground shadow-sm sm:size-10">
             <LayoutDashboard className="size-5" />
           </div>
           <div className="flex min-w-0 flex-col leading-none">
@@ -82,7 +82,7 @@ export function MarketingHeader() {
             </Link>
             <Link
               href="/signup"
-              className="rounded-full bg-[#2b7fff] px-5 py-2 text-sm font-semibold leading-5 text-blue-50 shadow-sm transition-colors hover:bg-blue-600"
+              className="rounded-full bg-theme-primary px-5 py-2 text-sm font-semibold leading-5 text-theme-primary-foreground shadow-sm transition-colors hover:bg-theme-primary-hover"
             >
               Get Started
             </Link>
@@ -120,7 +120,7 @@ export function MarketingHeader() {
             </Link>
             <Link
               href="/signup"
-              className="rounded-full bg-[#2b7fff] px-4 py-2.5 text-center text-sm font-semibold text-white"
+              className="rounded-full bg-theme-primary px-4 py-2.5 text-center text-sm font-semibold text-white"
             >
               Get Started
             </Link>

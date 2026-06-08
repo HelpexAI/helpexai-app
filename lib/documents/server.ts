@@ -1,4 +1,6 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { getActiveWorkspaceCategory } from "@/lib/dashboard/active-workspace";
+import { getDocumentLimitState } from "@/lib/usage/limits";
 import type { CategorySlug, FileType, PlanSlug } from "@/types";
 
 export async function getDocumentRequestContext() {
@@ -9,18 +11,41 @@ export async function getDocumentRequestContext() {
 
   if (!user) return null;
 
-  const { data: account } = await supabase
+  const activeCategory = await getActiveWorkspaceCategory();
+  let accountQuery = supabase
     .from("accounts")
     .select("category_slug, plan")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .order("created_at", { ascending: true });
+
+  if (activeCategory) {
+    accountQuery = accountQuery.eq("category_slug", activeCategory);
+  }
+
+  let { data: account } = await accountQuery.limit(1).maybeSingle();
+
+  if (activeCategory && !account) {
+    const fallback = await supabase
+      .from("accounts")
+      .select("category_slug, plan")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    account = fallback.data;
+  }
+
+  if (!account) return null;
+
+  const category = (account?.category_slug === "business" ? "business" : "legal") as CategorySlug;
+  const plan = (account?.plan === "pro" ? "pro" : "free") as PlanSlug;
+  const service = createServiceClient();
+  const documentLimit = await getDocumentLimitState(service, user.id, category, plan);
 
   return {
     user,
-    category: (account?.category_slug === "business" ? "business" : "legal") as CategorySlug,
-    plan: (account?.plan === "pro" ? "pro" : "free") as PlanSlug,
-    service: createServiceClient(),
+    category,
+    plan,
+    documentLimit,
+    service,
   };
 }
 

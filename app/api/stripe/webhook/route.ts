@@ -23,26 +23,34 @@ export async function POST(request: Request) {
     );
   }
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object;
-    if (typeof session.subscription === "string") {
-      await updateAccountFromSubscription(await stripe.subscriptions.retrieve(session.subscription));
+  try {
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object;
+      if (typeof session.subscription === "string") {
+        await updateAccountFromSubscription(await stripe.subscriptions.retrieve(session.subscription));
+      }
     }
-  }
 
-  if (event.type === "customer.subscription.created" || event.type === "customer.subscription.updated") {
-    await updateAccountFromSubscription(event.data.object);
-  }
+    if (event.type === "customer.subscription.created" || event.type === "customer.subscription.updated") {
+      await updateAccountFromSubscription(event.data.object);
+    }
 
-  if (event.type === "customer.subscription.deleted") {
-    const subscription = event.data.object;
-    const service = createServiceClient();
-    await service
-      .from("accounts")
-      .update({ plan: "free", subscription_status: "cancelled" })
-      .eq("stripe_subscription_id", subscription.id);
+    if (event.type === "customer.subscription.deleted") {
+      const subscription = event.data.object;
+      const service = createServiceClient();
+      const { error } = await service
+        .from("accounts")
+        .update({
+          plan: "free",
+          subscription_status: "cancelled",
+        })
+        .eq("stripe_subscription_id", subscription.id);
+      if (error) throw error;
+    }
+  } catch (error) {
+    console.error("Stripe webhook synchronization failed:", error);
+    return NextResponse.json({ error: "Webhook synchronization failed." }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });
 }
-

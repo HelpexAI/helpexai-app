@@ -29,7 +29,7 @@ export default function HomePage() {
             <section className="grid grid-cols-1 items-center gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14 xl:gap-20">
               <div className="flex flex-col gap-6">
                 <div className="inline-flex shadow-sm font-medium rounded-full bg-white text-[#71717b] text-xs leading-4 border border-zinc-200 px-4 py-2 items-center gap-2 w-fit">
-                  <Sparkles className="size-4 text-[#2b7fff]" />
+                  <Sparkles className="size-4 text-theme-primary" />
                   AI answers for legal and business documents
                 </div>
                 <div className="flex flex-col gap-4">
@@ -44,7 +44,7 @@ export default function HomePage() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                   <Link
                     href="/signup?category=legal"
-                    className="shadow-sm font-semibold rounded-full bg-[#2b7fff] text-blue-50 text-sm leading-5 px-6 py-3"
+                    className="shadow-sm font-semibold rounded-full bg-theme-primary text-theme-primary-foreground text-sm leading-5 px-6 py-3"
                   >
                     Try Helpex Legal
                   </Link>
@@ -62,7 +62,7 @@ export default function HomePage() {
 
               {/* Hero Card */}
               <div className="relative flex justify-end">
-                <div className="rounded-full bg-[#2b7fff]/5 absolute right-8 top-6 w-72 h-72" />
+                <div className="rounded-full bg-theme-primary/5 absolute right-8 top-6 w-72 h-72" />
                 <div className="relative flex w-full flex-col gap-4 rounded-3xl border border-zinc-200 bg-white p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-6 lg:max-w-[620px]">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-3">
@@ -79,7 +79,7 @@ export default function HomePage() {
                       </div>
                     </div>
                     <div className="font-medium rounded-full text-[#71717b] text-xs leading-4 border border-zinc-200 flex px-3 py-1 items-center gap-2">
-                      <ShieldCheck className="size-3.5 text-[#2b7fff]" />
+                      <ShieldCheck className="size-3.5 text-theme-primary" />
                       Secure
                     </div>
                   </div>
@@ -100,7 +100,7 @@ export default function HomePage() {
                             What is the termination notice period?
                           </p>
                         </div>
-                        <div className="shadow-sm rounded-xl bg-[#2b7fff] text-blue-50 p-3">
+                        <div className="shadow-sm rounded-xl bg-theme-primary text-theme-primary-foreground p-3">
                           <p className="font-medium opacity-90 text-xs leading-4">
                             Answer
                           </p>
@@ -113,14 +113,14 @@ export default function HomePage() {
                     <div className="flex flex-col gap-4">
                       <div className="shadow-sm rounded-2xl bg-white border border-zinc-200 p-4">
                         <div className="font-semibold text-[#71717b] text-xs leading-4 flex items-center gap-2">
-                          <Upload className="size-4 text-[#2b7fff]" />
+                          <Upload className="size-4 text-theme-primary" />
                           Upload
                         </div>
                         <div className="rounded-xl bg-zinc-100 border border-dashed border-zinc-200 mt-3 h-24" />
                       </div>
                       <div className="shadow-sm rounded-2xl bg-white border border-zinc-200 p-4">
                         <div className="font-semibold text-[#71717b] text-xs leading-4 flex items-center gap-2">
-                          <MessageSquare className="size-4 text-[#2b7fff]" />
+                          <MessageSquare className="size-4 text-theme-primary" />
                           Ask AI
                         </div>
                         <div className="space-y-2 mt-3">
@@ -164,12 +164,12 @@ export default function HomePage() {
                   key={step}
                   className="shadow-sm rounded-2xl bg-white border border-zinc-200 flex p-6 flex-col gap-4"
                 >
-                  <div className="size-12 rounded-2xl bg-zinc-100 text-[#2b7fff] flex justify-center items-center">
+                  <div className="size-12 rounded-2xl bg-zinc-100 text-theme-primary flex justify-center items-center">
                     <Icon className="size-6" />
                   </div>
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-3">
-                      <span className="size-8 font-bold rounded-full bg-[#2b7fff] text-blue-50 text-sm leading-5 flex justify-center items-center">
+                      <span className="size-8 font-bold rounded-full bg-theme-primary text-theme-primary-foreground text-sm leading-5 flex justify-center items-center">
                         {step}
                       </span>
                       <h3 className="font-bold text-xl leading-7">{title}</h3>
@@ -183,10 +183,10 @@ export default function HomePage() {
             {/* Category Cards */}
             <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div
-                className="shadow-sm rounded-3xl bg-white border-l-4 border-l-[#2b7fff] border border-zinc-200 p-6 gap-4 flex flex-col"
+                className="shadow-sm rounded-3xl bg-white border-l-4 border-l-theme-primary border border-zinc-200 p-6 gap-4 flex flex-col"
                 id="legal"
               >
-                <div className="size-12 rounded-2xl bg-zinc-100 text-[#2b7fff] flex justify-center items-center">
+                <div className="size-12 rounded-2xl bg-zinc-100 text-theme-primary flex justify-center items-center">
                   <Scale className="size-6" />
                 </div>
                 <div className="flex flex-col gap-2">
@@ -213,7 +213,7 @@ export default function HomePage() {
                 </div>
                 <Link
                   href="/signup?category=legal"
-                  className="mt-2 inline-flex items-center gap-2 font-semibold text-[#2b7fff] text-sm"
+                  className="mt-2 inline-flex items-center gap-2 font-semibold text-theme-primary text-sm"
                 >
                   Get started with Legal →
                 </Link>
@@ -293,7 +293,7 @@ export default function HomePage() {
                     {[
                       { ok: true, label: "1 document" },
                       { ok: true, label: "3 questions/day" },
-                      { ok: true, label: "1 conversation" },
+                      { ok: true, label: "Unlimited conversations" },
                       { ok: false, label: "Advanced citations" },
                       { ok: false, label: "Cross-document comparison" },
                     ].map(({ ok, label }) => (
@@ -302,7 +302,7 @@ export default function HomePage() {
                         className={`text-sm leading-5 flex items-center gap-3 ${!ok ? "text-[#71717b]" : ""}`}
                       >
                         {ok ? (
-                          <Check className="size-4 text-[#2b7fff]" />
+                          <Check className="size-4 text-theme-primary" />
                         ) : (
                           <X className="size-4 text-[#71717b]" />
                         )}
@@ -319,11 +319,11 @@ export default function HomePage() {
                 </div>
 
                 {/* Pro */}
-                <div className="shadow-sm rounded-3xl bg-[#2b7fff] text-blue-50 border border-zinc-200 p-6 gap-4 flex flex-col">
+                <div className="shadow-sm rounded-3xl bg-theme-primary text-theme-primary-foreground border border-zinc-200 p-6 gap-4 flex flex-col">
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <h3 className="font-bold text-xl leading-7">Pro</h3>
-                      <span className="font-semibold rounded-full bg-blue-50/15 text-xs leading-4 px-3 py-1">
+                      <span className="font-semibold rounded-full bg-theme-primary-foreground/15 text-xs leading-4 px-3 py-1">
                         Most Popular
                       </span>
                     </div>
@@ -331,7 +331,7 @@ export default function HomePage() {
                       <span className="font-black text-4xl leading-10">
                         $49
                       </span>
-                      <span className="text-blue-50/80 text-sm leading-5 pb-1">
+                      <span className="text-theme-primary-foreground/80 text-sm leading-5 pb-1">
                         /month
                       </span>
                     </div>
@@ -340,7 +340,7 @@ export default function HomePage() {
                     {[
                       "50 documents",
                       "50 questions/day",
-                      "30 conversations",
+                      "Unlimited conversations",
                       "Priority processing",
                       "Cross-document comparison",
                     ].map((f) => (
@@ -355,7 +355,7 @@ export default function HomePage() {
                   </div>
                   <Link
                     href="/signup"
-                    className="mt-auto font-semibold rounded-full bg-white text-[#2b7fff] text-sm text-center px-6 py-3"
+                    className="mt-auto font-semibold rounded-full bg-white text-theme-primary text-sm text-center px-6 py-3"
                   >
                     Upgrade to Pro
                   </Link>
@@ -367,7 +367,7 @@ export default function HomePage() {
           {/* Footer */}
           <footer className="mt-8 flex flex-col items-center gap-5 rounded-2xl border border-zinc-200 bg-white px-5 py-5 text-center shadow-sm sm:mt-10 sm:px-6 lg:flex-row lg:justify-between lg:text-left">
             <div className="flex items-center gap-3">
-              <div className="size-9 rounded-xl bg-[#2b7fff] text-blue-50 flex justify-center items-center">
+              <div className="size-9 rounded-xl bg-theme-primary text-theme-primary-foreground flex justify-center items-center">
                 <LayoutDashboard className="size-4" />
               </div>
               <div className="leading-none flex flex-col">

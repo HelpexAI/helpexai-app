@@ -12,7 +12,7 @@ export function DashboardPlaceholder({
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="flex min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-white px-6 text-center dark:border-zinc-700 dark:bg-zinc-900">
-        <div className="flex size-12 items-center justify-center rounded-xl bg-blue-50 text-[#2b7fff] dark:bg-blue-950/40 dark:text-blue-400">
+        <div className="flex size-12 items-center justify-center rounded-xl bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark">
           <Icon className="size-6" />
         </div>
         <h2 className="mt-5 text-xl font-bold text-zinc-950 dark:text-white">

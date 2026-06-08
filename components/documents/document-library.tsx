@@ -2,6 +2,7 @@
 
 import { PlanLimitModal } from "@/components/dashboard/plan-limit-modal";
 import { DeleteDocumentModal } from "@/components/documents/delete-document-modal";
+import { ResolveDocumentLimitModal } from "@/components/documents/resolve-document-limit-modal";
 import type { CategorySlug, Document as DocumentRecord, DocumentStatus } from "@/types";
 import { formatDate, formatFileSize } from "@/lib/utils";
 import {
@@ -34,7 +35,7 @@ function StatusBadge({ status }: { status: DocumentStatus }) {
     processing:
       "border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-400",
     uploading:
-      "border-blue-200 bg-blue-50 text-[#2b7fff] dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-400",
+      "border-theme-border bg-theme-soft text-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark",
     failed:
       "border-red-200 bg-red-50 text-red-600 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400",
   };
@@ -56,7 +57,7 @@ function DocumentIcon({ type }: { type: DocumentRecord["file_type"] }) {
       className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
         type === "pdf"
           ? "bg-red-50 text-red-500 dark:bg-red-950/40 dark:text-red-400"
-          : "bg-blue-50 text-[#2b7fff] dark:bg-blue-950/40 dark:text-blue-400"
+          : "bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark"
       }`}
     >
       <Icon className="size-5" />
@@ -68,10 +69,12 @@ export function DocumentLibrary({
   documents: initialDocuments,
   category,
   maxDocuments,
+  requiresResolution,
 }: {
   documents: DocumentRecord[];
   category: CategorySlug;
   maxDocuments: number;
+  requiresResolution: boolean;
 }) {
   const router = useRouter();
   const [documents, setDocuments] = useState(initialDocuments);
@@ -125,7 +128,7 @@ export function DocumentLibrary({
               router.push("/documents/upload");
             }
           }}
-          className="flex h-10 items-center justify-center gap-2 rounded-lg bg-[#2b7fff] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-600"
+          className="flex h-10 items-center justify-center gap-2 rounded-lg bg-theme-primary px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-theme-primary-hover"
         >
           <Upload className="size-4" />
           Upload Document
@@ -148,7 +151,7 @@ export function DocumentLibrary({
                   ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
                   : color === "red"
                     ? "bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400"
-                    : "bg-blue-50 text-[#2b7fff] dark:bg-blue-950/40 dark:text-blue-400"
+                    : "bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark"
               }`}
             >
               <Icon className="size-4" />
@@ -169,7 +172,7 @@ export function DocumentLibrary({
             onClick={() => setFilter(value)}
             className={`-mb-px whitespace-nowrap border-b-2 px-4 py-2.5 text-sm ${
               filter === value
-                ? "border-[#2b7fff] font-semibold text-[#2b7fff]"
+                ? "border-theme-primary font-semibold text-theme-primary"
                 : "border-transparent font-medium text-zinc-500 dark:text-zinc-400"
             }`}
           >
@@ -206,7 +209,7 @@ export function DocumentLibrary({
                   <div className="min-w-0">
                     <Link
                       href={`/documents/${document.id}`}
-                      className="block truncate text-sm font-semibold text-zinc-950 transition hover:text-[#2b7fff] dark:text-white dark:hover:text-blue-400"
+                      className="block truncate text-sm font-semibold text-zinc-950 transition hover:text-theme-primary dark:text-white dark:hover:text-theme-soft-foreground-dark"
                     >
                       {document.name}
                     </Link>
@@ -215,7 +218,7 @@ export function DocumentLibrary({
                     </p>
                   </div>
                 </div>
-                <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-[#2b7fff] dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-400">
+                <span className="rounded-full border border-theme-border bg-theme-soft px-2.5 py-1 text-xs font-semibold text-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark">
                   Helpex {category === "business" ? "Business" : "Legal"}
                 </span>
                 <span className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -225,7 +228,7 @@ export function DocumentLibrary({
                 <div className="flex items-center gap-2">
                   <Link
                     href="/conversations"
-                    className="flex size-8 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 hover:text-[#2b7fff] dark:border-zinc-700 dark:text-zinc-400"
+                    className="flex size-8 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 hover:text-theme-primary dark:border-zinc-700 dark:text-zinc-400"
                     title="Start conversation"
                   >
                     <MessageSquare className="size-4" />
@@ -259,7 +262,7 @@ export function DocumentLibrary({
                   <div className="min-w-0 flex-1">
                     <Link
                       href={`/documents/${document.id}`}
-                      className="block truncate text-sm font-semibold text-zinc-950 transition hover:text-[#2b7fff] dark:text-white dark:hover:text-blue-400"
+                      className="block truncate text-sm font-semibold text-zinc-950 transition hover:text-theme-primary dark:text-white dark:hover:text-theme-soft-foreground-dark"
                     >
                       {document.name}
                     </Link>
@@ -270,7 +273,7 @@ export function DocumentLibrary({
                   <StatusBadge status={document.status} />
                 </div>
                 <div className="mt-4 flex items-center justify-between border-t border-zinc-200 pt-3 dark:border-zinc-800">
-                  <span className="text-xs font-medium text-[#2b7fff]">
+                  <span className="text-xs font-medium text-theme-primary">
                     Helpex {category === "business" ? "Business" : "Legal"}
                   </span>
                   <button
@@ -293,7 +296,7 @@ export function DocumentLibrary({
         </>
       ) : (
         <div className="flex flex-col items-center rounded-xl border border-dashed border-zinc-300 bg-white px-6 py-12 text-center dark:border-zinc-700 dark:bg-zinc-900">
-          <div className="flex size-16 items-center justify-center rounded-2xl bg-blue-50 text-[#2b7fff] dark:bg-blue-950/40 dark:text-blue-400">
+          <div className="flex size-16 items-center justify-center rounded-2xl bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark">
             <Upload className="size-8" />
           </div>
           <h3 className="mt-4 font-bold text-zinc-950 dark:text-white">
@@ -311,7 +314,7 @@ export function DocumentLibrary({
                 router.push("/documents/upload");
               }
             }}
-            className="mt-5 flex h-10 items-center gap-2 rounded-lg bg-[#2b7fff] px-4 text-sm font-semibold text-white"
+            className="mt-5 flex h-10 items-center gap-2 rounded-lg bg-theme-primary px-4 text-sm font-semibold text-white"
           >
             <Upload className="size-4" />
             Upload Document
@@ -330,7 +333,7 @@ export function DocumentLibrary({
           <button
             type="button"
             onClick={() => setPlanModalOpen(true)}
-            className="text-left text-sm font-bold text-[#2b7fff]"
+            className="text-left text-sm font-bold text-theme-primary"
           >
             Upgrade to Pro →
           </button>
@@ -352,6 +355,7 @@ export function DocumentLibrary({
         used={documents.length}
         limit={maxDocuments}
       />
+      {requiresResolution && <ResolveDocumentLimitModal documents={documents} limit={maxDocuments} />}
     </div>
   );
 }

@@ -6,13 +6,6 @@ export function validStripePriceId(value: string | null | undefined) {
   return Boolean(value?.startsWith("price_") && !value.includes("XXXX") && !value.includes("YYYY") && !value.includes("_id_here"));
 }
 
-export function mockStripeEnabled() {
-  return (
-    process.env.ENABLE_MOCK_STRIPE === "true" ||
-    process.env.NEXT_PUBLIC_APP_URL?.startsWith("http://localhost") === true
-  );
-}
-
 export function subscriptionStatus(status: Stripe.Subscription.Status): SubscriptionStatus {
   if (status === "active") return "active";
   if (status === "trialing") return "trialing";

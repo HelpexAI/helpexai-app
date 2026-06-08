@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { setActiveWorkspaceCookie } from "@/lib/dashboard/workspace-session";
 import type { CategorySlug } from "@/types";
 import { NextResponse } from "next/server";
 
@@ -6,6 +7,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const requestedCategory = url.searchParams.get("category");
+  const mode = url.searchParams.get("mode");
   const next = url.searchParams.get("next");
   const supabase = await createClient();
 
@@ -26,17 +28,20 @@ export async function GET(request: Request) {
         ? metadataCategory
         : null;
 
-  if (category) {
-    const { error: accountError } = await supabase.from("accounts").upsert(
-      {
-        user_id: data.user.id,
-        category_slug: category,
-        plan: "free",
-      },
-      { onConflict: "user_id,category_slug" },
-    );
+  if (category && mode === "signup") {
+    const { error: accountError } = await supabase
+      .from("accounts")
+      .upsert(
+        {
+          user_id: data.user.id,
+          category_slug: category,
+          plan: "free",
+        },
+        { onConflict: "user_id,category_slug" },
+      );
 
     if (accountError) {
+      await supabase.auth.signOut();
       return NextResponse.redirect(
         new URL("/login?error=account_creation", url.origin),
       );
@@ -44,5 +49,28 @@ export async function GET(request: Request) {
   }
 
   const safeNext = next?.startsWith("/") ? next : "/dashboard";
-  return NextResponse.redirect(new URL(safeNext, url.origin));
+  if (category && mode === "signup") {
+    const response = NextResponse.redirect(new URL(safeNext, url.origin));
+    setActiveWorkspaceCookie(response, category);
+    return response;
+  }
+
+  const { data: accounts, error: accountsError } = await supabase
+    .from("accounts")
+    .select("category_slug")
+    .eq("user_id", data.user.id)
+    .order("created_at", { ascending: true });
+
+  if (accountsError || !accounts?.length) {
+    await supabase.auth.signOut();
+    return NextResponse.redirect(new URL("/login?error=no_accounts", url.origin));
+  }
+
+  if (accounts.length > 1) {
+    return NextResponse.redirect(new URL("/select-workspace", url.origin));
+  }
+
+  const response = NextResponse.redirect(new URL(safeNext, url.origin));
+  setActiveWorkspaceCookie(response, accounts[0].category_slug as CategorySlug);
+  return response;
 }

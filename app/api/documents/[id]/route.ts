@@ -1,4 +1,4 @@
-import { deleteDocumentVectors } from "@/lib/ai/pipeline/ingest";
+import { deleteOwnedDocument } from "@/lib/documents/delete";
 import { getDocumentRequestContext } from "@/lib/documents/server";
 import { NextResponse } from "next/server";
 
@@ -26,31 +26,13 @@ export async function DELETE(
   }
 
   try {
-    await deleteDocumentVectors(context.user.id, context.category, document.id);
+    await deleteOwnedDocument(context.service, context.user.id, context.category, document);
   } catch (error) {
-    console.warn("Vector deletion skipped:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Could not delete document." },
+      { status: 500 },
+    );
   }
-
-  const { error: storageError } = await context.service.storage
-    .from("documents")
-    .remove([document.file_path]);
-  if (storageError) {
-    return NextResponse.json({ error: storageError.message }, { status: 500 });
-  }
-
-  const { error: deleteError } = await context.service
-    .from("documents")
-    .delete()
-    .eq("id", document.id);
-  if (deleteError) {
-    return NextResponse.json({ error: deleteError.message }, { status: 500 });
-  }
-
-  await context.service.from("usage_logs").insert({
-    user_id: context.user.id,
-    category_slug: context.category,
-    action: "document_delete",
-  });
 
   return NextResponse.json({ success: true });
 }

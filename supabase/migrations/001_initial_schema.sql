@@ -52,7 +52,6 @@ CREATE TABLE plans (
   stripe_price_id     TEXT,                                 -- null for free plan
   max_documents       INTEGER NOT NULL,
   max_queries_day     INTEGER NOT NULL,
-  max_conversations   INTEGER NOT NULL,
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE(slug, category_slug)
 );
@@ -321,13 +320,13 @@ INSERT INTO categories (slug, name, description, system_prompt, disclaimer_text,
 -- stripe_price_id: fill in after creating Stripe products
 -- Create 4 Stripe products: Legal Free, Legal Pro, Business Free, Business Pro
 
-INSERT INTO plans (name, slug, category_slug, price_monthly, stripe_price_id, max_documents, max_queries_day, max_conversations) VALUES
+INSERT INTO plans (name, slug, category_slug, price_monthly, stripe_price_id, max_documents, max_queries_day) VALUES
 -- Helpex Legal plans
-('Free',  'free', 'legal',    0,    NULL,           1,  3,  1),
-('Pro',   'pro',  'legal',    4900, 'price_XXXXXX', 50, 50, 30),
+('Free',  'free', 'legal',    0,    NULL,           1,  3),
+('Pro',   'pro',  'legal',    4900, 'price_XXXXXX', 50, 50),
 -- Helpex Business plans
-('Free',  'free', 'business', 0,    NULL,           1,  3,  1),
-('Pro',   'pro',  'business', 4900, 'price_YYYYYY', 50, 50, 30);
+('Free',  'free', 'business', 0,    NULL,           1,  3),
+('Pro',   'pro',  'business', 4900, 'price_YYYYYY', 50, 50);
 
 -- Replace price_XXXXXX and price_YYYYYY with real Stripe price IDs after setup
 

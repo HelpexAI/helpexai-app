@@ -1,6 +1,6 @@
 import { getDocumentRequestContext } from "@/lib/documents/server";
 import { stripe } from "@/lib/stripe/client";
-import { mockStripeEnabled, validStripePriceId } from "@/lib/stripe/subscriptions";
+import { validStripePriceId } from "@/lib/stripe/subscriptions";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -8,13 +8,10 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   const context = await getDocumentRequestContext();
   if (!context) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (context.plan === "pro") {
-    return NextResponse.json({ error: "You are already on the Pro plan." }, { status: 400 });
-  }
 
   const { data: account } = await context.service
     .from("accounts")
-    .select("id, stripe_customer_id")
+    .select("id, stripe_customer_id, stripe_subscription_id")
     .eq("user_id", context.user.id)
     .eq("category_slug", context.category)
     .maybeSingle();
@@ -36,11 +33,8 @@ export async function POST(request: Request) {
       : null;
 
   if (!priceId) {
-    if (mockStripeEnabled()) {
-      return NextResponse.json({ url: `${new URL(request.url).origin}/billing/mock-checkout` });
-    }
     return NextResponse.json(
-      { error: "Stripe Pro price is not configured yet. Add a real Pro price ID in Stripe settings." },
+      { error: "Stripe Pro price is not configured. Add the category's Stripe test-mode recurring price ID." },
       { status: 503 },
     );
   }
@@ -49,34 +43,47 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Billing account was not found." }, { status: 404 });
   }
 
-  let customerId = account.stripe_customer_id;
-  if (!customerId) {
-    const customer = await stripe.customers.create({
-      email: context.user.email,
-      metadata: { user_id: context.user.id, category_slug: context.category },
-    });
-    customerId = customer.id;
-    await context.service
-      .from("accounts")
-      .update({ stripe_customer_id: customerId })
-      .eq("id", account.id);
+  if (context.plan === "pro" && account.stripe_subscription_id) {
+    return NextResponse.json({ error: "You already have a Stripe Pro subscription." }, { status: 400 });
   }
 
-  const origin = new URL(request.url).origin;
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    customer: customerId,
-    client_reference_id: context.user.id,
-    line_items: [{ price: priceId, quantity: 1 }],
-    allow_promotion_codes: true,
-    billing_address_collection: "auto",
-    success_url: `${origin}/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}/billing?checkout=cancelled`,
-    metadata: { user_id: context.user.id, category_slug: context.category },
-    subscription_data: {
-      metadata: { user_id: context.user.id, category_slug: context.category },
-    },
-  });
+  let customerId = account.stripe_customer_id;
+  try {
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: context.user.email,
+        metadata: { user_id: context.user.id, category_slug: context.category },
+      });
+      customerId = customer.id;
+      await context.service
+        .from("accounts")
+        .update({ stripe_customer_id: customerId })
+        .eq("id", account.id);
+    }
 
-  return NextResponse.json({ url: session.url });
+    const origin = new URL(request.url).origin;
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer: customerId,
+      client_reference_id: context.user.id,
+      line_items: [{ price: priceId, quantity: 1 }],
+      allow_promotion_codes: true,
+      payment_method_types: ["card"],
+      billing_address_collection: "auto",
+      success_url: `${origin}/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/billing?checkout=cancelled`,
+      metadata: { user_id: context.user.id, category_slug: context.category },
+      subscription_data: {
+        metadata: { user_id: context.user.id, category_slug: context.category },
+      },
+    });
+
+    return NextResponse.json({ url: session.url });
+  } catch (error) {
+    console.error("Stripe checkout creation failed:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Could not create Stripe Checkout." },
+      { status: 502 },
+    );
+  }
 }

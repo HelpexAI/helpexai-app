@@ -108,7 +108,6 @@ export interface Plan {
   stripe_price_id: string | null
   max_documents: number
   max_queries_day: number
-  max_conversations: number
 }
 
 export interface UsageLog {
@@ -127,8 +126,6 @@ export interface UsageSummary {
   documents_limit: number
   questions_today: number
   questions_limit: number
-  conversations_count: number
-  conversations_limit: number
 }
 
 // ── AI Provider Interfaces ────────────────────

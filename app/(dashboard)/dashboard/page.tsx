@@ -1,4 +1,5 @@
 import { getCurrentWorkspace } from "@/lib/dashboard/workspace";
+import { startOfTodayUtc } from "@/lib/usage/daily";
 import { createClient } from "@/lib/supabase/server";
 import {
   ArrowRight,
@@ -38,7 +39,7 @@ function UsageCard({
           className={`flex size-8 items-center justify-center rounded-lg ${
             warning
               ? "bg-amber-100 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400"
-              : "bg-blue-50 text-[#2b7fff] dark:bg-blue-950/50 dark:text-blue-400"
+              : "bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark"
           }`}
         >
           <Icon className="size-4" />
@@ -57,7 +58,7 @@ function UsageCard({
           <span className="text-zinc-500 dark:text-zinc-400">Usage</span>
           <span
             className={`font-semibold ${
-              warning ? "text-amber-600 dark:text-amber-400" : "text-[#2b7fff]"
+              warning ? "text-amber-600 dark:text-amber-400" : "text-theme-primary"
             }`}
           >
             {percentage}%
@@ -65,12 +66,12 @@ function UsageCard({
         </div>
         <div
           className={`h-1.5 overflow-hidden rounded-full ${
-            warning ? "bg-amber-100 dark:bg-amber-950/50" : "bg-blue-100 dark:bg-blue-950/50"
+            warning ? "bg-amber-100 dark:bg-amber-950/50" : "bg-theme-soft dark:bg-theme-soft-dark"
           }`}
         >
           <div
             className={`h-full rounded-full ${
-              warning ? "bg-amber-500" : "bg-[#2b7fff]"
+              warning ? "bg-amber-500" : "bg-theme-primary"
             }`}
             style={{ width: `${percentage}%` }}
           />
@@ -92,19 +93,16 @@ function formatConversationDate(value: string) {
 export default async function DashboardPage() {
   const workspace = await getCurrentWorkspace();
   const supabase = await createClient();
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
 
   const [
     planResult,
     documentsResult,
-    conversationsResult,
     questionsResult,
     recentResult,
   ] = await Promise.all([
     supabase
       .from("plans")
-      .select("max_documents, max_queries_day, max_conversations")
+      .select("max_documents, max_queries_day")
       .eq("slug", workspace.plan)
       .eq("category_slug", workspace.category)
       .maybeSingle(),
@@ -114,17 +112,12 @@ export default async function DashboardPage() {
       .eq("user_id", workspace.userId)
       .eq("category_slug", workspace.category),
     supabase
-      .from("conversations")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", workspace.userId)
-      .eq("category_slug", workspace.category),
-    supabase
       .from("usage_logs")
       .select("*", { count: "exact", head: true })
       .eq("user_id", workspace.userId)
       .eq("category_slug", workspace.category)
       .eq("action", "query")
-      .gte("created_at", today.toISOString()),
+      .gte("created_at", startOfTodayUtc()),
     supabase
       .from("conversations")
       .select("id, title, selected_document_ids, created_at")
@@ -137,10 +130,8 @@ export default async function DashboardPage() {
   const limits = planResult.data ?? {
     max_documents: workspace.plan === "pro" ? 50 : 1,
     max_queries_day: workspace.plan === "pro" ? 50 : 3,
-    max_conversations: workspace.plan === "pro" ? 30 : 1,
   };
   const documentsCount = documentsResult.count ?? 0;
-  const conversationsCount = conversationsResult.count ?? 0;
   const questionsCount = questionsResult.count ?? 0;
   const recentConversations = recentResult.data ?? [];
   const business = workspace.category === "business";
@@ -171,24 +162,11 @@ export default async function DashboardPage() {
           limit={limits.max_queries_day}
           icon={HelpCircle}
         />
-        <UsageCard
-          label="Conversations"
-          current={conversationsCount}
-          limit={limits.max_conversations}
-          icon={MessageSquare}
-          warning={conversationsCount >= limits.max_conversations}
-        />
       </section>
 
       <section className="flex flex-col gap-5 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-start gap-4">
-          <div
-            className={`flex size-12 shrink-0 items-center justify-center rounded-xl ${
-              business
-                ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
-                : "bg-blue-50 text-[#2b7fff] dark:bg-blue-950/40 dark:text-blue-400"
-            }`}
-          >
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark">
             <CategoryIcon className="size-6" />
           </div>
           <div className="space-y-1">
@@ -196,13 +174,7 @@ export default async function DashboardPage() {
               <h3 className="font-bold text-zinc-950 dark:text-white">
                 Helpex {business ? "Business" : "Legal"}
               </h3>
-              <span
-                className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${
-                  business
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-400"
-                    : "border-blue-200 bg-blue-50 text-[#2b7fff] dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-400"
-                }`}
-              >
+              <span className="rounded-full border border-theme-border bg-theme-soft px-2 py-0.5 text-xs font-semibold text-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark">
                 Active
               </span>
             </div>
@@ -215,7 +187,7 @@ export default async function DashboardPage() {
         </div>
         <Link
           href="/conversations"
-          className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#2b7fff] px-4 text-sm font-semibold text-white transition hover:bg-blue-600"
+          className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-theme-primary px-4 text-sm font-semibold text-white transition hover:bg-theme-primary-hover"
         >
           <MessageSquare className="size-4" />
           Go to Conversations
@@ -229,7 +201,7 @@ export default async function DashboardPage() {
           </h3>
           <Link
             href="/conversations"
-            className="flex items-center gap-1 text-sm font-semibold text-[#2b7fff]"
+            className="flex items-center gap-1 text-sm font-semibold text-theme-primary"
           >
             View all
             <ArrowRight className="size-3.5" />
@@ -249,7 +221,7 @@ export default async function DashboardPage() {
                 }`}
               >
                 <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[#2b7fff] dark:bg-blue-950/40 dark:text-blue-400">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark">
                     <MessageSquare className="size-4" />
                   </div>
                   <div className="min-w-0">
@@ -272,7 +244,7 @@ export default async function DashboardPage() {
             ))
           ) : (
             <div className="flex flex-col items-center px-5 py-10 text-center">
-              <div className="flex size-11 items-center justify-center rounded-xl bg-blue-50 text-[#2b7fff] dark:bg-blue-950/40 dark:text-blue-400">
+              <div className="flex size-11 items-center justify-center rounded-xl bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark">
                 <MessageSquare className="size-5" />
               </div>
               <p className="mt-4 text-sm font-semibold text-zinc-950 dark:text-white">
@@ -303,7 +275,7 @@ export default async function DashboardPage() {
                 You&apos;re on the Free plan
               </p>
               <p className="mt-0.5 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Upgrade to Pro for 50 documents, 50 daily questions, and 30 conversations.
+                Upgrade to Pro for 50 documents and 50 daily questions.
               </p>
             </div>
           </div>

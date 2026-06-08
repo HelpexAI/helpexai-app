@@ -2,6 +2,7 @@
 
 import { AuthThemeToggle } from "@/components/auth/auth-theme-toggle";
 import type { CurrentWorkspace } from "@/lib/dashboard/workspace";
+import { dashboardTheme, themeStyle } from "@/lib/theme";
 import { createClient } from "@/lib/supabase/client";
 import {
   Briefcase,
@@ -89,11 +90,16 @@ export function DashboardShell({
     navigation.find((item) => routeIsActive(pathname, item.href)) ??
     navigation[0];
   const documentViewerOpen = /^\/documents\/[^/]+$/.test(pathname);
+  const activeConversationOpen = /^\/conversations\/[^/]+$/.test(pathname);
+  const immersivePageOpen = documentViewerOpen || activeConversationOpen;
   const business = workspace.category === "business";
   const CategoryIcon = business ? Briefcase : Scale;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-50">
+    <div
+      className="min-h-screen bg-slate-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-50"
+      style={themeStyle(dashboardTheme(workspace.category))}
+    >
       <aside
         className={`fixed inset-y-0 left-0 z-40 hidden flex-col bg-[#0a1628] text-white transition-[width] duration-300 lg:flex ${
           collapsed ? "w-[76px]" : "w-60"
@@ -122,7 +128,7 @@ export function DashboardShell({
             href="/dashboard"
             className={`flex items-center ${collapsed ? "justify-center" : "gap-2.5"}`}
           >
-            <div className="flex size-9 items-center justify-center rounded-lg bg-[#2b7fff]">
+            <div className="flex size-9 items-center justify-center rounded-lg bg-theme-primary">
               <CategoryIcon className="size-4.5 text-white" />
             </div>
             {!collapsed && (
@@ -130,13 +136,7 @@ export function DashboardShell({
             )}
           </Link>
           {!collapsed && (
-            <span
-              className={`mt-4 inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${
-                business
-                  ? "border-emerald-400/30 bg-emerald-400/15 text-emerald-300"
-                  : "border-blue-400/30 bg-blue-400/15 text-blue-300"
-              }`}
-            >
+            <span className="mt-4 inline-flex rounded-full border border-theme-primary/30 bg-theme-primary/15 px-2.5 py-1 text-xs font-semibold text-theme-soft-foreground-dark">
               Helpex {business ? "Business" : "Legal"}
             </span>
           )}
@@ -149,16 +149,23 @@ export function DashboardShell({
         >
           {navigation.map(({ label, href, icon: Icon }) => {
             const active = routeIsActive(pathname, href);
+            const conversationsLocked = href === "/conversations" && workspace.documentsOverLimit;
             return (
               <Link
                 key={href}
                 href={href}
                 title={collapsed ? label : undefined}
+                aria-disabled={conversationsLocked}
+                onClick={(event) => {
+                  if (conversationsLocked) event.preventDefault();
+                }}
                 className={`flex items-center rounded-lg py-2.5 text-sm transition-colors ${
                   collapsed ? "justify-center px-2" : "gap-3 px-3"
                 } ${
                   active
-                    ? "bg-[#2b7fff] font-semibold text-white shadow-sm shadow-blue-950/30"
+                    ? "bg-theme-primary font-semibold text-white shadow-sm shadow-black/30"
+                    : conversationsLocked
+                      ? "cursor-not-allowed font-medium text-slate-500"
                     : "font-medium text-slate-300 hover:bg-white/10 hover:text-white"
                 }`}
               >
@@ -218,7 +225,7 @@ export function DashboardShell({
             }`}
             title={collapsed ? `${workspace.name} · ${workspace.plan}` : undefined}
           >
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-full border-2 border-blue-400/40 bg-blue-500/20 text-xs font-bold text-blue-100">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-full border-2 border-theme-primary/40 bg-theme-primary/20 text-xs font-bold text-theme-primary-foreground/90">
               {workspace.initials}
             </div>
             {!collapsed && <div className="min-w-0">
@@ -244,9 +251,9 @@ export function DashboardShell({
           collapsed ? "lg:pl-[76px]" : "lg:pl-60"
         }`}
       >
-        {!documentViewerOpen && <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-zinc-200 bg-white/95 px-4 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95 sm:px-6 lg:px-8">
+        {!immersivePageOpen && <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-zinc-200 bg-white/95 px-4 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-[#2b7fff] text-white lg:hidden">
+            <div className="flex size-9 items-center justify-center rounded-lg bg-theme-primary text-white lg:hidden">
               <CategoryIcon className="size-4" />
             </div>
             <div>
@@ -263,16 +270,16 @@ export function DashboardShell({
             {pathname === "/dashboard" && (
               <Link
                 href="/documents/upload"
-                className="flex h-10 items-center justify-center gap-2 rounded-lg bg-[#2b7fff] px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-600 sm:px-4"
+                className="flex h-10 items-center justify-center gap-2 rounded-lg bg-theme-primary px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-theme-primary-hover sm:px-4"
               >
                 <Upload className="size-4" />
                 <span className="hidden sm:inline">Upload Document</span>
               </Link>
             )}
-            {pathname === "/conversations" && (
+            {pathname === "/conversations" && !workspace.documentsOverLimit && (
               <Link
                 href="/conversations"
-                className="flex h-10 items-center justify-center gap-2 rounded-lg bg-[#2b7fff] px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-600 sm:px-4"
+                className="flex h-10 items-center justify-center gap-2 rounded-lg bg-theme-primary px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-theme-primary-hover sm:px-4"
               >
                 <MessageSquare className="size-4" />
                 <span className="hidden sm:inline">New Conversation</span>
@@ -281,19 +288,26 @@ export function DashboardShell({
           </div>
         </header>}
 
-        <main className={documentViewerOpen ? "pb-16 lg:pb-0" : "pb-24 lg:pb-0"}>{children}</main>
+        <main className={immersivePageOpen ? "pb-16 lg:pb-0" : "pb-24 lg:pb-0"}>{children}</main>
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-zinc-200 bg-white/95 px-1 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95 lg:hidden">
         {navigation.map(({ label, href, icon: Icon }) => {
           const active = routeIsActive(pathname, href);
+          const conversationsLocked = href === "/conversations" && workspace.documentsOverLimit;
           return (
             <Link
               key={href}
               href={href}
+              aria-disabled={conversationsLocked}
+              onClick={(event) => {
+                if (conversationsLocked) event.preventDefault();
+              }}
               className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg text-[10px] font-medium transition-colors ${
                 active
-                  ? "bg-blue-50 text-[#2b7fff] dark:bg-blue-950/40 dark:text-blue-400"
+                  ? "bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark"
+                  : conversationsLocked
+                    ? "cursor-not-allowed text-zinc-300 dark:text-zinc-700"
                   : "text-zinc-500 dark:text-zinc-400"
               }`}
             >

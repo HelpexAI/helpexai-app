@@ -40,6 +40,8 @@ SUPABASE_SERVICE_ROLE_KEY=
 STRIPE_SECRET_KEY=
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 STRIPE_WEBHOOK_SECRET=
+STRIPE_LEGAL_PRO_PRICE_ID=
+STRIPE_BUSINESS_PRO_PRICE_ID=
 ```
 
 ### 2. Supabase Setup
@@ -56,6 +58,18 @@ Follow instructions in `supabase/qdrant_setup.md`
 ```bash
 npm run dev
 ```
+
+### 5. Stripe test billing
+1. Use Stripe test-mode API keys and recurring monthly Price IDs in `.env.local`.
+2. Register `/api/stripe/webhook` and enable:
+   - `checkout.session.completed`
+   - `customer.subscription.created`
+   - `customer.subscription.updated`
+   - `customer.subscription.deleted`
+3. Set the endpoint signing secret as `STRIPE_WEBHOOK_SECRET`.
+4. Use Stripe test card `4242 4242 4242 4242` with any future expiry and CVC.
+
+The app returns an account to Free when Stripe reports the subscription as inactive or deleted. If the workspace then exceeds the Free document allowance, conversations remain locked until the user chooses which documents to keep.
 
 ## Tech Stack
 - **Frontend:** Next.js 14, TypeScript, Tailwind CSS, shadcn/ui

@@ -9,23 +9,24 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 const inputClass =
-  "h-11 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-[#2b7fff] focus:ring-2 focus:ring-[#2b7fff]/15 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500";
+  "h-11 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/15 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500";
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const requestedCategory = searchParams.get("category");
-  const category =
-    requestedCategory === "legal" || requestedCategory === "business"
-      ? requestedCategory
-      : null;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState<"google" | "email" | "reset" | null>(
     null,
   );
-  const [error, setError] = useState("");
+  const [error, setError] = useState(() =>
+    searchParams.get("error") === "no_accounts"
+      ? "No Helpex account exists for this email."
+      : searchParams.get("error") === "auth_callback"
+        ? "We could not complete sign in. Please try again."
+        : "",
+  );
   const [notice, setNotice] = useState("");
 
   async function continueWithGoogle() {
@@ -36,7 +37,7 @@ export function LoginForm() {
     const { error: authError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback${category ? `?category=${category}` : ""}`,
+        redirectTo: `${window.location.origin}/auth/callback?mode=login`,
         queryParams: { prompt: "select_account" },
       },
     });
@@ -70,25 +71,25 @@ export function LoginForm() {
       return;
     }
 
-    if (category && data.user) {
-      const { error: accountError } = await supabase.from("accounts").upsert(
-        {
-          user_id: data.user.id,
-          category_slug: category,
-          plan: "free",
-        },
-        { onConflict: "user_id,category_slug" },
-      );
+    if (data.user) {
+      const workspaceResponse = await fetch("/api/workspace/resolve", {
+        method: "POST",
+      });
+      const workspaceResult = (await workspaceResponse.json()) as {
+        error?: string;
+        next?: string;
+      };
 
-      if (accountError) {
-        setError(accountError.message);
+      if (!workspaceResponse.ok || !workspaceResult.next) {
+        setError(workspaceResult.error ?? "Could not find your Helpex account.");
         setLoading(null);
         return;
       }
-    }
 
-    router.push("/dashboard");
-    router.refresh();
+      router.push(workspaceResult.next);
+      router.refresh();
+      return;
+    }
   }
 
   async function sendResetEmail() {
@@ -122,9 +123,7 @@ export function LoginForm() {
           Welcome back
         </h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          {category
-            ? `Sign in to continue with Helpex ${category === "legal" ? "Legal" : "Business"}`
-            : "Sign in to your HelpexAI account"}
+          Sign in to continue to your HelpexAI account.
         </p>
       </div>
 
@@ -194,7 +193,7 @@ export function LoginForm() {
           type="button"
           onClick={sendResetEmail}
           disabled={loading !== null}
-          className="self-end text-xs font-semibold text-[#2b7fff] disabled:opacity-60"
+          className="self-end text-xs font-semibold text-theme-primary disabled:opacity-60"
         >
           {loading === "reset" ? "Sending reset link..." : "Forgot password?"}
         </button>
@@ -219,7 +218,7 @@ export function LoginForm() {
         <button
           type="submit"
           disabled={loading !== null}
-          className="mt-1 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#2b7fff] text-sm font-semibold text-white shadow-sm transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-1 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-theme-primary text-sm font-semibold text-white shadow-sm transition hover:bg-theme-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading === "email" && <Loader2 className="size-4 animate-spin" />}
           Sign In
@@ -228,7 +227,7 @@ export function LoginForm() {
 
       <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
         Don&apos;t have an account?{" "}
-        <Link href="/signup" className="font-semibold text-[#2b7fff]">
+        <Link href="/signup" className="font-semibold text-theme-primary">
           Sign up
         </Link>
       </p>

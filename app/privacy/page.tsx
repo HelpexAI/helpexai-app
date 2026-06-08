@@ -126,17 +126,17 @@ export default function PrivacyPage() {
   return (
     <div className="marketing-page min-h-screen bg-white text-zinc-950">
       <div className="min-h-screen bg-[oklch(0.985_0.003_247.858)] text-zinc-950">
-        <div className="mx-auto flex min-h-screen w-full max-w-[1140px] flex-col p-4 sm:p-6 lg:p-8">
+        <div className="mx-auto flex min-h-screen w-full max-w-[1440px] flex-col p-4 sm:p-6 lg:px-10 lg:py-8 xl:px-12">
           <MarketingHeader />
 
           <main className="flex flex-1 flex-col gap-6 pt-8 sm:gap-8 lg:pt-10">
             <section className="rounded-3xl border border-zinc-200 bg-white px-5 py-7 shadow-sm sm:px-8 sm:py-10">
-              <div className="flex max-w-3xl flex-col gap-5">
-                <div className="flex size-12 items-center justify-center rounded-2xl bg-[#2b7fff]/10 text-[#2b7fff]">
+              <div className="flex max-w-4xl flex-col gap-5">
+                <div className="flex size-12 items-center justify-center rounded-2xl bg-theme-primary/10 text-theme-primary">
                   <ShieldCheck className="size-6" />
                 </div>
                 <div className="flex flex-col gap-3">
-                  <p className="text-sm font-semibold text-[#2b7fff]">
+                  <p className="text-sm font-semibold text-theme-primary">
                     Last updated: June 8, 2026
                   </p>
                   <h1 className="text-4xl font-black leading-[2.65rem] tracking-tight text-zinc-950 sm:text-5xl sm:leading-[3rem]">
@@ -158,10 +158,10 @@ export default function PrivacyPage() {
                   className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-8"
                 >
                   <div className="flex flex-col items-start gap-4 sm:flex-row sm:gap-5">
-                    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-[#2b7fff]">
+                    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-theme-primary">
                       <Icon className="size-5" />
                     </div>
-                    <div className="flex max-w-3xl flex-col gap-3">
+                    <div className="flex max-w-5xl flex-col gap-3">
                       <h2 className="text-xl font-bold leading-7">{title}</h2>
                       <div className="flex flex-col gap-3 text-sm leading-6 text-[#71717b]">
                         {content}
@@ -173,10 +173,10 @@ export default function PrivacyPage() {
 
               <article className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-8">
                 <div className="flex flex-col items-start gap-4 sm:flex-row sm:gap-5">
-                  <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-[#2b7fff]">
+                  <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-theme-primary">
                     <Mail className="size-5" />
                   </div>
-                  <div className="flex max-w-3xl flex-col gap-3">
+                  <div className="flex max-w-5xl flex-col gap-3">
                     <h2 className="text-xl font-bold leading-7">
                       6. Children, Changes, and Contact
                     </h2>
@@ -190,7 +190,7 @@ export default function PrivacyPage() {
                       <p>
                         For privacy questions or requests, contact us at{" "}
                         <a
-                          className="font-semibold text-[#2b7fff]"
+                          className="font-semibold text-theme-primary"
                           href="mailto:privacy@helpexai.com"
                         >
                           privacy@helpexai.com
