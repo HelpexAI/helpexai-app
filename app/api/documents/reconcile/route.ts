@@ -3,6 +3,7 @@ import { getDocumentRequestContext } from "@/lib/documents/server";
 import { getDocumentLimitState } from "@/lib/usage/limits";
 import { z } from "zod";
 import { NextResponse } from "next/server";
+import { revalidateWorkspacePaths } from "@/lib/cache/revalidate";
 
 const ReconcileDocumentsSchema = z.object({
   keep_document_ids: z.array(z.string().uuid()),
@@ -54,5 +55,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Could not delete excess documents." }, { status: 500 });
   }
 
+  revalidateWorkspacePaths();
   return NextResponse.json({ success: true, kept: keepIds, deleted: deletedIds });
 }

@@ -38,6 +38,37 @@ const activeConversationPage = await readFile(new URL("../app/(dashboard)/conver
 const queryProvider = await readFile(new URL("../components/providers/query-provider.tsx", import.meta.url), "utf8");
 const queryClientHelpers = await readFile(new URL("../lib/client/query.ts", import.meta.url), "utf8");
 const conversationsClientPage = await readFile(new URL("../components/conversations/conversations-client-page.tsx", import.meta.url), "utf8");
+const readability = await readFile(new URL("../lib/documents/readability.ts", import.meta.url), "utf8");
+const webSearch = await readFile(new URL("../lib/ai/web-search.ts", import.meta.url), "utf8");
+const monitoring = await readFile(new URL("../lib/monitoring.ts", import.meta.url), "utf8");
+const conversationDocuments = await readFile(new URL("../app/api/conversations/[id]/documents/route.ts", import.meta.url), "utf8");
+const externalResearchMigration = await readFile(new URL("../supabase/migrations/007_conversation_external_research.sql", import.meta.url), "utf8");
+const conversationMessagesRoute = await readFile(new URL("../app/api/conversations/[id]/messages/route.ts", import.meta.url), "utf8");
+const conversationHub = await readFile(new URL("../components/conversations/conversation-hub.tsx", import.meta.url), "utf8");
+const activeConversationClient = await readFile(new URL("../components/conversations/active-conversation.tsx", import.meta.url), "utf8");
+const publicResearchMigration = await readFile(new URL("../supabase/migrations/008_public_tool_external_research.sql", import.meta.url), "utf8");
+const publicResearchRoute = await readFile(new URL("../app/api/public-tool/research/route.ts", import.meta.url), "utf8");
+const documentLibrary = await readFile(new URL("../components/documents/document-library.tsx", import.meta.url), "utf8");
+const documentViewer = await readFile(new URL("../components/documents/document-viewer.tsx", import.meta.url), "utf8");
+const marketingHeader = await readFile(new URL("../components/marketing-header.tsx", import.meta.url), "utf8");
+const authShell = await readFile(new URL("../components/auth/auth-shell.tsx", import.meta.url), "utf8");
+const loginForm = await readFile(new URL("../components/auth/login-form.tsx", import.meta.url), "utf8");
+const signupForm = await readFile(new URL("../components/auth/signup-form.tsx", import.meta.url), "utf8");
+const legalLanding = await readFile(new URL("../app/legal/page.tsx", import.meta.url), "utf8");
+const businessLanding = await readFile(new URL("../app/business/page.tsx", import.meta.url), "utf8");
+const productLanding = await readFile(new URL("../components/marketing/product-landing-page.tsx", import.meta.url), "utf8");
+const robotsRoute = await readFile(new URL("../app/robots.ts", import.meta.url), "utf8");
+const sitemapRoute = await readFile(new URL("../app/sitemap.ts", import.meta.url), "utf8");
+const marketingContent = await readFile(new URL("../lib/marketing/content.ts", import.meta.url), "utf8");
+const articleRoute = await readFile(new URL("../app/blog/[slug]/page.tsx", import.meta.url), "utf8");
+const legalUseCaseRoute = await readFile(new URL("../app/legal/[slug]/page.tsx", import.meta.url), "utf8");
+const businessUseCaseRoute = await readFile(new URL("../app/business/[slug]/page.tsx", import.meta.url), "utf8");
+const articlePage = await readFile(new URL("../components/marketing/article-page.tsx", import.meta.url), "utf8");
+const useCasePage = await readFile(new URL("../components/marketing/use-case-page.tsx", import.meta.url), "utf8");
+const rootLayout = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8");
+const dashboardLayout = await readFile(new URL("../app/(dashboard)/layout.tsx", import.meta.url), "utf8");
+const selectWorkspacePage = await readFile(new URL("../app/(auth)/select-workspace/page.tsx", import.meta.url), "utf8");
+const publicToolSession = await readFile(new URL("../lib/public-tool/session.ts", import.meta.url), "utf8");
 
 test("account protected writes are revoked from authenticated clients", () => {
   assert.match(migration, /DROP POLICY IF EXISTS "Users can update own accounts"/);
@@ -162,7 +193,131 @@ test("dashboard navigation avoids middleware database work and request waterfall
 test("TanStack Query caches client pages and supports precise invalidation", () => {
   assert.match(queryProvider, /QueryClientProvider/);
   assert.match(queryProvider, /staleTime: 5 \* 60 \* 1000/);
-  assert.match(queryProvider, /refetchOnWindowFocus: false/);
+  assert.match(queryProvider, /refetchOnWindowFocus: true/);
   assert.match(queryClientHelpers, /queryKeys/);
+  assert.match(queryClientHelpers, /invalidateWorkspaceQueries/);
   assert.match(conversationsClientPage, /useQuery/);
+});
+
+test("document validation rejects image-only PDFs before analysis", () => {
+  assert.match(readability, /IMAGE_ONLY_PDF/);
+  assert.match(readability, /OCR-processed PDF/);
+});
+
+test("document chat can use optional live web research without overriding documents", () => {
+  assert.match(webSearch, /TAVILY_API_KEY/);
+  assert.match(queryPipeline, /LIVE WEB RESEARCH/);
+  assert.match(queryPipeline, /document context as the source of truth/);
+});
+
+test("external research bypasses category rejection and unnecessary raw PDF fallback", () => {
+  assert.match(queryPipeline, /!\s*externalResearchEnabled && isOffTopic/);
+  assert.match(queryPipeline, /\^\(hi\|hello\|hey\|what's up\|how are you\)\\b/);
+  assert.match(conversationMessagesRoute, /\|\| externalResearchEnabled/);
+  assert.match(ingestion, /standardFontDataUrl/);
+  assert.match(queryPipeline, /Do not respond with the category's off-topic refusal/);
+});
+
+test("external research is opt-in and persisted per conversation", () => {
+  assert.match(externalResearchMigration, /external_research_enabled BOOLEAN NOT NULL DEFAULT false/);
+  assert.match(queryPipeline, /externalResearchEnabled \? await searchWeb/);
+  assert.match(queryPipeline, /suggest turning on \*\*External Research\*\*/);
+  assert.match(conversationMessagesRoute, /external_research_enabled/);
+  assert.match(conversationHub, /external_research_enabled: externalResearchEnabled/);
+  assert.match(activeConversationClient, /conversation\.id}\/research/);
+});
+
+test("critical workflows emit Better Stack compatible structured logs", () => {
+  assert.match(monitoring, /BETTERSTACK_SOURCE_TOKEN/);
+  assert.match(monitoring, /BETTERSTACK_INGESTING_HOST/);
+  assert.match(monitoring, /Authorization: `Bearer/);
+});
+
+test("active conversations support attaching ready workspace documents", () => {
+  assert.match(conversationDocuments, /selected_document_ids: documentIds/);
+  assert.match(conversationDocuments, /\.eq\("status", "ready"\)/);
+});
+
+test("free tool persists opt-in external research and keeps atomic question protection", () => {
+  assert.match(publicResearchMigration, /DROP FUNCTION IF EXISTS reserve_public_tool_question/);
+  assert.match(publicResearchMigration, /external_research_enabled BOOLEAN NOT NULL DEFAULT false/);
+  assert.match(publicResearchMigration, /v_session\.external_research_enabled/);
+  assert.match(publicResearchRoute, /externalResearchEnabled/);
+  assert.match(publicQuery, /externalResearchEnabled \? formatWebContext/);
+});
+
+test("outdated document locks and Ask AI document actions are removed", () => {
+  assert.doesNotMatch(conversationHub, /Document selection locks once the conversation is started/);
+  assert.doesNotMatch(documentLibrary, /title="Start conversation"/);
+  assert.doesNotMatch(documentViewer, />Ask AI</);
+});
+
+test("public navigation is session-aware while Get Started remains signup", () => {
+  assert.match(marketingHeader, /supabase\.auth\.getSession/);
+  assert.match(marketingHeader, /Open Dashboard/);
+  assert.match(marketingHeader, /authenticated \? "\/dashboard" : "\/login"/);
+  assert.match(marketingHeader, /authCategory \? `\/signup\?category=\$\{authCategory\}` : "\/signup"/);
+});
+
+test("public product pages provide niche SEO and category-aware conversion paths", () => {
+  assert.match(marketingHeader, /Products/);
+  assert.match(marketingHeader, /href="\/legal"/);
+  assert.match(marketingHeader, /href="\/business"/);
+  assert.match(legalLanding, /alternates: \{ canonical: "\/legal" \}/);
+  assert.match(businessLanding, /alternates: \{ canonical: "\/business" \}/);
+  assert.match(productLanding, /FAQPage/);
+  assert.match(productLanding, /SoftwareApplication/);
+  assert.match(productLanding, /`\/signup\?category=\$\{category\}`/);
+  assert.match(robotsRoute, /sitemap/);
+  assert.match(sitemapRoute, /absoluteUrl\("\/legal"\)/);
+  assert.match(sitemapRoute, /absoluteUrl\("\/business"\)/);
+});
+
+test("product auth flows remain explicit and preserve their category theme", () => {
+  assert.match(productLanding, /<MarketingHeader authCategory=\{category\} \/>/);
+  assert.match(marketingHeader, /authCategory \? `\/login\?category=\$\{authCategory\}`/);
+  assert.match(marketingHeader, /const showSignIn = Boolean\(authCategory\) \|\| authenticated !== null/);
+  assert.match(authShell, /themeStyle\(category \?\? "main"\)/);
+  assert.match(authShell, /requestedCategory === "business" \|\| requestedCategory === "legal"/);
+  assert.match(loginForm, /`\/signup\$\{categoryQuery\}`/);
+  assert.match(signupForm, /`\/login\?category=\$\{category\}`/);
+  assert.match(middleware, /isProductAuthFlow/);
+  assert.match(middleware, /user && !isProductAuthFlow/);
+});
+
+test("SEO content and high-intent use-case routes are static, structured, and internally linked", () => {
+  assert.match(marketingContent, /how-to-review-a-contract-with-ai/);
+  assert.match(marketingContent, /ai-document-analysis-for-lawyers/);
+  assert.match(marketingContent, /how-to-compare-invoices-with-contracts/);
+  assert.match(marketingContent, /best-ai-workflows-for-small-business-documents/);
+  assert.match(marketingContent, /slug: "contract-analysis"/);
+  assert.match(marketingContent, /slug: "nda-review"/);
+  assert.match(marketingContent, /slug: "invoice-analysis"/);
+  assert.match(marketingContent, /slug: "vendor-contract-review"/);
+  assert.match(articleRoute, /generateStaticParams/);
+  assert.match(legalUseCaseRoute, /generateStaticParams/);
+  assert.match(businessUseCaseRoute, /generateStaticParams/);
+  assert.match(articlePage, /"@type": "Article"/);
+  assert.match(articlePage, /"@type": "BreadcrumbList"/);
+  assert.match(useCasePage, /"@type": "FAQPage"/);
+  assert.match(productLanding, /href: "\/legal\/contract-analysis"/);
+  assert.match(productLanding, /href: "\/business\/invoice-analysis"/);
+  assert.match(sitemapRoute, /articles\.map/);
+  assert.match(sitemapRoute, /useCases\.map/);
+});
+
+test("public landing pages avoid app-only providers and defer non-critical rendering", () => {
+  assert.doesNotMatch(rootLayout, /QueryProvider/);
+  assert.match(dashboardLayout, /QueryProvider/);
+  assert.match(selectWorkspacePage, /QueryProvider/);
+  assert.match(marketingHeader, /import\("@\/lib\/supabase\/client"\)/);
+  assert.match(marketingHeader, /if \(authCategory\) return/);
+  assert.match(productLanding, /marketing-deferred/);
+});
+
+test("public tool hashing fails closed without a strong dedicated secret", () => {
+  assert.match(publicToolSession, /PUBLIC_TOOL_SECRET/);
+  assert.match(publicToolSession, /value\.length < 32/);
+  assert.doesNotMatch(publicToolSession, /helpex-public-tool/);
+  assert.doesNotMatch(publicToolSession, /SUPABASE_SERVICE_ROLE_KEY/);
 });

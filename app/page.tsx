@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { MarketingHeader } from "@/components/marketing-header";
 import {
   Briefcase,
@@ -14,6 +15,10 @@ import {
   Upload,
   X,
 } from "lucide-react";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 export default function HomePage() {
   return (
@@ -138,7 +143,7 @@ export default function HomePage() {
             {/* How it works */}
             <section
               id="features"
-              className="grid grid-cols-1 gap-4 rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-6 md:grid-cols-3 md:gap-6"
+              className="marketing-deferred grid grid-cols-1 gap-4 rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-6 md:grid-cols-3 md:gap-6"
             >
               {[
                 {
@@ -181,7 +186,7 @@ export default function HomePage() {
             </section>
 
             {/* Category Cards */}
-            <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <section className="marketing-deferred grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div
                 className="shadow-sm rounded-3xl bg-white border-l-4 border-l-theme-primary border border-zinc-200 p-6 gap-4 flex flex-col"
                 id="legal"
@@ -212,7 +217,7 @@ export default function HomePage() {
                   ))}
                 </div>
                 <Link
-                  href="/signup?category=legal"
+                  href="/legal"
                   className="mt-2 inline-flex items-center gap-2 font-semibold text-theme-primary text-sm"
                 >
                   Get started with Legal →
@@ -251,7 +256,7 @@ export default function HomePage() {
                   ))}
                 </div>
                 <Link
-                  href="/signup?category=business"
+                  href="/business"
                   className="mt-2 inline-flex items-center gap-2 font-semibold text-emerald-600 text-sm"
                 >
                   Get started with Business →
@@ -262,7 +267,7 @@ export default function HomePage() {
             {/* Pricing */}
             <section
               id="pricing"
-              className="flex flex-col gap-6 rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-6"
+              className="marketing-deferred flex flex-col gap-6 rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-6"
             >
               <div className="flex flex-col gap-2">
                 <h2 className="font-bold text-3xl leading-9 tracking-tight">
@@ -416,6 +421,8 @@ export default function HomePage() {
               </div>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm leading-5 text-[#71717b]">
+              <Link href="/legal">Legal</Link>
+              <Link href="/business">Business</Link>
               <Link href="#features">Features</Link>
               <Link href="#pricing">Pricing</Link>
               <Link href="/privacy">Privacy Policy</Link>

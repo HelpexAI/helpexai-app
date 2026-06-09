@@ -4,8 +4,9 @@ import { ResponsiveModal } from "@/components/dashboard/responsive-modal";
 import type { Document } from "@/types";
 import { Check, FileText, Loader2, ShieldAlert } from "lucide-react";
 import { useState } from "react";
-import { queryKeys } from "@/lib/client/query";
+import { invalidateWorkspaceQueries } from "@/lib/client/query";
 import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 
 export function ResolveDocumentLimitModal({
   documents,
@@ -15,6 +16,7 @@ export function ResolveDocumentLimitModal({
   limit: number;
 }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -33,10 +35,8 @@ export function ResolveDocumentLimitModal({
       setLoading(false);
       return;
     }
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: queryKeys.documents }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.conversations }),
-    ]);
+    await invalidateWorkspaceQueries(queryClient);
+    router.refresh();
   }
 
   return (

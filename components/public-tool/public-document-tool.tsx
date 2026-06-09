@@ -3,6 +3,8 @@
 import { CheckCircle2, FileText, Loader2, Lock, Mail, Send, Sparkles, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { DragEvent, FormEvent, useEffect, useRef, useState } from "react";
+import { MarkdownMessage } from "@/components/conversations/markdown-message";
+import { ExternalResearchToggle } from "@/components/conversations/external-research-toggle";
 
 type Source = { docName: string; excerpt: string };
 type ToolMessage = { id: string; role: "user" | "assistant"; content: string; sources?: Source[] };
@@ -12,13 +14,14 @@ type Session = {
   questionsUsed: number;
   messages: ToolMessage[];
   expiresAt: string;
+  externalResearchEnabled: boolean;
 };
 
 export function PublicDocumentTool() {
   const inputRef = useRef<HTMLInputElement>(null);
   const interactedRef = useRef(false);
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState<"upload" | "email" | "question" | null>(null);
+  const [loading, setLoading] = useState<"upload" | "email" | "question" | "research" | null>(null);
   const [restoringSession, setRestoringSession] = useState(true);
   const [dragging, setDragging] = useState(false);
   const [email, setEmail] = useState("");
@@ -105,6 +108,25 @@ export function PublicDocumentTool() {
     setLoading(null);
   }
 
+  async function updateExternalResearch(enabled: boolean) {
+    if (!session?.emailCaptured || loading) return;
+    const previous = session.externalResearchEnabled;
+    setSession({ ...session, externalResearchEnabled: enabled });
+    setLoading("research");
+    setError("");
+    const response = await fetch("/api/public-tool/research", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ externalResearchEnabled: enabled }),
+    });
+    const body = await response.json();
+    if (!response.ok) {
+      setSession((current) => current ? { ...current, externalResearchEnabled: previous } : current);
+      setError(body.error ?? "Could not update External Research.");
+    }
+    setLoading(null);
+  }
+
   async function removeDocument() {
     await fetch("/api/public-tool", { method: "DELETE" });
     setSession(null);
@@ -164,6 +186,9 @@ export function PublicDocumentTool() {
             {limitPromptOpen && <div className="absolute inset-0 flex items-center justify-center bg-white/75 p-5 backdrop-blur-sm dark:bg-zinc-950/75"><div className="max-w-sm rounded-2xl border border-zinc-200 bg-white p-7 text-center shadow-xl dark:border-zinc-700 dark:bg-zinc-900"><Lock className="mx-auto size-9 text-theme-primary" /><h2 className="mt-3 text-xl font-bold">You&apos;ve used all 5 free questions</h2><p className="mt-2 text-sm text-zinc-500">Create a free account for 5 questions every day and up to 3 documents.</p><Link href="/signup" className="mt-5 flex h-11 items-center justify-center rounded-full bg-theme-primary font-semibold text-white">Create Free Account</Link><Link href="/#pricing" className="mt-2 block text-sm font-medium text-theme-primary">See pricing plans</Link></div></div>}
           </div>
           <div className="border-t border-zinc-200 px-4 py-4 dark:border-zinc-800 sm:px-6">
+            <div className="mb-3">
+              <ExternalResearchToggle enabled={session.externalResearchEnabled} disabled={loading === "research"} onChange={(enabled) => void updateExternalResearch(enabled)} />
+            </div>
             <div className="mb-3 flex items-center justify-between text-xs text-zinc-500"><span>{session.questionsUsed}/5 questions used</span><div className="flex gap-1">{Array.from({ length: 5 }).map((_, index) => <span key={index} className={`size-2 rounded-full ${index < session.questionsUsed ? "bg-theme-primary" : "bg-zinc-200 dark:bg-zinc-700"}`} />)}</div></div>
             <form onSubmit={ask} className="flex gap-2"><input disabled={limitPromptOpen || loading === "question"} value={question} onChange={(event) => setQuestion(event.target.value)} placeholder={limitPromptOpen ? "Free question limit reached" : "Ask anything about your document..."} className="h-12 min-w-0 flex-1 rounded-full border border-zinc-200 bg-white px-5 text-sm outline-none focus:border-theme-primary disabled:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-950 dark:disabled:bg-zinc-800" /><button disabled={limitPromptOpen || loading === "question" || !question.trim()} className="flex size-12 shrink-0 items-center justify-center rounded-full bg-theme-primary text-white disabled:opacity-40"><Send className="size-4" /></button></form>
             {error && <div className="mt-3"><ErrorMessage message={error} /></div>}
@@ -176,7 +201,7 @@ export function PublicDocumentTool() {
 
 function ChatMessage({ message }: { message: ToolMessage }) {
   if (message.role === "user") return <div className="flex justify-end"><div className="max-w-[88%] rounded-2xl rounded-br-sm bg-theme-primary px-4 py-3 text-sm leading-6 text-white sm:max-w-[75%]">{message.content}</div></div>;
-  return <div className="flex gap-3"><div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-xs font-bold text-white dark:bg-white dark:text-zinc-950">H</div><div className="max-w-[88%] space-y-3 rounded-2xl rounded-bl-sm border border-zinc-200 bg-white px-4 py-3 text-sm leading-6 dark:border-zinc-700 dark:bg-zinc-900 sm:max-w-[78%]"><p className="whitespace-pre-wrap">{message.content}</p>{message.sources?.map((source) => <div key={source.docName} className="rounded-lg border-l-2 border-theme-primary bg-theme-soft px-3 py-2 text-xs text-zinc-600 dark:bg-theme-soft-dark dark:text-zinc-300"><FileText className="mr-1 inline size-3 text-theme-primary" />{source.docName}<p className="mt-1 line-clamp-2 italic opacity-75">{source.excerpt}</p></div>)}</div></div>;
+  return <div className="flex gap-3"><div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-xs font-bold text-white dark:bg-white dark:text-zinc-950">H</div><div className="max-w-[88%] space-y-3 rounded-2xl rounded-bl-sm border border-zinc-200 bg-white px-4 py-3 text-sm leading-6 dark:border-zinc-700 dark:bg-zinc-900 sm:max-w-[78%]"><MarkdownMessage content={message.content} />{message.sources?.map((source) => <div key={source.docName} className="rounded-lg border-l-2 border-theme-primary bg-theme-soft px-3 py-2 text-xs text-zinc-600 dark:bg-theme-soft-dark dark:text-zinc-300"><FileText className="mr-1 inline size-3 text-theme-primary" />{source.docName}<p className="mt-1 line-clamp-2 italic opacity-75">{source.excerpt}</p></div>)}</div></div>;
 }
 
 function ErrorMessage({ message }: { message: string }) {

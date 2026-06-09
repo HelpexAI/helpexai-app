@@ -6,6 +6,8 @@ const AUTH_ROUTES = ['/login', '/signup', '/verify-email']
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const isAuthRoute = AUTH_ROUTES.some(r => pathname.startsWith(r))
+  const requestedCategory = request.nextUrl.searchParams.get('category')
+  const isProductAuthFlow = requestedCategory === 'legal' || requestedCategory === 'business'
   if (!isAuthRoute) return NextResponse.next({ request })
 
   let supabaseResponse = NextResponse.next({ request })
@@ -36,7 +38,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   // Redirect authenticated users away from auth routes
-  if (isAuthRoute && user) {
+  if (isAuthRoute && user && !isProductAuthFlow) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)

@@ -110,6 +110,13 @@
   scrollbar-color: rgb(var(--theme-primary) / 0.55) transparent;
 }
 
+@supports (content-visibility: auto) {
+  .marketing-deferred {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 700px;
+  }
+}
+
 .public-tool-scrollbar::-webkit-scrollbar {
   width: 10px;
 }

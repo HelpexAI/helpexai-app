@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { themeStyle } from '@/lib/theme'
-import { QueryProvider } from '@/components/providers/query-provider'
+import { SITE_URL } from '@/lib/seo'
 import './globals.css'
 
 const inter = Inter({
@@ -11,6 +11,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
+  manifest: '/manifest.webmanifest',
   title: {
     default: 'HelpexAI — Document Intelligence Platform',
     template: '%s | HelpexAI',
@@ -21,9 +23,18 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'HelpexAI — Document Intelligence Platform',
     description: 'Upload your documents. Ask anything. Get expert answers.',
-    url: 'https://helpexai.com',
+    url: SITE_URL,
     siteName: 'HelpexAI',
     type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'HelpexAI - AI Document Intelligence Platform',
+    description: 'Upload your documents. Ask anything. Get clear, cited answers.',
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 }
 
@@ -42,7 +53,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.variable} font-sans`} style={themeStyle("main")}><QueryProvider>{children}</QueryProvider></body>
+      <body className={`${inter.variable} font-sans`} style={themeStyle("main")}>{children}</body>
     </html>
   )
 }

@@ -1,6 +1,8 @@
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
 import { getEmbeddingProvider, getVectorDBProvider } from '../factory'
 import { generateNamespace } from '@/lib/utils'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 const CHUNK_SIZE = 1000
 const CHUNK_OVERLAP = 200
@@ -33,6 +35,7 @@ async function extractPdfPages(buffer: Buffer): Promise<ExtractedDocumentPage[]>
     disableFontFace: true,
     isEvalSupported: false,
     useSystemFonts: false,
+    standardFontDataUrl: pathToFileURL(join(process.cwd(), 'node_modules', 'pdfjs-dist', 'standard_fonts', '/')).href,
   })
   const pdf = await task.promise
   try {

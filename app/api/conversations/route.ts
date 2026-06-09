@@ -2,6 +2,8 @@ import { getDocumentRequestContext } from "@/lib/documents/server";
 import { CreateConversationSchema } from "@/lib/validations/schemas";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { NextResponse } from "next/server";
+import { logEvent } from "@/lib/monitoring";
+import { revalidateWorkspacePaths } from "@/lib/cache/revalidate";
 
 export async function GET() {
   const context = await getDocumentRequestContext();
@@ -15,8 +17,8 @@ export async function GET() {
   }
 
   const [{ data: conversations, error: conversationsError }, { data: documents, error: documentsError }] = await Promise.all([
-    context.service.from("conversations").select("id, title, selected_document_ids, updated_at").eq("user_id", context.user.id).eq("category_slug", context.category).order("updated_at", { ascending: false }),
-    context.service.from("documents").select("id, name, file_size, file_type").eq("user_id", context.user.id).eq("category_slug", context.category).neq("status", "failed").order("created_at", { ascending: false }),
+    context.service.from("conversations").select("id, title, selected_document_ids, external_research_enabled, updated_at").eq("user_id", context.user.id).eq("category_slug", context.category).order("updated_at", { ascending: false }),
+    context.service.from("documents").select("id, name, file_size, file_type").eq("user_id", context.user.id).eq("category_slug", context.category).eq("status", "ready").order("created_at", { ascending: false }),
   ]);
   if (conversationsError || documentsError) {
     return NextResponse.json({ error: conversationsError?.message ?? documentsError?.message }, { status: 500 });
@@ -69,11 +71,21 @@ export async function POST(request: Request) {
       category_slug: context.category,
       title: "New Conversation",
       selected_document_ids: documentIds,
+      external_research_enabled: parsed.data.external_research_enabled,
       is_locked: true,
     })
-    .select("id, title, selected_document_ids, created_at, updated_at")
+    .select("id, title, selected_document_ids, external_research_enabled, created_at, updated_at")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logEvent("conversation_created", {
+    userId: context.user.id,
+    userEmail: context.user.email,
+    category: context.category,
+    conversationId: conversation.id,
+    selectedDocumentIds: documentIds,
+    externalResearchEnabled: parsed.data.external_research_enabled,
+  });
+  revalidateWorkspacePaths();
   return NextResponse.json({ conversation }, { status: 201 });
 }

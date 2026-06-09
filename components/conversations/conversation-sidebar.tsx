@@ -7,13 +7,14 @@ import { FileText, Loader2, MessageSquare, MoreHorizontal, Pencil, Search, Trash
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { fetchJson, queryKeys } from "@/lib/client/query";
+import { fetchJson, invalidateWorkspaceQueries, queryKeys } from "@/lib/client/query";
 import { useQueryClient } from "@tanstack/react-query";
 
 export type ConversationSummary = {
   id: string;
   title: string;
   selected_document_ids: string[];
+  external_research_enabled: boolean;
   updated_at: string;
 };
 
@@ -95,6 +96,8 @@ export function ConversationSidebar({
       queryKeys.conversation(result.conversation.id),
       (cached) => cached ? { ...cached, conversation: cached.conversation ? { ...cached.conversation, ...result.conversation } : cached.conversation } : cached,
     );
+    await invalidateWorkspaceQueries(queryClient);
+    router.refresh();
   }
 
   async function deleteConversation() {
@@ -116,10 +119,10 @@ export function ConversationSidebar({
       (cached) => cached ? { ...cached, conversations: cached.conversations?.filter(item => item.id !== deletedId) } : cached,
     );
     queryClient.removeQueries({ queryKey: queryKeys.conversation(deletedId) });
+    await invalidateWorkspaceQueries(queryClient);
+    router.refresh();
     if (activeId === deletedId || pathname === `/conversations/${deletedId}`) {
       router.replace("/conversations");
-    } else {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
     }
   }
 

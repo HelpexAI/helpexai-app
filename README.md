@@ -56,7 +56,8 @@ STRIPE_BUSINESS_PREMIUM_PRICE_ID=
 For an existing project, run `002_remove_conversation_limits.sql`,
 `003_alpha_hardening.sql`, `004_three_tier_pricing.sql`, and
 `005_public_tool.sql`, then `006_fix_public_tool_question_reservation.sql` in
-Supabase SQL Editor. Migration `003` is required
+Supabase SQL Editor. Also apply `007_conversation_external_research.sql` and
+`008_public_tool_external_research.sql`. Migration `003` is required
 before running the hardened app because API routes use its atomic quota and
 rate-limit functions.
 
@@ -115,3 +116,21 @@ OpenAI embeddings remain the preferred semantic-search path. If OpenAI quota is 
 - Email verification flow
 - Dashboard layout with sidebar
 - Empty states for all tabs
+
+## Optional AI Research And Testing Logs
+
+Set `TAVILY_API_KEY` to let document conversations supplement document evidence
+with live web research for salary benchmarks, market rates, and current industry
+comparisons. Tavily is called only for conversations where the user explicitly
+enables External Research.
+
+For Better Stack testing logs, create an HTTP Logs source and set:
+
+```env
+BETTERSTACK_SOURCE_TOKEN=
+BETTERSTACK_INGESTING_HOST=
+```
+
+Logs include user ID/email, workspace category, document/conversation IDs,
+processing stages, and errors. Raw document text and message content are not
+sent to Better Stack.

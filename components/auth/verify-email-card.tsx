@@ -118,7 +118,7 @@ export function VerifyEmailCard({
           <div className="h-px w-full bg-zinc-200 dark:bg-zinc-800" />
 
           <Link
-            href="/login"
+            href={`/login${categoryQuery}`}
             className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
           >
             <ArrowLeft className="size-4" />

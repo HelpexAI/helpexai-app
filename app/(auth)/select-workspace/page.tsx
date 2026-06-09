@@ -1,4 +1,5 @@
 import { WorkspaceSelector } from "@/components/auth/workspace-selector";
+import { QueryProvider } from "@/components/providers/query-provider";
 import { createClient } from "@/lib/supabase/server";
 import type { CategorySlug } from "@/types";
 import type { Metadata } from "next";
@@ -30,8 +31,10 @@ export default async function SelectWorkspacePage() {
   if (accounts.length === 1) redirect("/dashboard");
 
   return (
-    <WorkspaceSelector
-      categories={accounts.map((account) => account.category_slug as CategorySlug)}
-    />
+    <QueryProvider>
+      <WorkspaceSelector
+        categories={accounts.map((account) => account.category_slug as CategorySlug)}
+      />
+    </QueryProvider>
   );
 }

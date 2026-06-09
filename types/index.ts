@@ -68,6 +68,7 @@ export interface Conversation {
   category_slug: CategorySlug
   title: string
   selected_document_ids: string[]
+  external_research_enabled: boolean
   created_at: string
   updated_at: string
 }

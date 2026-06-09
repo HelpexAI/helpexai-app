@@ -4,14 +4,13 @@ import { CategorySlug, MessageSource, VectorSearchResult } from '@/types'
 import { stripAiDisclaimer } from '@/lib/ai/disclaimer'
 import {
   LEGAL_SYSTEM_PROMPT,
-  LEGAL_NO_CONTEXT_NOTE,
   LEGAL_OFF_TOPIC_RESPONSE,
 } from '../prompts/legal'
 import {
   BUSINESS_SYSTEM_PROMPT,
-  BUSINESS_NO_CONTEXT_NOTE,
   BUSINESS_OFF_TOPIC_RESPONSE,
 } from '../prompts/business'
+import { formatWebContext, searchWeb, type WebSearchResult } from '../web-search'
 
 const TOP_K = 5
 const FALLBACK_DOCUMENT_CHARACTER_LIMIT = 12_000
@@ -28,6 +27,7 @@ export interface QueryOptions {
   categorySlug: CategorySlug
   question: string
   selectedDocumentIds: string[]
+  externalResearchEnabled?: boolean
 }
 
 export interface QueryResult {
@@ -57,13 +57,21 @@ function getOffTopicResponse(categorySlug: CategorySlug): string {
   return categorySlug === 'legal' ? LEGAL_OFF_TOPIC_RESPONSE : BUSINESS_OFF_TOPIC_RESPONSE
 }
 
-function getNoContextNote(categorySlug: CategorySlug): string {
-  return categorySlug === 'legal' ? LEGAL_NO_CONTEXT_NOTE : BUSINESS_NO_CONTEXT_NOTE
+function getSystemPromptForQuery(categorySlug: CategorySlug, externalResearchEnabled: boolean): string {
+  const categoryPrompt = getSystemPrompt(categorySlug)
+  if (!externalResearchEnabled) return categoryPrompt
+  return `${categoryPrompt}
+
+EXTERNAL RESEARCH MODE:
+- The user explicitly enabled External Research.
+- Answer relevant questions even when they are outside the workspace category or not covered by the documents.
+- Use supplied live web research and reliable general knowledge, cite web sources, and distinguish outside context from document facts.
+- Do not respond with the category's off-topic refusal while External Research is enabled.`
 }
 
 function isOffTopic(question: string): boolean {
   const offTopicPatterns = [
-    /^(hi|hello|hey|what's up|how are you)/i,
+    /^(hi|hello|hey|what's up|how are you)\b/i,
     /recipe|weather|sport|movie|music|celebrity/i,
     /write.*code|programming|javascript|python/i,
   ]
@@ -74,10 +82,19 @@ function buildPromptWithContext(
   question: string,
   chunks: VectorSearchResult[],
   hasContext: boolean,
-  categorySlug: CategorySlug
+  categorySlug: CategorySlug,
+  webResults: WebSearchResult[],
+  externalResearchEnabled: boolean,
 ): string {
+  const webContext = formatWebContext(webResults)
   if (!hasContext) {
-    return `${getNoContextNote(categorySlug)}\n\n${MARKDOWN_RESPONSE_INSTRUCTION}\n\nUser Question: ${question}`
+    return `${externalResearchEnabled ? `The selected documents do not contain information directly relevant to this question, so answer using External Research and clearly label it as outside context.` : `The selected documents do not contain enough relevant evidence to answer this question. Explain what information is missing and suggest turning on **External Research** for this conversation if the user wants current benchmarks or outside context.`}
+
+${externalResearchEnabled ? `Use reliable general knowledge to answer. ${webContext ? `Use the live web research below when relevant and cite it with Markdown links.\n\nLIVE WEB RESEARCH:\n${webContext}` : 'Clearly label estimates, benchmarks, and assumptions.'}` : 'Do not answer using outside knowledge or invent an estimate.'}
+
+${MARKDOWN_RESPONSE_INSTRUCTION}
+
+User Question: ${question}`
   }
 
   const contextBlock = chunks
@@ -86,14 +103,32 @@ function buildPromptWithContext(
     )
     .join('\n\n---\n\n')
 
-  return `DOCUMENT CONTEXT:\n${contextBlock}\n\n---\n\nUser Question: ${question}\n\nAnswer based ONLY on the document context above. Cite specific sources (document name, clause, page) in your answer.\n\n${MARKDOWN_RESPONSE_INSTRUCTION}`
+  return `DOCUMENT CONTEXT:
+${contextBlock}
+
+${webContext ? `---\n\nLIVE WEB RESEARCH:\n${webContext}` : ''}
+
+---
+
+User Question: ${question}
+
+Use the document context as the source of truth for the user's facts. ${externalResearchEnabled ? 'You may use general professional knowledge and the live web research to provide benchmarks, estimates, comparisons, or practical context.' : 'Answer only from the document context. If outside context is needed, suggest turning on **External Research** instead of supplying it.'} Never let external knowledge override or invent document facts.
+
+When external knowledge is relevant, separate the response into:
+- **Document evidence**
+- **External context or benchmark**
+- **Conclusion and assumptions**
+
+Cite document names/pages for document evidence. Cite live web sources using Markdown links. Clearly label estimates and uncertainty.
+
+${MARKDOWN_RESPONSE_INSTRUCTION}`
 }
 
 export async function queryDocuments(options: QueryOptions): Promise<QueryResult> {
-  const { userId, categorySlug, question, selectedDocumentIds } = options
+  const { userId, categorySlug, question, selectedDocumentIds, externalResearchEnabled = false } = options
 
   // 1. Check for off-topic
-  if (isOffTopic(question)) {
+  if (!externalResearchEnabled && isOffTopic(question)) {
     return {
       answer: getOffTopicResponse(categorySlug),
       sources: [],
@@ -102,25 +137,29 @@ export async function queryDocuments(options: QueryOptions): Promise<QueryResult
     }
   }
 
-  // 2. Embed the question
-  const embeddingProvider = getEmbeddingProvider()
-  const queryVector = await embeddingProvider.embedText(question)
-
-  // 3. Search Qdrant
-  const namespace = generateNamespace(userId, categorySlug)
-  const vectorDB = getVectorDBProvider()
-
-  const filter = selectedDocumentIds.length > 0
-    ? { key: 'docId', match: { any: selectedDocumentIds } }
-    : undefined
-
-  const results = await vectorDB.search(namespace, queryVector, TOP_K, filter)
+  // 2. Search document embeddings. External Research can still answer when
+  // semantic search is temporarily unavailable.
+  let results: VectorSearchResult[] = []
+  try {
+    const embeddingProvider = getEmbeddingProvider()
+    const queryVector = await embeddingProvider.embedText(question)
+    const namespace = generateNamespace(userId, categorySlug)
+    const vectorDB = getVectorDBProvider()
+    const filter = selectedDocumentIds.length > 0
+      ? { key: 'docId', match: { any: selectedDocumentIds } }
+      : undefined
+    results = await vectorDB.search(namespace, queryVector, TOP_K, filter)
+  } catch (error) {
+    if (!externalResearchEnabled) throw error
+    console.warn('Semantic search unavailable; continuing with External Research.', error)
+  }
 
   const hasContext = results.length > 0 && results[0].score > 0.5
 
   // 4. Build prompt
-  const prompt = buildPromptWithContext(question, results, hasContext, categorySlug)
-  const systemPrompt = getSystemPrompt(categorySlug)
+  const webResults = externalResearchEnabled ? await searchWeb(question).catch(() => []) : []
+  const prompt = buildPromptWithContext(question, results, hasContext, categorySlug, webResults, externalResearchEnabled)
+  const systemPrompt = getSystemPromptForQuery(categorySlug, externalResearchEnabled)
 
   // 5. Get LLM answer
   const llm = getLLMProvider()
@@ -151,10 +190,10 @@ export function isEmbeddingUnavailable(error: unknown): boolean {
 }
 
 export async function queryDocumentsFromRawText(
-  options: Pick<QueryOptions, 'categorySlug' | 'question'> & { documents: RawDocumentContext[] },
+  options: Pick<QueryOptions, 'categorySlug' | 'question' | 'externalResearchEnabled'> & { documents: RawDocumentContext[] },
 ): Promise<QueryResult> {
-  const { categorySlug, question } = options
-  if (isOffTopic(question)) {
+  const { categorySlug, question, externalResearchEnabled = false } = options
+  if (!externalResearchEnabled && isOffTopic(question)) {
     return {
       answer: getOffTopicResponse(categorySlug),
       sources: [],
@@ -188,8 +227,21 @@ export async function queryDocumentsFromRawText(
   const context = pages
     .map((page, index) => `[Source ${index + 1}] Document: "${page.docName}"${page.pageNumber ? ` | Page ${page.pageNumber}` : ''}\n${page.text}`)
     .join('\n\n---\n\n')
-  const prompt = `DOCUMENT CONTEXT:\n${context}\n\n---\n\nUser Question: ${question}\n\nAnswer based ONLY on the document context above. Cite document names and page numbers when available.\n\n${MARKDOWN_RESPONSE_INSTRUCTION}`
-  const answer = stripAiDisclaimer(await getLLMProvider().complete(prompt, getSystemPrompt(categorySlug)))
+  const webResults = externalResearchEnabled ? await searchWeb(question).catch(() => []) : []
+  const webContext = formatWebContext(webResults)
+  const prompt = `DOCUMENT CONTEXT:
+${context}
+
+${webContext ? `---\n\nLIVE WEB RESEARCH:\n${webContext}` : ''}
+
+---
+
+User Question: ${question}
+
+Use document context as the source of truth for document facts. ${externalResearchEnabled ? 'You may use reliable general knowledge and live web research for benchmarks, estimates, and practical context. Separate document evidence from external context, cite document names/pages, link web sources, and clearly label assumptions.' : 'Answer only from the document context. If the documents cannot support the requested outside benchmark or estimate, suggest turning on **External Research** for this conversation.'}
+
+${MARKDOWN_RESPONSE_INSTRUCTION}`
+  const answer = stripAiDisclaimer(await getLLMProvider().complete(prompt, getSystemPromptForQuery(categorySlug, externalResearchEnabled)))
 
   return {
     answer,

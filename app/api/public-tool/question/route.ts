@@ -1,5 +1,5 @@
 import { queryPublicDocument } from "@/lib/ai/public-query";
-import { reportError } from "@/lib/monitoring";
+import { logEvent, reportError } from "@/lib/monitoring";
 import { hashPublicValue, publicSessionToken } from "@/lib/public-tool/session";
 import { enforceRateLimit, requestIp } from "@/lib/security/rate-limit";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -37,11 +37,17 @@ export async function POST(request: Request) {
 
   const userMessage = { id: crypto.randomUUID(), role: "user", content: parsed.data.question, created_at: new Date().toISOString() };
   try {
+    await logEvent("public_tool_question_received", {
+      ipHash,
+      questionLength: parsed.data.question.length,
+      questionsUsed: reservation.questions_used,
+      documentName: reservation.document_name,
+    });
     const result = await queryPublicDocument(parsed.data.question, {
       id: "public-document",
       name: reservation.document_name,
       text: reservation.document_text,
-    });
+    }, reservation.external_research_enabled);
     const assistantMessage = {
       id: crypto.randomUUID(),
       role: "assistant",
@@ -55,6 +61,13 @@ export async function POST(request: Request) {
       p_assistant_message: assistantMessage,
     });
     if (completionError) throw completionError;
+    await logEvent("public_tool_answer_completed", {
+      ipHash,
+      questionsUsed: reservation.questions_used,
+      documentName: reservation.document_name,
+      tokensUsed: result.tokensUsed,
+      externalResearchEnabled: reservation.external_research_enabled,
+    });
     return NextResponse.json({ userMessage, assistantMessage, questionsUsed: reservation.questions_used });
   } catch (error) {
     await service.rpc("release_public_tool_question", { p_token_hash: tokenHash });

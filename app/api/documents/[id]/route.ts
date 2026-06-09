@@ -1,6 +1,8 @@
 import { deleteOwnedDocument } from "@/lib/documents/delete";
 import { getDocumentAccessContext, getDocumentRequestContext } from "@/lib/documents/server";
 import { NextResponse } from "next/server";
+import { revalidateWorkspacePaths } from "@/lib/cache/revalidate";
+import { logEvent } from "@/lib/monitoring";
 
 export const runtime = "nodejs";
 
@@ -75,5 +77,12 @@ export async function DELETE(
     );
   }
 
+  await logEvent("document_deleted", {
+    userId: context.user.id,
+    userEmail: context.user.email,
+    category: context.category,
+    documentId: id,
+  });
+  revalidateWorkspacePaths();
   return NextResponse.json({ success: true });
 }

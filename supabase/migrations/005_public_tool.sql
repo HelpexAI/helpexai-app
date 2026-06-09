@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS public_tool_sessions (
   messages JSONB NOT NULL DEFAULT '[]'::jsonb,
   questions_used INTEGER NOT NULL DEFAULT 0 CHECK (questions_used BETWEEN 0 AND 5),
   email_captured BOOLEAN NOT NULL DEFAULT false,
+  external_research_enabled BOOLEAN NOT NULL DEFAULT false,
   expires_at TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '24 hours'),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()

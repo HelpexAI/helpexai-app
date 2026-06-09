@@ -9,7 +9,6 @@ import {
   Download,
   FileText,
   Maximize2,
-  MessageSquare,
   PanelLeftClose,
   PanelLeftOpen,
   RotateCw,
@@ -140,10 +139,6 @@ export function DocumentViewer({
           <span className="truncate font-medium text-white">{document.name}</span>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/conversations" className="flex h-9 items-center gap-2 rounded-lg bg-white/10 px-3 text-sm transition hover:bg-white/15">
-            <MessageSquare className="size-4" />
-            <span className="hidden sm:inline">Ask AI</span>
-          </Link>
           <a href={downloadUrl} className="flex h-9 items-center gap-2 rounded-lg bg-white/10 px-3 text-sm transition hover:bg-white/15">
             <Download className="size-4" />
             <span className="hidden sm:inline">Download</span>

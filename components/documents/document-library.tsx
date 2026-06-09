@@ -12,7 +12,6 @@ import {
   FileType2,
   Files,
   Loader2,
-  MessageSquare,
   Trash2,
   Upload,
   XCircle,
@@ -20,7 +19,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { fetchJson, queryKeys } from "@/lib/client/query";
+import { fetchJson, invalidateWorkspaceQueries, queryKeys } from "@/lib/client/query";
 import { useQueryClient } from "@tanstack/react-query";
 
 const filters: Array<{ label: string; value: "all" | DocumentStatus }> = [
@@ -101,6 +100,9 @@ export function DocumentLibrary({
     });
   }
   useEffect(() => {
+    setDocuments(initialDocuments);
+  }, [initialDocuments]);
+  useEffect(() => {
     documents.slice(0, 5).forEach(document => prefetchDocument(document.id));
     // Query client and router are stable for the lifetime of this mounted library.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -125,7 +127,8 @@ export function DocumentLibrary({
       (cached) => cached ? { ...cached, documents: cached.documents.filter(item => item.id !== document.id) } : cached,
     );
     queryClient.removeQueries({ queryKey: queryKeys.document(document.id) });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
+    await invalidateWorkspaceQueries(queryClient);
+    router.refresh();
     setDeleting(null);
     setDocumentToDelete(null);
   }
@@ -250,13 +253,6 @@ export function DocumentLibrary({
                 </span>
                 <StatusBadge status={document.status} />
                 <div className="flex items-center gap-2">
-                  <Link
-                    href="/conversations"
-                    className="flex size-8 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 hover:text-theme-primary dark:border-zinc-700 dark:text-zinc-400"
-                    title="Start conversation"
-                  >
-                    <MessageSquare className="size-4" />
-                  </Link>
                   <button
                     type="button"
                     onClick={() => setDocumentToDelete(document)}

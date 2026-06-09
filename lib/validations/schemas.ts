@@ -38,6 +38,7 @@ export const MAX_FILES_PER_UPLOAD = 5
 
 export const CreateConversationSchema = z.object({
   category_slug: z.enum(['legal', 'business'] as const),
+  external_research_enabled: z.boolean().default(false),
   selected_document_ids: z
     .array(z.string().uuid())
     .min(1, 'Select at least one document'),
@@ -49,6 +50,10 @@ export const RenameConversationSchema = z.object({
     .string()
     .min(1, 'Title cannot be empty')
     .max(100, 'Title too long'),
+})
+
+export const ConversationResearchSchema = z.object({
+  external_research_enabled: z.boolean(),
 })
 
 export type CreateConversationInput = z.infer<typeof CreateConversationSchema>

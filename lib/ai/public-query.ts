@@ -2,12 +2,14 @@ import { getLLMProvider } from "@/lib/ai/factory";
 import { stripAiDisclaimer } from "@/lib/ai/disclaimer";
 import type { QueryResult } from "@/lib/ai/pipeline/query";
 import { HELPEXAI_PLATFORM_KNOWLEDGE, isHelpexAIPlatformQuestion } from "@/lib/ai/knowledge/helpexai-platform";
+import { formatWebContext, searchWeb } from "@/lib/ai/web-search";
 
 const SYSTEM_PROMPT = `You are HelpexAI, a precise document analysis assistant.
-Answer only from the supplied document text. If the answer is not present, say so clearly.
-Do not invent facts. Keep answers concise and cite the document name when useful.`;
+Treat the supplied document as authoritative for document facts.
+Follow the user prompt's External Research permission exactly. When it is disabled, do not add outside facts or estimates.
+Do not invent facts or sources. Keep answers concise, distinguish document evidence from external context, and cite the document name when useful.`;
 
-export async function queryPublicDocument(question: string, document: { id: string; name: string; text: string }): Promise<QueryResult> {
+export async function queryPublicDocument(question: string, document: { id: string; name: string; text: string }, externalResearchEnabled = false): Promise<QueryResult> {
   if (isHelpexAIPlatformQuestion(question)) {
     const prompt = `HELPEXAI PLATFORM KNOWLEDGE:\n${HELPEXAI_PLATFORM_KNOWLEDGE}\n\nUSER QUESTION: ${question}\n\nAnswer using only the HelpexAI platform knowledge above. Be helpful, accurate, and concise. Include a relevant HelpexAI link when useful.`;
     const answer = stripAiDisclaimer(await getLLMProvider().complete(
@@ -23,7 +25,14 @@ export async function queryPublicDocument(question: string, document: { id: stri
   }
 
   const context = document.text.slice(0, 30_000);
-  const prompt = `DOCUMENT: "${document.name}"\n${context}\n\nUSER QUESTION: ${question}\n\nAnswer only from the document above.`;
+  const webContext = externalResearchEnabled ? formatWebContext(await searchWeb(question).catch(() => [])) : "";
+  const prompt = `DOCUMENT: "${document.name}"
+${context}
+
+${webContext ? `LIVE WEB RESEARCH:\n${webContext}\n\n` : ""}
+USER QUESTION: ${question}
+
+Treat the document as authoritative for document facts. ${externalResearchEnabled ? "Use live web research and clearly labeled outside knowledge for relevant context, with Markdown links to web sources." : "Answer only from the document. If it cannot support the answer, state what is missing and suggest turning on **External Research**."}`;
   const answer = stripAiDisclaimer(await getLLMProvider().complete(prompt, SYSTEM_PROMPT));
   return {
     answer,

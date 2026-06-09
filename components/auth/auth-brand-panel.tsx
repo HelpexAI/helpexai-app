@@ -24,13 +24,13 @@ const benefits = [
   },
 ];
 
-export function AuthBrandPanel() {
+export function AuthBrandPanel({ homeHref = "/" }: { homeHref?: string }) {
   return (
     <aside className="relative hidden min-h-screen overflow-hidden bg-[#0a1628] p-8 text-white lg:flex lg:w-[42%] lg:p-12 xl:w-[40%]">
       <div className="absolute -left-32 top-1/3 size-80 rounded-full border border-theme-primary/10" />
       <div className="absolute -left-16 top-1/3 size-80 rounded-full border border-theme-primary/10" />
       <div className="relative z-10 flex w-full flex-col">
-        <Link href="/" className="flex items-center gap-3">
+        <Link href={homeHref} className="flex items-center gap-3">
           <div className="flex size-10 items-center justify-center rounded-xl bg-theme-primary text-theme-primary-foreground shadow-lg shadow-black/20">
             <LayoutDashboard className="size-5" />
           </div>

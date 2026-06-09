@@ -1,16 +1,31 @@
+"use client";
+
 import { AuthBrandPanel } from "@/components/auth/auth-brand-panel";
 import { AuthThemeToggle } from "@/components/auth/auth-theme-toggle";
+import { themeStyle } from "@/lib/theme";
 import Link from "next/link";
 import { LayoutDashboard } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
 export function AuthShell({ children }: { children: React.ReactNode }) {
+  const searchParams = useSearchParams();
+  const requestedCategory = searchParams.get("category");
+  const category =
+    requestedCategory === "business" || requestedCategory === "legal"
+      ? requestedCategory
+      : undefined;
+  const productHref = category ? `/${category}` : "/";
+
   return (
-    <div className="min-h-screen bg-slate-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-50">
+    <div
+      className="min-h-screen bg-slate-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-50"
+      style={themeStyle(category ?? "main")}
+    >
       <div className="flex min-h-screen w-full">
-        <AuthBrandPanel />
+        <AuthBrandPanel homeHref={productHref} />
         <main className="relative flex min-h-screen w-full items-center justify-center px-4 py-20 sm:px-8 lg:w-[58%] lg:px-12 lg:py-12 xl:w-[60%]">
           <div className="absolute left-4 top-4 lg:hidden">
-            <Link href="/" className="flex items-center gap-2">
+            <Link href={productHref} className="flex items-center gap-2">
               <div className="flex size-9 items-center justify-center rounded-xl bg-theme-primary text-white">
                 <LayoutDashboard className="size-4" />
               </div>

@@ -14,6 +14,7 @@ export const metadata: Metadata = {
   title: "Privacy Policy",
   description:
     "Learn how HelpexAI collects, uses, protects, and manages your information.",
+  alternates: { canonical: "/privacy" },
 };
 
 const sections = [

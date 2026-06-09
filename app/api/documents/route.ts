@@ -2,6 +2,9 @@ import { getDocumentRequestContext, fileTypeFromFile, safeStorageFilename } from
 import { MAX_FILES_PER_UPLOAD, MAX_FILE_SIZE } from "@/lib/validations/schemas";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { NextResponse } from "next/server";
+import { validateReadableDocument, DocumentReadabilityError } from "@/lib/documents/readability";
+import { logEvent, reportError } from "@/lib/monitoring";
+import { revalidateWorkspacePaths } from "@/lib/cache/revalidate";
 
 export const runtime = "nodejs";
 
@@ -51,6 +54,40 @@ export async function POST(request: Request) {
     );
   }
 
+  const preparedFiles = [];
+  for (const file of files) {
+    const fileType = fileTypeFromFile(file)!;
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    try {
+      const readability = await validateReadableDocument(Buffer.from(bytes), fileType);
+      preparedFiles.push({ file, fileType, bytes });
+      await logEvent("document_validated", {
+        userId: context.user.id,
+        userEmail: context.user.email,
+        category: context.category,
+        documentName: file.name,
+        fileType,
+        fileSize: file.size,
+        readableCharacters: readability.readableCharacters,
+      });
+    } catch (error) {
+      await reportError(error, {
+        area: "document-validation",
+        userId: context.user.id,
+        userEmail: context.user.email,
+        category: context.category,
+        documentName: file.name,
+      });
+      const message = error instanceof DocumentReadabilityError
+        ? error.message
+        : `Could not read ${file.name}. Upload a valid text-based document.`;
+      return NextResponse.json(
+        { error: message, code: error instanceof DocumentReadabilityError ? error.code : "DOCUMENT_VALIDATION_FAILED" },
+        { status: 422 },
+      );
+    }
+  }
+
   const { error: bucketError } = await context.service.storage.getBucket("documents");
   if (bucketError) {
     const { error: createBucketError } = await context.service.storage.createBucket("documents", {
@@ -68,12 +105,13 @@ export async function POST(request: Request) {
     }
   }
 
-  const reserved = files.map((file) => {
+  const reserved = preparedFiles.map(({ file, fileType, bytes }) => {
     const id = crypto.randomUUID();
     return {
       id,
       file,
-      fileType: fileTypeFromFile(file)!,
+      fileType,
+      bytes,
       storagePath: `${context.user.id}/${context.category}/${id}/${safeStorageFilename(file.name)}`,
     };
   });
@@ -106,8 +144,7 @@ export async function POST(request: Request) {
 
   const uploaded = [];
 
-  for (const { id, file, storagePath } of reserved) {
-    const bytes = new Uint8Array(await file.arrayBuffer());
+  for (const { id, file, storagePath, bytes } of reserved) {
     const { error: storageError } = await context.service.storage
       .from("documents")
       .upload(storagePath, bytes, { contentType: file.type || undefined, upsert: false });
@@ -145,7 +182,16 @@ export async function POST(request: Request) {
       category_slug: context.category,
       action: "document_upload",
     });
+    await logEvent("document_uploaded", {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      category: context.category,
+      documentId: id,
+      documentName: file.name,
+      storagePath,
+    });
   }
 
+  revalidateWorkspacePaths();
   return NextResponse.json({ documents: uploaded }, { status: 201 });
 }

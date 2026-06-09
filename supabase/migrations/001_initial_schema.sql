@@ -118,6 +118,7 @@ CREATE TABLE conversations (
   category_slug           TEXT NOT NULL CHECK (category_slug IN ('legal', 'business')),
   title                   TEXT NOT NULL DEFAULT 'New Conversation',
   selected_document_ids   UUID[] NOT NULL DEFAULT '{}',     -- locked after first message
+  external_research_enabled BOOLEAN NOT NULL DEFAULT false, -- opt-in live web research
   is_locked               BOOLEAN NOT NULL DEFAULT false,   -- true = selection locked
   created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()

@@ -13,6 +13,15 @@ const pdfRenderAssets = [
 ];
 
 const nextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/bussiness",
+        destination: "/business",
+        permanent: true,
+      },
+    ];
+  },
   experimental: {
     clientSegmentCache: true,
     staleTimes: {

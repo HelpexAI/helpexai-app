@@ -17,6 +17,7 @@ type ActiveConversationResponse = {
   conversation?: ConversationSummary;
   conversations?: ConversationSummary[];
   documents?: Array<{ id: string; name: string }>;
+  availableDocuments?: Array<{ id: string; name: string }>;
   messages?: Message[];
   category?: CategorySlug;
   questionsUsed?: number;
@@ -32,5 +33,5 @@ export function ActiveConversationClientPage({ id }: { id: string }) {
   if (!data) return <ConversationSkeleton />;
   if (data.locked) return <ConversationsLocked used={data.used ?? 0} limit={data.limit ?? 0} />;
   if (!data.conversation || !data.category) return <ClientPageError message="Conversation data is unavailable." onRetry={() => void refetch()} />;
-  return <ActiveConversation conversation={data.conversation} conversations={data.conversations ?? []} documents={data.documents ?? []} initialMessages={data.messages ?? []} category={data.category} questionsUsed={data.questionsUsed ?? 0} questionsLimit={data.questionsLimit ?? 0} />;
+  return <ActiveConversation conversation={data.conversation} conversations={data.conversations ?? []} documents={data.documents ?? []} availableDocuments={data.availableDocuments ?? []} initialMessages={data.messages ?? []} category={data.category} questionsUsed={data.questionsUsed ?? 0} questionsLimit={data.questionsLimit ?? 0} />;
 }

@@ -4,11 +4,12 @@ import { ConversationSidebar, type ConversationSummary } from "@/components/conv
 import { ResponsiveModal } from "@/components/dashboard/responsive-modal";
 import { formatFileSize } from "@/lib/utils";
 import type { CategorySlug, Document } from "@/types";
-import { ArrowRight, Check, FileText, List, Loader2, Lock, MessageSquarePlus, Plus } from "lucide-react";
+import { ArrowRight, Check, FileText, List, Loader2, MessageSquarePlus, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { queryKeys } from "@/lib/client/query";
+import { invalidateWorkspaceQueries } from "@/lib/client/query";
 import { useQueryClient } from "@tanstack/react-query";
+import { ExternalResearchToggle } from "@/components/conversations/external-research-toggle";
 
 export function ConversationHub({
   conversations,
@@ -26,6 +27,7 @@ export function ConversationHub({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [mobileConversationsOpen, setMobileConversationsOpen] = useState(false);
+  const [externalResearchEnabled, setExternalResearchEnabled] = useState(false);
 
   async function startConversation() {
     setLoading(true);
@@ -33,7 +35,7 @@ export function ConversationHub({
     const response = await fetch("/api/conversations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ category_slug: category, selected_document_ids: selected }),
+      body: JSON.stringify({ category_slug: category, selected_document_ids: selected, external_research_enabled: externalResearchEnabled }),
     });
     const result = (await response.json()) as { error?: string; conversation?: { id: string } };
     if (!response.ok || !result.conversation) {
@@ -41,7 +43,8 @@ export function ConversationHub({
       setLoading(false);
       return;
     }
-    void queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
+    await invalidateWorkspaceQueries(queryClient);
+    router.refresh();
     router.push(`/conversations/${result.conversation.id}`);
   }
 
@@ -79,7 +82,7 @@ export function ConversationHub({
               );
             })}
           </div>
-          <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"><Lock className="mt-0.5 size-3.5 shrink-0" />Document selection locks once the conversation is started.</div>
+          <ExternalResearchToggle enabled={externalResearchEnabled} onChange={setExternalResearchEnabled} />
           {error && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
           <button onClick={() => void startConversation()} disabled={!selected.length || loading} className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-theme-primary font-semibold text-white disabled:opacity-50">{loading ? <Loader2 className="size-4 animate-spin" /> : <ArrowRight className="size-4" />}Start Conversation</button>
         </div>

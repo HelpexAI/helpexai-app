@@ -1,4 +1,3 @@
-import { extractDocumentText } from "@/lib/ai/pipeline/ingest";
 import { fileTypeFromFile, safeStorageFilename } from "@/lib/documents/server";
 import { requestIp, enforceRateLimit } from "@/lib/security/rate-limit";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -12,6 +11,8 @@ import {
   publicSessionToken,
 } from "@/lib/public-tool/session";
 import { NextResponse } from "next/server";
+import { validateReadableDocument, DocumentReadabilityError } from "@/lib/documents/readability";
+import { logEvent, reportError } from "@/lib/monitoring";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -21,6 +22,7 @@ function sessionView(session: Record<string, unknown>) {
     documentName: session.document_name,
     emailCaptured: session.email_captured,
     questionsUsed: session.questions_used,
+    externalResearchEnabled: session.external_research_enabled,
     messages: session.messages,
     expiresAt: session.expires_at,
   };
@@ -33,7 +35,7 @@ export async function GET() {
   const { data } = await service
     .from("public_tool_sessions")
     .select(
-      "document_name, email_captured, questions_used, messages, expires_at",
+      "document_name, email_captured, external_research_enabled, questions_used, messages, expires_at",
     )
     .eq("token_hash", hashPublicValue(token))
     .gt("expires_at", new Date().toISOString())
@@ -97,22 +99,27 @@ export async function POST(request: Request) {
 
   let text: string;
   try {
-    text = (
-      await extractDocumentText(Buffer.from(await file.arrayBuffer()), fileType)
-    )
+    const validation = await validateReadableDocument(Buffer.from(await file.arrayBuffer()), fileType);
+    text = validation.pages
+      .map((page) => page.text)
+      .join("\n\n")
       .trim()
       .slice(0, PUBLIC_TOOL_TEXT_LIMIT);
-    if (!text)
-      return NextResponse.json(
-        { error: "No readable text was found in this document." },
-        { status: 400 },
-      );
+    await logEvent("public_tool_document_validated", {
+      documentName: file.name,
+      fileType,
+      fileSize: file.size,
+      readableCharacters: validation.readableCharacters,
+      ipHash,
+    });
   } catch (error) {
-    console.error("Public tool document extraction failed:", error);
+    await reportError(error, { area: "public-tool-document-validation", documentName: file.name, fileType, ipHash });
     return NextResponse.json(
       {
-        error: `Could not read this ${fileType.toUpperCase()} document. Try a text-based file without password protection.`,
-        code: "PUBLIC_TOOL_EXTRACTION_FAILED",
+        error: error instanceof DocumentReadabilityError
+          ? error.message
+          : `Could not read this ${fileType.toUpperCase()} document. Try a text-based file without password protection.`,
+        code: error instanceof DocumentReadabilityError ? error.code : "PUBLIC_TOOL_EXTRACTION_FAILED",
       },
       { status: 422 },
     );
@@ -130,7 +137,7 @@ export async function POST(request: Request) {
         document_text: text,
       })
       .select(
-        "document_name, email_captured, questions_used, messages, expires_at",
+        "document_name, email_captured, external_research_enabled, questions_used, messages, expires_at",
       )
       .single();
     if (error) throw error;

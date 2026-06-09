@@ -3,8 +3,9 @@ import { isEmbeddingUnavailable, queryDocuments, queryDocumentsFromRawText } fro
 import { getDocumentRequestContext } from "@/lib/documents/server";
 import { SendMessageSchema } from "@/lib/validations/schemas";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
-import { reportError } from "@/lib/monitoring";
+import { logEvent, reportError } from "@/lib/monitoring";
 import { NextResponse } from "next/server";
+import { revalidateWorkspacePaths } from "@/lib/cache/revalidate";
 
 function conversationTitle(message: string) {
   const words = message.trim().replace(/\s+/g, " ").split(" ");
@@ -16,6 +17,7 @@ async function queryWithSelectedDocumentFallback(
   context: NonNullable<Awaited<ReturnType<typeof getDocumentRequestContext>>>,
   question: string,
   selectedDocumentIds: string[],
+  externalResearchEnabled: boolean,
 ) {
   async function querySelectedDocumentsDirectly() {
     const { data: documents, error: documentsError } = await context.service
@@ -47,6 +49,7 @@ async function queryWithSelectedDocumentFallback(
       categorySlug: context.category,
       question,
       documents: rawDocuments,
+      externalResearchEnabled,
     });
   }
 
@@ -56,8 +59,9 @@ async function queryWithSelectedDocumentFallback(
       categorySlug: context.category,
       question,
       selectedDocumentIds,
+      externalResearchEnabled,
     });
-    if (result.answerType === "document" || selectedDocumentIds.length === 0) {
+    if (result.answerType === "document" || selectedDocumentIds.length === 0 || externalResearchEnabled) {
       return { result, fallbackUsed: false };
     }
     console.warn("Semantic search returned no grounded context; using selected documents directly.");
@@ -98,7 +102,7 @@ export async function POST(
 
   const { data: conversation } = await context.service
     .from("conversations")
-    .select("id, title, selected_document_ids")
+    .select("id, title, selected_document_ids, external_research_enabled")
     .eq("id", id)
     .eq("user_id", context.user.id)
     .eq("category_slug", context.category)
@@ -107,6 +111,16 @@ export async function POST(
   if (!conversation) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
 
   const requestId = crypto.randomUUID();
+  await logEvent("frontend_conversation_message_received", {
+    requestId,
+    userId: context.user.id,
+    userEmail: context.user.email,
+    category: context.category,
+    conversationId: conversation.id,
+    selectedDocumentIds: conversation.selected_document_ids,
+    externalResearchEnabled: conversation.external_research_enabled,
+    messageLength: parsed.data.content.length,
+  });
   const { data: reservation, error: reservationError } = await context.service.rpc("reserve_daily_query", {
     p_user_id: context.user.id,
     p_category_slug: context.category,
@@ -141,10 +155,19 @@ export async function POST(
   }
 
   try {
+    await logEvent("conversation_semantic_query_started", {
+      requestId,
+      userId: context.user.id,
+      userEmail: context.user.email,
+      category: context.category,
+      conversationId: conversation.id,
+      selectedDocumentCount: conversation.selected_document_ids.length,
+    });
     const { result, fallbackUsed } = await queryWithSelectedDocumentFallback(
       context,
       parsed.data.content,
       conversation.selected_document_ids,
+      conversation.external_research_enabled,
     );
     const { data: assistantMessage, error: assistantError } = await context.service
       .from("messages")
@@ -170,6 +193,22 @@ export async function POST(
       return NextResponse.json({ error: "Could not record successful answer usage." }, { status: 500 });
     }
 
+    await context.service
+      .from("conversations")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", conversation.id);
+    await logEvent("conversation_answer_completed", {
+      requestId,
+      userId: context.user.id,
+      userEmail: context.user.email,
+      category: context.category,
+      conversationId: conversation.id,
+      answerType: result.answerType,
+      sourceCount: result.sources.length,
+      tokensUsed: result.tokensUsed,
+      fallbackUsed,
+    });
+    revalidateWorkspacePaths();
     return NextResponse.json({
       userMessage,
       assistantMessage,
@@ -179,7 +218,7 @@ export async function POST(
         : undefined,
     });
   } catch (error) {
-    reportError(error, { area: "conversation-query", userId: context.user.id, category: context.category, conversationId: conversation.id });
+    await reportError(error, { area: "conversation-query", requestId, userId: context.user.id, userEmail: context.user.email, category: context.category, conversationId: conversation.id });
     await context.service.from("usage_logs").delete().eq("request_id", requestId);
     await context.service.from("messages").delete().eq("id", userMessage.id);
     const message = error instanceof Error ? `${error.name} ${error.message}` : String(error);

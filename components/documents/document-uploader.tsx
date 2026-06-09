@@ -15,8 +15,9 @@ import {
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChangeEvent, DragEvent, useRef, useState } from "react";
-import { queryKeys } from "@/lib/client/query";
+import { invalidateWorkspaceQueries } from "@/lib/client/query";
 import { useQueryClient } from "@tanstack/react-query";
 
 type UploadStatus = "selected" | "uploading" | "processing" | "embedding" | "ready" | "failed";
@@ -42,6 +43,7 @@ function statusLabel(status: UploadStatus) {
 
 export function DocumentUploader() {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<UploadItem[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -140,10 +142,8 @@ export function DocumentUploader() {
     );
 
     setUploading(false);
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: queryKeys.documents }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.conversations }),
-    ]);
+    await invalidateWorkspaceQueries(queryClient);
+    router.refresh();
   }
 
   return (

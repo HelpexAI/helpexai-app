@@ -3,14 +3,17 @@
 import { ConversationSidebar, type ConversationSummary } from "@/components/conversations/conversation-sidebar";
 import { CitationPreviewPanel } from "@/components/conversations/citation-preview-panel";
 import { MarkdownMessage } from "@/components/conversations/markdown-message";
+import { ConversationDocumentManager } from "@/components/conversations/conversation-document-manager";
 import { PlanLimitModal } from "@/components/dashboard/plan-limit-modal";
 import { AI_DISCLAIMERS, stripAiDisclaimer } from "@/lib/ai/disclaimer";
 import type { CategorySlug, Message, MessageSource } from "@/types";
 import { AlertTriangle, Bot, ChevronDown, ChevronUp, Eye, FileText, List, Loader2, Lock, Send } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { queryKeys } from "@/lib/client/query";
+import { invalidateWorkspaceQueries, queryKeys } from "@/lib/client/query";
+import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import { ExternalResearchToggle } from "@/components/conversations/external-research-toggle";
 
 type ChatDocument = { id: string; name: string };
 
@@ -31,6 +34,7 @@ export function ActiveConversation({
   conversation,
   conversations,
   documents,
+  availableDocuments,
   initialMessages,
   category,
   questionsUsed,
@@ -39,12 +43,14 @@ export function ActiveConversation({
   conversation: ConversationSummary;
   conversations: ConversationSummary[];
   documents: ChatDocument[];
+  availableDocuments: ChatDocument[];
   initialMessages: Message[];
   category: CategorySlug;
   questionsUsed: number;
   questionsLimit: number;
 }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [messages, setMessages] = useState(initialMessages);
   const [title, setTitle] = useState(conversation.title);
   const [input, setInput] = useState("");
@@ -55,10 +61,39 @@ export function ActiveConversation({
   const [limitModalOpen, setLimitModalOpen] = useState(questionsUsed >= questionsLimit);
   const [activeCitation, setActiveCitation] = useState<MessageSource | null>(null);
   const [mobileConversationsOpen, setMobileConversationsOpen] = useState(false);
+  const [externalResearchEnabled, setExternalResearchEnabled] = useState(conversation.external_research_enabled);
+  const [savingResearch, setSavingResearch] = useState(false);
   const limitReached = used >= questionsLimit;
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), [messages, loading]);
   useEffect(() => setTitle(conversation.title), [conversation.title]);
+  useEffect(() => setMessages(initialMessages), [initialMessages]);
+  useEffect(() => setExternalResearchEnabled(conversation.external_research_enabled), [conversation.external_research_enabled]);
+
+  async function updateExternalResearch(enabled: boolean) {
+    const previous = externalResearchEnabled;
+    setExternalResearchEnabled(enabled);
+    setSavingResearch(true);
+    setError("");
+    const response = await fetch(`/api/conversations/${conversation.id}/research`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ external_research_enabled: enabled }),
+    });
+    const result = await response.json() as { error?: string; conversation?: ConversationSummary };
+    if (!response.ok || !result.conversation) {
+      setExternalResearchEnabled(previous);
+      setError(result.error ?? "Could not update External Research.");
+    } else {
+      queryClient.setQueryData<{ conversation?: ConversationSummary }>(
+        queryKeys.conversation(conversation.id),
+        (cached) => cached ? { ...cached, conversation: result.conversation } : cached,
+      );
+      await invalidateWorkspaceQueries(queryClient);
+      router.refresh();
+    }
+    setSavingResearch(false);
+  }
 
   async function sendMessage(event: FormEvent) {
     event.preventDefault();
@@ -101,7 +136,8 @@ export function ActiveConversation({
         ? { ...cached.conversation, title: title === "New Conversation" ? content.split(/\s+/).slice(0, 7).join(" ") : title }
         : cached.conversation,
     }) : cached);
-    void queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
+    await invalidateWorkspaceQueries(queryClient);
+    router.refresh();
     setLoading(false);
   }
 
@@ -110,10 +146,13 @@ export function ActiveConversation({
       <ConversationSidebar conversations={conversations} activeId={conversation.id} mobileOpen={mobileConversationsOpen} onMobileClose={() => setMobileConversationsOpen(false)} />
       <section className="flex min-w-0 flex-1 flex-col">
         <header className="relative flex min-h-16 shrink-0 items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 dark:border-zinc-800 dark:bg-zinc-900 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3"><button type="button" onClick={() => setMobileConversationsOpen(true)} className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-700 md:hidden" aria-label="Open conversations"><List className="size-4" /></button><div className="min-w-0"><h2 className="truncate font-bold">{title}</h2><p className="text-xs text-zinc-400"><Lock className="mr-1 inline size-3" />Documents locked</p></div></div>
-          <div className="relative">
+          <div className="flex min-w-0 items-center gap-3"><button type="button" onClick={() => setMobileConversationsOpen(true)} className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-700 md:hidden" aria-label="Open conversations"><List className="size-4" /></button><div className="min-w-0"><h2 className="truncate font-bold">{title}</h2><p className="text-xs text-zinc-400"><Lock className="mr-1 inline size-3" />Documents securely attached</p></div></div>
+          <div className="flex items-center gap-2">
+            <ExternalResearchToggle compact enabled={externalResearchEnabled} disabled={savingResearch} onChange={(enabled) => void updateExternalResearch(enabled)} />
+            <div className="relative">
             <button onClick={() => setDocsOpen((value) => !value)} className="flex h-9 items-center gap-2 rounded-full border border-theme-border bg-theme-soft px-3 text-xs font-semibold text-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark"><FileText className="size-3.5" />{documents.length} document{documents.length === 1 ? "" : "s"}<ChevronDown className="size-3" /></button>
-            {docsOpen && <div className="absolute right-0 top-11 z-20 w-72 rounded-xl border border-zinc-200 bg-white p-2 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">{documents.map((document) => <Link key={document.id} href={`/documents/${document.id}`} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-theme-soft hover:text-theme-primary dark:hover:bg-theme-soft-dark"><FileText className="size-4 shrink-0" /><span className="truncate">{document.name}</span></Link>)}</div>}
+            {docsOpen && <div className="absolute right-0 top-11 z-20 w-72 rounded-xl border border-zinc-200 bg-white p-2 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">{documents.map((document) => <Link key={document.id} href={`/documents/${document.id}`} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-theme-soft hover:text-theme-primary dark:hover:bg-theme-soft-dark"><FileText className="size-4 shrink-0" /><span className="truncate">{document.name}</span></Link>)}<ConversationDocumentManager conversationId={conversation.id} selectedDocuments={documents} availableDocuments={availableDocuments} /></div>}
+            </div>
           </div>
         </header>
 

@@ -8,6 +8,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Free Document AI Tool",
   description: "Upload a document and ask HelpexAI up to five questions without creating an account.",
+  alternates: { canonical: "/free-tool" },
 };
 
 const steps = [

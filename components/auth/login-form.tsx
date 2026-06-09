@@ -14,6 +14,11 @@ const inputClass =
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const requestedCategory = searchParams.get("category");
+  const categoryQuery =
+    requestedCategory === "legal" || requestedCategory === "business"
+      ? `?category=${requestedCategory}`
+      : "";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -231,7 +236,7 @@ export function LoginForm() {
 
       <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
         Don&apos;t have an account?{" "}
-        <Link href="/signup" className="font-semibold text-theme-primary">
+        <Link href={`/signup${categoryQuery}`} className="font-semibold text-theme-primary">
           Sign up
         </Link>
       </p>
