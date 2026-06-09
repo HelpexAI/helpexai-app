@@ -15,6 +15,7 @@ type Session = {
   messages: ToolMessage[];
   expiresAt: string;
   externalResearchEnabled: boolean;
+  documentReadable: boolean;
 };
 
 export function PublicDocumentTool() {
@@ -28,6 +29,9 @@ export function PublicDocumentTool() {
   const [consent, setConsent] = useState(false);
   const [question, setQuestion] = useState("");
   const [error, setError] = useState("");
+  const [warning, setWarning] = useState("");
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadFileName, setUploadFileName] = useState("");
   const [limitPromptOpen, setLimitPromptOpen] = useState(false);
   const limitReached = (session?.questionsUsed ?? 0) >= 5;
 
@@ -40,17 +44,41 @@ export function PublicDocumentTool() {
       .catch(() => undefined)
       .finally(() => setRestoringSession(false));
   }, []);
+
+  useEffect(() => {
+    if (loading !== "upload") return;
+    const interval = window.setInterval(() => {
+      setUploadProgress((current) => {
+        if (current >= 92) return current;
+        const increment = current < 30 ? 7 : current < 65 ? 4 : 2;
+        return Math.min(current + increment, 92);
+      });
+    }, 450);
+    return () => window.clearInterval(interval);
+  }, [loading]);
+
   async function upload(file?: File) {
     if (!file || loading) return;
     interactedRef.current = true;
     setLoading("upload");
     setError("");
+    setWarning("");
+    setUploadFileName(file.name);
+    setUploadProgress(8);
     const form = new FormData();
     form.set("file", file);
     const response = await fetch("/api/public-tool", { method: "POST", body: form });
     const body = await response.json();
-    if (!response.ok) setError(body.error ?? "Could not upload document.");
-    else setSession(body.session);
+    if (!response.ok) {
+      setError(body.error ?? "Could not upload document.");
+      setUploadProgress(0);
+    }
+    else {
+      setUploadProgress(100);
+      await new Promise((resolve) => window.setTimeout(resolve, 250));
+      setSession(body.session);
+      if (body.warning) setWarning(body.warning);
+    }
     setLoading(null);
   }
 
@@ -134,6 +162,9 @@ export function PublicDocumentTool() {
     setConsent(false);
     setQuestion("");
     setError("");
+    setWarning("");
+    setUploadProgress(0);
+    setUploadFileName("");
     setLimitPromptOpen(false);
   }
 
@@ -145,17 +176,24 @@ export function PublicDocumentTool() {
           onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
           onDrop={drop}
-          onClick={() => inputRef.current?.click()}
-          className={`flex min-h-80 cursor-pointer flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed p-6 text-center transition sm:p-12 ${dragging ? "border-theme-primary bg-theme-soft dark:bg-theme-soft-dark" : "border-zinc-300 bg-zinc-50 hover:border-theme-primary dark:border-zinc-700 dark:bg-zinc-950/50"}`}
+          onClick={() => loading !== "upload" && inputRef.current?.click()}
+          className={`flex min-h-80 flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed p-6 text-center transition sm:p-12 ${loading === "upload" ? "cursor-wait border-theme-primary bg-theme-soft/40 dark:bg-theme-soft-dark/40" : dragging ? "cursor-pointer border-theme-primary bg-theme-soft dark:bg-theme-soft-dark" : "cursor-pointer border-zinc-300 bg-zinc-50 hover:border-theme-primary dark:border-zinc-700 dark:bg-zinc-950/50"}`}
         >
           <input ref={inputRef} type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={(event) => void upload(event.target.files?.[0])} />
-          <div className="flex size-16 items-center justify-center rounded-2xl bg-theme-soft text-theme-primary dark:bg-theme-soft-dark"><Upload className="size-8" /></div>
-          <div><h2 className="text-xl font-bold">Drop your document here</h2><p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">or tap to browse your files</p></div>
-          <div className="flex gap-2">{["PDF", "DOCX", "TXT"].map((type) => <span key={type} className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-zinc-600 shadow-sm dark:bg-zinc-800 dark:text-zinc-300">{type}</span>)}</div>
-          <button type="button" disabled={loading === "upload"} className="flex h-11 items-center gap-2 rounded-full bg-theme-primary px-6 text-sm font-semibold text-white disabled:opacity-70">{loading === "upload" ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />} Browse Files</button>
-          <p className="text-xs text-zinc-400">One document, maximum 10MB</p>
+          {loading === "upload" ? (
+            <UploadProgress fileName={uploadFileName} progress={uploadProgress} />
+          ) : (
+            <>
+              <div className="flex size-16 items-center justify-center rounded-2xl bg-theme-soft text-theme-primary dark:bg-theme-soft-dark"><Upload className="size-8" /></div>
+              <div><h2 className="text-xl font-bold">Drop your document here</h2><p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">or tap to browse your files</p></div>
+              <div className="flex gap-2">{["PDF", "DOCX", "TXT"].map((type) => <span key={type} className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-zinc-600 shadow-sm dark:bg-zinc-800 dark:text-zinc-300">{type}</span>)}</div>
+              <button type="button" className="flex h-11 items-center gap-2 rounded-full bg-theme-primary px-6 text-sm font-semibold text-white"><Upload className="size-4" /> Browse Files</button>
+              <p className="text-xs text-zinc-400">One document, maximum 10MB</p>
+            </>
+          )}
         </div>
         {error && <ErrorMessage message={error} />}
+        {warning && <WarningMessage message={warning} />}
       </div>
     );
   }
@@ -163,12 +201,13 @@ export function PublicDocumentTool() {
   return (
     <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex flex-col gap-3 border-b border-zinc-200 px-4 py-4 dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div className="flex min-w-0 items-center gap-2"><CheckCircle2 className="size-5 shrink-0 text-emerald-500" /><div className="min-w-0"><p className="truncate text-sm font-semibold">{session.documentName}</p><p className="text-xs text-emerald-600">Document ready to analyze</p></div></div>
+        <div className="flex min-w-0 items-center gap-2"><CheckCircle2 className={`size-5 shrink-0 ${session.documentReadable ? "text-emerald-500" : "text-amber-500"}`} /><div className="min-w-0"><p className="truncate text-sm font-semibold">{session.documentName}</p><p className={`text-xs ${session.documentReadable ? "text-emerald-600" : "text-amber-600"}`}>{session.documentReadable ? "Document ready to analyze" : "Uploaded with limited readable text"}</p></div></div>
         <button onClick={() => void removeDocument()} className="flex items-center gap-1 self-start text-xs font-medium text-zinc-500 hover:text-red-500 sm:self-auto"><X className="size-3.5" /> Remove</button>
       </div>
 
       {!session.emailCaptured ? (
         <form onSubmit={activate} className="mx-auto flex max-w-lg flex-col gap-5 px-5 py-10 sm:px-8">
+          {warning && <WarningMessage message={warning} />}
           <div className="text-center"><div className="mx-auto flex size-14 items-center justify-center rounded-full bg-theme-soft text-theme-primary dark:bg-theme-soft-dark"><Mail className="size-6" /></div><h2 className="mt-4 text-xl font-bold">Where should we unlock your questions?</h2><p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">Enter your email to ask up to 5 questions about this document.</p></div>
           <input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@company.com" className="h-12 rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none focus:border-theme-primary dark:border-zinc-700 dark:bg-zinc-950" />
           <label className="flex items-start gap-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400"><input type="checkbox" required checked={consent} onChange={(event) => setConsent(event.target.checked)} className="mt-1 accent-[var(--theme-primary)]" /><span>I agree to receive occasional product updates from HelpexAI. My document text is automatically deleted after 24 hours.</span></label>
@@ -192,6 +231,7 @@ export function PublicDocumentTool() {
             <div className="mb-3 flex items-center justify-between text-xs text-zinc-500"><span>{session.questionsUsed}/5 questions used</span><div className="flex gap-1">{Array.from({ length: 5 }).map((_, index) => <span key={index} className={`size-2 rounded-full ${index < session.questionsUsed ? "bg-theme-primary" : "bg-zinc-200 dark:bg-zinc-700"}`} />)}</div></div>
             <form onSubmit={ask} className="flex gap-2"><input disabled={limitPromptOpen || loading === "question"} value={question} onChange={(event) => setQuestion(event.target.value)} placeholder={limitPromptOpen ? "Free question limit reached" : "Ask anything about your document..."} className="h-12 min-w-0 flex-1 rounded-full border border-zinc-200 bg-white px-5 text-sm outline-none focus:border-theme-primary disabled:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-950 dark:disabled:bg-zinc-800" /><button disabled={limitPromptOpen || loading === "question" || !question.trim()} className="flex size-12 shrink-0 items-center justify-center rounded-full bg-theme-primary text-white disabled:opacity-40"><Send className="size-4" /></button></form>
             {error && <div className="mt-3"><ErrorMessage message={error} /></div>}
+            {warning && <div className="mt-3"><WarningMessage message={warning} /></div>}
           </div>
         </>
       )}
@@ -206,4 +246,41 @@ function ChatMessage({ message }: { message: ToolMessage }) {
 
 function ErrorMessage({ message }: { message: string }) {
   return <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">{message}</div>;
+}
+
+function WarningMessage({ message }: { message: string }) {
+  return <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">{message}</div>;
+}
+
+function UploadProgress({ fileName, progress }: { fileName: string; progress: number }) {
+  const stage =
+    progress < 30
+      ? "Uploading securely..."
+      : progress < 65
+        ? "Extracting readable text..."
+        : progress < 90
+          ? "Cleaning and preparing content..."
+          : progress < 100
+            ? "Preparing your question session..."
+            : "Document ready";
+
+  return (
+    <div className="w-full max-w-md" role="status" aria-live="polite">
+      <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-theme-soft text-theme-primary dark:bg-theme-soft-dark">
+        {progress === 100 ? <CheckCircle2 className="size-8" /> : <FileText className="size-8" />}
+      </div>
+      <h2 className="mt-4 truncate text-lg font-bold">{fileName}</h2>
+      <p className="mt-1 text-sm font-medium text-theme-primary">{stage}</p>
+      <div className="mt-5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+        <div
+          className="h-2 rounded-full bg-theme-primary transition-[width] duration-500 ease-out"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      <div className="mt-2 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
+        <span>Please keep this page open</span>
+        <span className="font-semibold text-theme-primary">{progress}%</span>
+      </div>
+    </div>
+  );
 }

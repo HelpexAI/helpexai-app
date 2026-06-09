@@ -6,6 +6,7 @@ import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { logEvent, reportError } from "@/lib/monitoring";
 import { NextResponse } from "next/server";
 import { revalidateWorkspacePaths } from "@/lib/cache/revalidate";
+import { sanitizeJsonForStorage, sanitizeTextForStorage } from "@/lib/text/sanitize";
 
 function conversationTitle(message: string) {
   const words = message.trim().replace(/\s+/g, " ").split(" ");
@@ -139,7 +140,7 @@ export async function POST(
 
   const { data: userMessage, error: userError } = await context.service
     .from("messages")
-    .insert({ conversation_id: conversation.id, role: "user", content: parsed.data.content })
+    .insert({ conversation_id: conversation.id, role: "user", content: sanitizeTextForStorage(parsed.data.content) })
     .select()
     .single();
   if (userError) {
@@ -150,7 +151,7 @@ export async function POST(
   if (conversation.title === "New Conversation") {
     await context.service
       .from("conversations")
-      .update({ title: conversationTitle(parsed.data.content), is_locked: true })
+      .update({ title: sanitizeTextForStorage(conversationTitle(parsed.data.content)), is_locked: true })
       .eq("id", conversation.id);
   }
 
@@ -174,8 +175,8 @@ export async function POST(
       .insert({
         conversation_id: conversation.id,
         role: "assistant",
-        content: result.answer,
-        sources: result.sources,
+        content: sanitizeTextForStorage(result.answer),
+        sources: sanitizeJsonForStorage(result.sources),
         answer_type: result.answerType,
         tokens_used: result.tokensUsed,
       })

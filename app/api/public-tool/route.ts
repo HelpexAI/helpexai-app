@@ -11,13 +11,15 @@ import {
   publicSessionToken,
 } from "@/lib/public-tool/session";
 import { NextResponse } from "next/server";
-import { validateReadableDocument, DocumentReadabilityError } from "@/lib/documents/readability";
 import { logEvent, reportError } from "@/lib/monitoring";
+import { sanitizeTextForStorage } from "@/lib/text/sanitize";
+import { extractDocumentPages } from "@/lib/ai/pipeline/ingest";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 function sessionView(session: Record<string, unknown>) {
+  const documentText = typeof session.document_text === "string" ? session.document_text : "";
   return {
     documentName: session.document_name,
     emailCaptured: session.email_captured,
@@ -25,6 +27,7 @@ function sessionView(session: Record<string, unknown>) {
     externalResearchEnabled: session.external_research_enabled,
     messages: session.messages,
     expiresAt: session.expires_at,
+    documentReadable: documentText.replace(/\s/g, "").length >= 20,
   };
 }
 
@@ -35,7 +38,7 @@ export async function GET() {
   const { data } = await service
     .from("public_tool_sessions")
     .select(
-      "document_name, email_captured, external_research_enabled, questions_used, messages, expires_at",
+      "document_name, document_text, email_captured, external_research_enabled, questions_used, messages, expires_at",
     )
     .eq("token_hash", hashPublicValue(token))
     .gt("expires_at", new Date().toISOString())
@@ -97,33 +100,33 @@ export async function POST(request: Request) {
     );
   }
 
-  let text: string;
+  let text = "";
+  let readableCharacters = 0;
+  let extractionWarning: string | undefined;
   try {
-    const validation = await validateReadableDocument(Buffer.from(await file.arrayBuffer()), fileType);
-    text = validation.pages
+    const pages = await extractDocumentPages(Buffer.from(await file.arrayBuffer()), fileType);
+    text = sanitizeTextForStorage(pages
       .map((page) => page.text)
       .join("\n\n")
-      .trim()
+      .trim())
       .slice(0, PUBLIC_TOOL_TEXT_LIMIT);
-    await logEvent("public_tool_document_validated", {
-      documentName: file.name,
-      fileType,
-      fileSize: file.size,
-      readableCharacters: validation.readableCharacters,
-      ipHash,
-    });
+    readableCharacters = text.replace(/\s/g, "").length;
+    if (readableCharacters < 20) {
+      extractionWarning =
+        "We uploaded the document, but recovered very little readable text. You can still ask questions, and HelpexAI will explain when the file cannot support an answer.";
+    }
   } catch (error) {
-    await reportError(error, { area: "public-tool-document-validation", documentName: file.name, fileType, ipHash });
-    return NextResponse.json(
-      {
-        error: error instanceof DocumentReadabilityError
-          ? error.message
-          : `Could not read this ${fileType.toUpperCase()} document. Try a text-based file without password protection.`,
-        code: error instanceof DocumentReadabilityError ? error.code : "PUBLIC_TOOL_EXTRACTION_FAILED",
-      },
-      { status: 422 },
-    );
+    extractionWarning =
+      "We uploaded the document, but could not recover enough readable text. You can still ask questions, and HelpexAI will explain when the file cannot support an answer.";
+    await reportError(error, { area: "public-tool-document-low-readability", documentName: file.name, fileType, ipHash });
   }
+  await logEvent(extractionWarning ? "public_tool_document_accepted_with_warning" : "public_tool_document_validated", {
+    documentName: file.name,
+    fileType,
+    fileSize: file.size,
+    readableCharacters,
+    ipHash,
+  });
 
   try {
     const token = createPublicSessionToken();
@@ -137,13 +140,13 @@ export async function POST(request: Request) {
         document_text: text,
       })
       .select(
-        "document_name, email_captured, external_research_enabled, questions_used, messages, expires_at",
+        "document_name, document_text, email_captured, external_research_enabled, questions_used, messages, expires_at",
       )
       .single();
     if (error) throw error;
 
     const response = NextResponse.json(
-      { session: sessionView(data) },
+      { session: sessionView(data), warning: extractionWarning },
       { status: 201 },
     );
     const cookie = publicSessionCookie(token);

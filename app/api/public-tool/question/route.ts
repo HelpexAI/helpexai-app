@@ -4,6 +4,7 @@ import { hashPublicValue, publicSessionToken } from "@/lib/public-tool/session";
 import { enforceRateLimit, requestIp } from "@/lib/security/rate-limit";
 import { createServiceClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { sanitizeJsonForStorage, sanitizeTextForStorage } from "@/lib/text/sanitize";
 import { z } from "zod";
 
 const schema = z.object({ question: z.string().trim().min(2).max(1000) });
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "You have used all 5 free questions.", code: "PUBLIC_QUESTION_LIMIT" }, { status: 403 });
   }
 
-  const userMessage = { id: crypto.randomUUID(), role: "user", content: parsed.data.question, created_at: new Date().toISOString() };
+  const userMessage = { id: crypto.randomUUID(), role: "user", content: sanitizeTextForStorage(parsed.data.question), created_at: new Date().toISOString() };
   try {
     await logEvent("public_tool_question_received", {
       ipHash,
@@ -51,8 +52,8 @@ export async function POST(request: Request) {
     const assistantMessage = {
       id: crypto.randomUUID(),
       role: "assistant",
-      content: result.answer,
-      sources: result.sources,
+      content: sanitizeTextForStorage(result.answer),
+      sources: sanitizeJsonForStorage(result.sources),
       created_at: new Date().toISOString(),
     };
     const { error: completionError } = await service.rpc("complete_public_tool_question", {

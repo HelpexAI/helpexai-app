@@ -3,6 +3,7 @@ import { getEmbeddingProvider, getVectorDBProvider } from '../factory'
 import { generateNamespace } from '@/lib/utils'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { sanitizeTextForStorage } from '@/lib/text/sanitize'
 
 const CHUNK_SIZE = 1000
 const CHUNK_OVERLAP = 200
@@ -43,10 +44,10 @@ async function extractPdfPages(buffer: Buffer): Promise<ExtractedDocumentPage[]>
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
       const page = await pdf.getPage(pageNumber)
       const content = await page.getTextContent()
-      const text = content.items
+      const text = sanitizeTextForStorage(content.items
         .map(item => ('str' in item ? item.str : ''))
         .filter(Boolean)
-        .join(' ')
+        .join(' '))
       pages.push({ pageNumber, text })
       page.cleanup()
     }
@@ -60,22 +61,22 @@ export async function extractDocumentPages(buffer: Buffer, fileType: string): Pr
   if (fileType === 'pdf') {
     return extractPdfPages(buffer)
   }
-  return [{ pageNumber: null, text: await extractDocumentText(buffer, fileType) }]
+  return [{ pageNumber: null, text: sanitizeTextForStorage(await extractDocumentText(buffer, fileType)) }]
 }
 
 export async function extractDocumentText(buffer: Buffer, fileType: string): Promise<string> {
   if (fileType === 'pdf') {
-    return (await extractPdfPages(buffer)).map(page => page.text).join('\n\n')
+    return sanitizeTextForStorage((await extractPdfPages(buffer)).map(page => page.text).join('\n\n'))
   }
 
   if (fileType === 'docx') {
     const mammoth = await import('mammoth')
     const result = await mammoth.extractRawText({ buffer })
-    return result.value
+    return sanitizeTextForStorage(result.value)
   }
 
   // txt
-  return buffer.toString('utf-8')
+  return sanitizeTextForStorage(buffer.toString('utf-8'))
 }
 
 export async function ingestDocument(options: IngestOptions): Promise<IngestResult> {

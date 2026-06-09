@@ -69,6 +69,7 @@ const rootLayout = await readFile(new URL("../app/layout.tsx", import.meta.url),
 const dashboardLayout = await readFile(new URL("../app/(dashboard)/layout.tsx", import.meta.url), "utf8");
 const selectWorkspacePage = await readFile(new URL("../app/(auth)/select-workspace/page.tsx", import.meta.url), "utf8");
 const publicToolSession = await readFile(new URL("../lib/public-tool/session.ts", import.meta.url), "utf8");
+const textSanitizer = await readFile(new URL("../lib/text/sanitize.ts", import.meta.url), "utf8");
 
 test("account protected writes are revoked from authenticated clients", () => {
   assert.match(migration, /DROP POLICY IF EXISTS "Users can update own accounts"/);
@@ -320,4 +321,37 @@ test("public tool hashing fails closed without a strong dedicated secret", () =>
   assert.match(publicToolSession, /value\.length < 32/);
   assert.doesNotMatch(publicToolSession, /helpex-public-tool/);
   assert.doesNotMatch(publicToolSession, /SUPABASE_SERVICE_ROLE_KEY/);
+});
+
+test("extracted and generated text is sanitized before PostgreSQL persistence", () => {
+  assert.match(textSanitizer, /code === 0/);
+  assert.match(textSanitizer, /code < 32/);
+  assert.match(textSanitizer, /0xd800/);
+  assert.match(textSanitizer, /sanitizeJsonForStorage/);
+  assert.match(ingestion, /sanitizeTextForStorage/);
+  assert.match(publicToolRoute, /sanitizeTextForStorage\(pages/);
+  assert.match(publicQuestionRoute, /sanitizeTextForStorage\(result\.answer\)/);
+  assert.match(conversationMessagesRoute, /sanitizeTextForStorage\(result\.answer\)/);
+  assert.match(conversationMessagesRoute, /sanitizeJsonForStorage\(result\.sources\)/);
+});
+
+test("public tool accepts low-readability documents and responds without inventing answers", () => {
+  assert.match(publicToolRoute, /extractDocumentPages/);
+  assert.match(publicToolRoute, /public_tool_document_accepted_with_warning/);
+  assert.match(publicToolRoute, /documentReadable/);
+  assert.doesNotMatch(publicToolRoute, /status: 422/);
+  assert.match(publicQuery, /UNREADABLE_DOCUMENT_ANSWER/);
+  assert.match(publicQuery, /context\.replace\(\/\\s\/g, ""\)\.length < 20/);
+  assert.match(publicQuery, /do not guess/);
+  assert.match(publicToolClient, /Uploaded with limited readable text/);
+  assert.match(publicToolClient, /WarningMessage/);
+});
+
+test("public tool communicates staged document upload progress", () => {
+  assert.match(publicToolClient, /uploadProgress/);
+  assert.match(publicToolClient, /Extracting readable text/);
+  assert.match(publicToolClient, /Cleaning and preparing content/);
+  assert.match(publicToolClient, /Preparing your question session/);
+  assert.match(publicToolClient, /transition-\[width\]/);
+  assert.match(publicToolClient, /aria-live="polite"/);
 });
