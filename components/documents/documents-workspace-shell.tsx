@@ -9,7 +9,8 @@ import type {
   DocumentTag,
 } from "@/types";
 import { useQuery } from "@tanstack/react-query";
-import { Folder, Folders, Loader2, X } from "lucide-react";
+import { Folder, Folders, Loader2 } from "lucide-react";
+import * as Icons from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createContext, useContext, useMemo, useState } from "react";
 
@@ -106,6 +107,10 @@ export function DocumentsWorkspaceShell({
                 (document) => document.collection_id === collection.id,
               ).length;
               const active = collection.id === activeCollection?.id;
+              const Icon =
+                (Icons[
+                  collection.icon as keyof typeof Icons
+                ] as React.ElementType) ?? Folder;
               return (
                 <button
                   key={collection.id}
@@ -113,7 +118,7 @@ export function DocumentsWorkspaceShell({
                   onClick={() => openCollection(collection.id)}
                   className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition ${active ? "border-theme-border bg-theme-soft font-semibold text-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark" : "border-transparent text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"}`}
                 >
-                  <Folder className="size-4 shrink-0" />
+                  <Icon className="size-4 shrink-0" />
                   <span className="min-w-0 flex-1 truncate">
                     {collection.name}
                   </span>

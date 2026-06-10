@@ -64,11 +64,25 @@ export function DashboardShell({
 
   useEffect(() => {
     function showNavigationFeedback(event: MouseEvent) {
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      )
+        return;
       const anchor = (event.target as Element | null)?.closest("a[href]");
-      if (!(anchor instanceof HTMLAnchorElement) || anchor.target === "_blank" || anchor.origin !== window.location.origin) return;
+      if (
+        !(anchor instanceof HTMLAnchorElement) ||
+        anchor.target === "_blank" ||
+        anchor.origin !== window.location.origin
+      )
+        return;
       const nextPath = `${anchor.pathname}${anchor.search}`;
-      if (nextPath !== `${window.location.pathname}${window.location.search}`) setPendingHref(nextPath);
+      if (nextPath !== `${window.location.pathname}${window.location.search}`)
+        setPendingHref(nextPath);
     }
     document.addEventListener("click", showNavigationFeedback);
     return () => document.removeEventListener("click", showNavigationFeedback);
@@ -85,16 +99,21 @@ export function DashboardShell({
       navigation
         .filter(({ href }) => !priorityRoutes.includes(href))
         .forEach(({ href }, index) => {
-        window.setTimeout(() => {
-          if (!cancelled && href !== pathname) router.prefetch(href);
-        }, index * 150);
-      });
+          window.setTimeout(() => {
+            if (!cancelled && href !== pathname) router.prefetch(href);
+          }, index * 150);
+        });
       window.setTimeout(() => {
         if (!cancelled) router.prefetch("/documents/upload");
       }, navigation.length * 150);
     };
-    const idleCallback = window.requestIdleCallback?.(prefetchRemainingRoutes, { timeout: 1000 });
-    const timeout = idleCallback === undefined ? window.setTimeout(prefetchRemainingRoutes, 250) : undefined;
+    const idleCallback = window.requestIdleCallback?.(prefetchRemainingRoutes, {
+      timeout: 1000,
+    });
+    const timeout =
+      idleCallback === undefined
+        ? window.setTimeout(prefetchRemainingRoutes, 250)
+        : undefined;
     return () => {
       cancelled = true;
       if (idleCallback !== undefined) window.cancelIdleCallback?.(idleCallback);
@@ -186,11 +205,11 @@ export function DashboardShell({
               <span className="text-lg font-bold tracking-tight">HelpexAI</span>
             )}
           </Link>
-          {!collapsed && (
+          {/* {!collapsed && (
             <span className="mt-4 inline-flex rounded-full border border-theme-primary/30 bg-theme-primary/15 px-2.5 py-1 text-xs font-semibold text-theme-soft-foreground-dark">
               {workspace.product.name}
             </span>
-          )}
+          )} */}
         </div>
 
         <nav
@@ -200,7 +219,8 @@ export function DashboardShell({
         >
           {navigation.map(({ label, href, icon: Icon }) => {
             const active = routeIsActive(pathname, href);
-            const conversationsLocked = href === "/conversations" && workspace.documentsOverLimit;
+            const conversationsLocked =
+              href === "/conversations" && workspace.documentsOverLimit;
             return (
               <Link
                 key={href}
@@ -222,7 +242,7 @@ export function DashboardShell({
                     ? "bg-theme-primary font-semibold text-white shadow-sm shadow-black/30"
                     : conversationsLocked
                       ? "cursor-not-allowed font-medium text-slate-500"
-                    : "font-medium text-slate-300 hover:bg-white/10 hover:text-white"
+                      : "font-medium text-slate-300 hover:bg-white/10 hover:text-white"
                 }`}
               >
                 <Icon className="size-4" />
@@ -245,7 +265,9 @@ export function DashboardShell({
               }`}
             >
               <div className="border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
-                <p className="truncate text-sm font-semibold">{workspace.name}</p>
+                <p className="truncate text-sm font-semibold">
+                  {workspace.name}
+                </p>
                 <p className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">
                   {workspace.email}
                 </p>
@@ -265,7 +287,11 @@ export function DashboardShell({
                   disabled={signingOut}
                   className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60 dark:text-red-400 dark:hover:bg-red-950/40"
                 >
-                  {signingOut ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
+                  {signingOut ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <LogOut className="size-4" />
+                  )}
                   {signingOut ? "Logging out..." : "Log out"}
                 </button>
               </div>
@@ -279,25 +305,29 @@ export function DashboardShell({
             className={`flex w-full items-center rounded-xl p-2 text-left transition hover:bg-white/10 ${
               collapsed ? "justify-center" : "gap-3"
             }`}
-            title={collapsed ? `${workspace.name} · ${workspace.plan}` : undefined}
+            title={
+              collapsed ? `${workspace.name} · ${workspace.plan}` : undefined
+            }
           >
             <div className="flex size-9 shrink-0 items-center justify-center rounded-full border-2 border-theme-primary/40 bg-theme-primary/20 text-xs font-bold text-theme-primary-foreground/90">
               {workspace.initials}
             </div>
-            {!collapsed && <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-white">
-                {workspace.name}
-              </p>
-              <span
-                className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                  workspace.plan !== "free"
-                    ? "bg-violet-500/20 text-violet-300"
-                    : "bg-white/10 text-slate-300"
-                }`}
-              >
-                {workspace.plan}
-              </span>
-            </div>}
+            {!collapsed && (
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-white">
+                  {workspace.name}
+                </p>
+                <span
+                  className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                    workspace.plan !== "free"
+                      ? "bg-violet-500/20 text-violet-300"
+                      : "bg-white/10 text-slate-300"
+                  }`}
+                >
+                  {workspace.plan}
+                </span>
+              </div>
+            )}
           </button>
         </div>
       </aside>
@@ -307,55 +337,61 @@ export function DashboardShell({
           collapsed ? "lg:pl-[76px]" : "lg:pl-60"
         }`}
       >
-        {!immersivePageOpen && <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-zinc-200 bg-white/95 px-4 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-theme-primary text-white lg:hidden">
-              <CategoryIcon className="size-4" />
+        {!immersivePageOpen && (
+          <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-zinc-200 bg-white/95 px-4 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 items-center justify-center rounded-lg bg-theme-primary text-white lg:hidden">
+                <CategoryIcon className="size-4" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold leading-6 text-zinc-950 dark:text-white sm:text-xl">
+                  {current.label}
+                </h1>
+                <p className="hidden text-xs text-zinc-500 dark:text-zinc-400 sm:block lg:hidden">
+                  {workspace.product.name}
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-lg font-bold leading-6 text-zinc-950 dark:text-white sm:text-xl">
-                {current.label}
-              </h1>
-              <p className="hidden text-xs text-zinc-500 dark:text-zinc-400 sm:block lg:hidden">
-                {workspace.product.name}
-              </p>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <AuthThemeToggle />
+              {pathname === "/dashboard" && (
+                <Link
+                  href="/documents/upload"
+                  prefetch
+                  onMouseEnter={() => router.prefetch("/documents/upload")}
+                  onFocus={() => router.prefetch("/documents/upload")}
+                  onTouchStart={() => router.prefetch("/documents/upload")}
+                  onClick={() => setPendingHref("/documents/upload")}
+                  className="flex h-10 items-center justify-center gap-2 rounded-lg bg-theme-primary px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-theme-primary-hover sm:px-4"
+                >
+                  <Upload className="size-4" />
+                  <span className="hidden sm:inline">Upload Document</span>
+                </Link>
+              )}
+              {pathname === "/conversations" &&
+                !workspace.documentsOverLimit && (
+                  <Link
+                    href="/conversations"
+                    className="flex h-10 items-center justify-center gap-2 rounded-lg bg-theme-primary px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-theme-primary-hover sm:px-4"
+                  >
+                    <MessageSquare className="size-4" />
+                    <span className="hidden sm:inline">New Conversation</span>
+                  </Link>
+                )}
             </div>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <AuthThemeToggle />
-            {pathname === "/dashboard" && (
-              <Link
-                href="/documents/upload"
-                prefetch
-                onMouseEnter={() => router.prefetch("/documents/upload")}
-                onFocus={() => router.prefetch("/documents/upload")}
-                onTouchStart={() => router.prefetch("/documents/upload")}
-                onClick={() => setPendingHref("/documents/upload")}
-                className="flex h-10 items-center justify-center gap-2 rounded-lg bg-theme-primary px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-theme-primary-hover sm:px-4"
-              >
-                <Upload className="size-4" />
-                <span className="hidden sm:inline">Upload Document</span>
-              </Link>
-            )}
-            {pathname === "/conversations" && !workspace.documentsOverLimit && (
-              <Link
-                href="/conversations"
-                className="flex h-10 items-center justify-center gap-2 rounded-lg bg-theme-primary px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-theme-primary-hover sm:px-4"
-              >
-                <MessageSquare className="size-4" />
-                <span className="hidden sm:inline">New Conversation</span>
-              </Link>
-            )}
-          </div>
-        </header>}
+          </header>
+        )}
 
-        <main className={immersivePageOpen ? "pb-16 lg:pb-0" : "pb-24 lg:pb-0"}>{children}</main>
+        <main className={immersivePageOpen ? "pb-16 lg:pb-0" : "pb-24 lg:pb-0"}>
+          {children}
+        </main>
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-zinc-200 bg-white/95 px-1 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95 lg:hidden">
         {navigation.map(({ label, href, icon: Icon }) => {
           const active = routeIsActive(pathname, href);
-          const conversationsLocked = href === "/conversations" && workspace.documentsOverLimit;
+          const conversationsLocked =
+            href === "/conversations" && workspace.documentsOverLimit;
           return (
             <Link
               key={href}
@@ -372,7 +408,7 @@ export function DashboardShell({
                   ? "bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark"
                   : conversationsLocked
                     ? "cursor-not-allowed text-zinc-300 dark:text-zinc-700"
-                  : "text-zinc-500 dark:text-zinc-400"
+                    : "text-zinc-500 dark:text-zinc-400"
               }`}
             >
               <Icon className="size-4.5" />
