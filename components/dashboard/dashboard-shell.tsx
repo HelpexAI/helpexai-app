@@ -137,9 +137,8 @@ export function DashboardShell({
   const current =
     navigation.find((item) => routeIsActive(pathname, item.href)) ??
     navigation[0];
-  const documentViewerOpen = /^\/documents\/[^/]+$/.test(pathname);
   const activeConversationOpen = /^\/conversations\/[^/]+$/.test(pathname);
-  const immersivePageOpen = documentViewerOpen || activeConversationOpen;
+  const immersivePageOpen = activeConversationOpen;
   const CategoryIcon = workspace.product.icon === "scale" ? Scale : Briefcase;
 
   return (

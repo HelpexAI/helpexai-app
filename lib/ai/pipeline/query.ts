@@ -34,6 +34,10 @@ export interface QueryResult {
 export interface RawDocumentContext {
   id: string
   name: string
+  collectionName?: string
+  collectionContext?: string
+  tags?: string[]
+  tagContext?: string
   pages: Array<{ pageNumber: number | null; text: string }>
 }
 
@@ -85,7 +89,7 @@ User Question: ${question}`
 
   const contextBlock = chunks
     .map((chunk, i) =>
-      `[Source ${i + 1}] Document: "${chunk.payload.docName}" | Chunk ${chunk.payload.chunkIndex}${chunk.payload.pageNumber ? ` | Page ${chunk.payload.pageNumber}` : ''}\n${chunk.payload.text}`
+      `[Source ${i + 1}] Document: "${chunk.payload.docName}" | Collection: ${chunk.payload.collectionName ?? 'Uncategorized'}${chunk.payload.tags?.length ? ` | Tags: ${chunk.payload.tags.join(', ')}` : ''} | Chunk ${chunk.payload.chunkIndex}${chunk.payload.pageNumber ? ` | Page ${chunk.payload.pageNumber}` : ''}\n${chunk.payload.text}`
     )
     .join('\n\n---\n\n')
 
@@ -196,6 +200,10 @@ export async function queryDocumentsFromRawText(
       ...page,
       docId: document.id,
       docName: document.name,
+      collectionName: document.collectionName,
+      collectionContext: document.collectionContext,
+      tags: document.tags,
+      tagContext: document.tagContext,
       score: lexicalScore(question, page.text),
     })))
     .filter(page => page.text.trim().length > 0)
@@ -213,7 +221,7 @@ export async function queryDocumentsFromRawText(
   }
 
   const context = pages
-    .map((page, index) => `[Source ${index + 1}] Document: "${page.docName}"${page.pageNumber ? ` | Page ${page.pageNumber}` : ''}\n${page.text}`)
+    .map((page, index) => `[Source ${index + 1}] Document: "${page.docName}" | Collection: ${page.collectionName ?? 'Uncategorized'}${page.tags?.length ? ` | Tags: ${page.tags.join(', ')}` : ''}${page.pageNumber ? ` | Page ${page.pageNumber}` : ''}\n${[page.collectionContext, page.tagContext, page.text].filter(Boolean).join('\n')}`)
     .join('\n\n---\n\n')
   const webResults = externalResearchEnabled ? await searchWeb(question).catch(() => []) : []
   const webContext = formatWebContext(webResults)

@@ -1,6 +1,7 @@
 "use client";
 
 import { PlanLimitModal } from "@/components/dashboard/plan-limit-modal";
+import { useDocumentsWorkspace } from "@/components/documents/documents-workspace-shell";
 import { MAX_FILES_PER_UPLOAD, MAX_FILE_SIZE } from "@/lib/validations/schemas";
 import { formatFileSize } from "@/lib/utils";
 import {
@@ -42,6 +43,7 @@ function statusLabel(status: UploadStatus) {
 }
 
 export function DocumentUploader() {
+  const { activeCollection, tags } = useDocumentsWorkspace();
   const queryClient = useQueryClient();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -50,6 +52,8 @@ export function DocumentUploader() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [planLimit, setPlanLimit] = useState<{ used: number; limit: number } | null>(null);
+  const [tagIds, setTagIds] = useState<string[]>([]);
+  const collectionId = activeCollection.id;
 
   function addFiles(files: File[]) {
     setError("");
@@ -97,6 +101,8 @@ export function DocumentUploader() {
   async function uploadFiles() {
     const pending = items.filter((item) => item.status === "selected" || item.status === "failed");
     if (pending.length === 0) return;
+    if (!collectionId) return setError("Choose a collection before uploading.");
+    if (!tagIds.length) return setError("Choose at least one tag so AI can understand these documents.");
 
     setUploading(true);
     setError("");
@@ -104,6 +110,8 @@ export function DocumentUploader() {
 
     const formData = new FormData();
     pending.forEach((item) => formData.append("files", item.file));
+    formData.append("collection_id", collectionId);
+    tagIds.forEach((tagId) => formData.append("tag_ids", tagId));
     const response = await fetch("/api/documents", { method: "POST", body: formData });
     const body = await response.json();
 
@@ -143,14 +151,14 @@ export function DocumentUploader() {
 
     setUploading(false);
     await invalidateWorkspaceQueries(queryClient);
-    router.refresh();
+    router.replace(`/documents?collection=${collectionId}`);
   }
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <div className="flex items-center gap-4">
         <Link
-          href="/documents"
+          href={`/documents?collection=${collectionId}`}
           className="flex h-10 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
         >
           <ArrowLeft className="size-4" />
@@ -174,6 +182,18 @@ export function DocumentUploader() {
         onChange={handleInput}
         className="hidden"
       />
+
+      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-6">
+        <div className="space-y-2">
+          <div><span className="text-sm font-semibold text-zinc-950 dark:text-white">Document tags</span><p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Choose one or more tags to help AI understand document type and context.</p></div>
+          <div className="flex max-h-36 flex-wrap gap-2 overflow-y-auto rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
+            {tags.map((tag) => {
+              const selected = tagIds.includes(tag.id);
+              return <button key={tag.id} type="button" disabled={uploading} onClick={() => setTagIds((current) => selected ? current.filter((id) => id !== tag.id) : [...current, tag.id])} className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${selected ? "border-theme-primary bg-theme-soft text-theme-primary dark:bg-theme-soft-dark" : "border-zinc-200 text-zinc-500 hover:border-theme-primary dark:border-zinc-700 dark:text-zinc-400"}`}>{tag.name}</button>;
+            })}
+          </div>
+        </div>
+      </section>
 
       <div
         onDragEnter={(event) => {
@@ -294,24 +314,15 @@ export function DocumentUploader() {
           </div>
 
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            {items.every((item) => item.status === "ready") ? (
-              <Link
-                href="/documents"
-                className="flex h-11 items-center justify-center rounded-lg bg-theme-primary px-5 text-sm font-semibold text-white"
-              >
-                View Documents
-              </Link>
-            ) : (
-              <button
+            <button
                 type="button"
                 onClick={uploadFiles}
-                disabled={uploading || !items.some((item) => item.status === "selected" || item.status === "failed")}
+                disabled={uploading || !collectionId || !tagIds.length || !items.some((item) => item.status === "selected" || item.status === "failed")}
                 className="flex h-11 items-center justify-center gap-2 rounded-lg bg-theme-primary px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {uploading && <Loader2 className="size-4 animate-spin" />}
                 Upload {items.filter((item) => item.status === "selected" || item.status === "failed").length} File(s)
-              </button>
-            )}
+            </button>
           </div>
         </section>
       )}

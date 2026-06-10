@@ -3,380 +3,108 @@
 import { PlanLimitModal } from "@/components/dashboard/plan-limit-modal";
 import { DeleteDocumentModal } from "@/components/documents/delete-document-modal";
 import { ResolveDocumentLimitModal } from "@/components/documents/resolve-document-limit-modal";
-import type { Document as DocumentRecord, DocumentStatus } from "@/types";
+import { useDocumentsWorkspace } from "@/components/documents/documents-workspace-shell";
+import { fetchJson, invalidateWorkspaceQueries, queryKeys } from "@/lib/client/query";
 import { formatDate, formatFileSize } from "@/lib/utils";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  FileText,
-  FileType2,
-  Files,
-  Loader2,
-  Trash2,
-  Upload,
-  XCircle,
-} from "lucide-react";
+import type { Document as DocumentRecord, DocumentStatus } from "@/types";
+import { useQueryClient } from "@tanstack/react-query";
+import { FileText, FileType2, Folders, Loader2, Trash2, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { fetchJson, invalidateWorkspaceQueries, queryKeys } from "@/lib/client/query";
-import { useQueryClient } from "@tanstack/react-query";
-
-const filters: Array<{ label: string; value: "all" | DocumentStatus }> = [
-  { label: "All", value: "all" },
-  { label: "Ready", value: "ready" },
-  { label: "Processing", value: "processing" },
-  { label: "Failed", value: "failed" },
-];
 
 function StatusBadge({ status }: { status: DocumentStatus }) {
   const styles = {
-    ready:
-      "border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-400",
-    processing:
-      "border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-400",
-    uploading:
-      "border-theme-border bg-theme-soft text-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark",
-    failed:
-      "border-red-200 bg-red-50 text-red-600 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400",
+    ready: "border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-400",
+    processing: "border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-400",
+    uploading: "border-theme-border bg-theme-soft text-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark",
+    failed: "border-red-200 bg-red-50 text-red-600 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400",
   };
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold capitalize ${styles[status]}`}
-    >
-      <span className="size-1.5 rounded-full bg-current" />
-      {status}
-    </span>
-  );
+  return <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold capitalize ${styles[status]}`}><span className="size-1.5 rounded-full bg-current" />{status}</span>;
 }
 
 function DocumentIcon({ type }: { type: DocumentRecord["file_type"] }) {
   const Icon = type === "docx" ? FileType2 : FileText;
-  return (
-    <div
-      className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
-        type === "pdf"
-          ? "bg-red-50 text-red-500 dark:bg-red-950/40 dark:text-red-400"
-          : "bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark"
-      }`}
-    >
-      <Icon className="size-5" />
-    </div>
-  );
+  return <div className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${type === "pdf" ? "bg-red-50 text-red-500 dark:bg-red-950/40 dark:text-red-400" : "bg-theme-soft text-theme-primary dark:bg-theme-soft-dark"}`}><Icon className="size-5" /></div>;
 }
 
-export function DocumentLibrary({
-  documents: initialDocuments,
-  productName,
-  maxDocuments,
-  requiresResolution,
-}: {
-  documents: DocumentRecord[];
-  productName: string;
-  maxDocuments: number;
-  requiresResolution: boolean;
-}) {
+function documentTags(document: DocumentRecord) {
+  return document.document_tag_assignments?.map((assignment) => assignment.tag) ?? [];
+}
+
+export function DocumentLibrary() {
+  const { documents: initialDocuments, activeCollection, productName, maxDocuments, requiresResolution } = useDocumentsWorkspace();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [documents, setDocuments] = useState(initialDocuments);
-  const [filter, setFilter] = useState<"all" | DocumentStatus>("all");
   const [deleting, setDeleting] = useState<string | null>(null);
   const [documentToDelete, setDocumentToDelete] = useState<DocumentRecord | null>(null);
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [error, setError] = useState("");
-  const filtered = useMemo(
-    () => documents.filter((document) => filter === "all" || document.status === filter),
-    [documents, filter],
-  );
-  const readyCount = documents.filter((document) => document.status === "ready").length;
-  const failedCount = documents.filter((document) => document.status === "failed").length;
+  const filtered = useMemo(() => documents.filter((document) => document.collection_id === activeCollection.id), [activeCollection.id, documents]);
   const limitReached = documents.length >= maxDocuments;
+
+  useEffect(() => setDocuments(initialDocuments), [initialDocuments]);
+
   function prefetchDocument(id: string) {
     router.prefetch(`/documents/${id}`);
-    void queryClient.prefetchQuery({
-      queryKey: queryKeys.document(id),
-      queryFn: () => fetchJson(`/api/documents/${id}`),
-    });
+    void queryClient.prefetchQuery({ queryKey: queryKeys.document(id), queryFn: () => fetchJson(`/api/documents/${id}`) });
   }
-  useEffect(() => {
-    setDocuments(initialDocuments);
-  }, [initialDocuments]);
-  useEffect(() => {
-    documents.slice(0, 5).forEach(document => prefetchDocument(document.id));
-    // Query client and router are stable for the lifetime of this mounted library.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [documents]);
 
   async function deleteDocument(document: DocumentRecord) {
     setDeleting(document.id);
     setError("");
-
     const response = await fetch(`/api/documents/${document.id}`, { method: "DELETE" });
     const body = await response.json();
-
     if (!response.ok) {
       setError(body.error ?? "Could not delete document.");
       setDeleting(null);
       return;
     }
-
     setDocuments((current) => current.filter((item) => item.id !== document.id));
-    queryClient.setQueryData<{ documents: DocumentRecord[] }>(
-      queryKeys.documents,
-      (cached) => cached ? { ...cached, documents: cached.documents.filter(item => item.id !== document.id) } : cached,
-    );
+    queryClient.setQueryData<{ documents: DocumentRecord[] }>(queryKeys.documents, (cached) => cached ? { ...cached, documents: cached.documents.filter((item) => item.id !== document.id) } : cached);
     queryClient.removeQueries({ queryKey: queryKeys.document(document.id) });
     await invalidateWorkspaceQueries(queryClient);
-    router.refresh();
     setDeleting(null);
     setDocumentToDelete(null);
   }
 
-  return (
-    <div className="flex flex-col gap-6 p-4 sm:p-6 lg:p-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-zinc-950 dark:text-white">Documents</h2>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Manage and organize your uploaded documents
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            if (limitReached) {
-              setPlanModalOpen(true);
-            } else {
-              router.push("/documents/upload");
-            }
-          }}
-          className="flex h-10 items-center justify-center gap-2 rounded-lg bg-theme-primary px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-theme-primary-hover"
-        >
-          <Upload className="size-4" />
-          Upload Document
-        </button>
-      </div>
+  function uploadToActiveCollection() {
+    if (limitReached) return setPlanModalOpen(true);
+    router.push(`/documents/upload?collection=${activeCollection.id}`);
+  }
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {[
-          { label: "Total Documents", value: documents.length, icon: Files, color: "blue" },
-          { label: "Ready", value: readyCount, icon: CheckCircle2, color: "green" },
-          { label: "Failed", value: failedCount, icon: XCircle, color: "red" },
-        ].map(({ label, value, icon: Icon, color }) => (
-          <div
-            key={label}
-            className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
-          >
-            <div
-              className={`flex size-8 items-center justify-center rounded-lg ${
-                color === "green"
-                  ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
-                  : color === "red"
-                    ? "bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400"
-                    : "bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark"
-              }`}
-            >
-              <Icon className="size-4" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{label}</p>
-              <p className="text-xl font-bold text-zinc-950 dark:text-white">{value}</p>
-            </div>
+  return (
+    <div className="p-4 sm:p-6 lg:p-8">
+      <section className="min-w-0 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex flex-col gap-4 border-b border-zinc-200 p-5 dark:border-zinc-800 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2"><Folders className="size-5 text-theme-primary" /><h2 className="text-xl font-bold">{activeCollection.name}</h2></div>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">{activeCollection.description} Organize {productName} documents with reusable AI context tags.</p>
           </div>
-        ))}
+          <button type="button" onClick={uploadToActiveCollection} className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-theme-primary px-4 text-sm font-semibold text-white"><Upload className="size-4" />Upload Document</button>
+        </div>
+
+        {error && <p className="m-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">{error}</p>}
+
+        {filtered.length ? <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+          {filtered.map((document) => <article key={document.id} className="flex flex-col gap-3 p-4 sm:p-5">
+            <div className="flex items-start gap-3">
+              <DocumentIcon type={document.file_type} />
+              <div className="min-w-0 flex-1">
+                <Link href={`/documents/${document.id}?collection=${document.collection_id}`} prefetch onMouseEnter={() => prefetchDocument(document.id)} className="block truncate text-sm font-semibold text-zinc-950 hover:text-theme-primary dark:text-white">{document.name}</Link>
+                <p className="mt-1 text-xs uppercase text-zinc-500">{document.file_type} · {formatFileSize(document.file_size)} · {formatDate(document.created_at)}</p>
+              </div>
+              <StatusBadge status={document.status} />
+              <button type="button" onClick={() => setDocumentToDelete(document)} disabled={deleting === document.id} className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 hover:border-red-200 hover:text-red-600 dark:border-zinc-700">{deleting === document.id ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}</button>
+            </div>
+            <div className="flex flex-wrap gap-1.5 pl-12">{documentTags(document).map((tag) => <span key={tag.id} title={tag.description} className="rounded-full border border-theme-border bg-theme-soft px-2.5 py-1 text-[11px] font-semibold text-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark">{tag.name}</span>)}</div>
+          </article>)}
+        </div> : <div className="flex flex-col items-center px-6 py-16 text-center"><div className="flex size-16 items-center justify-center rounded-2xl bg-theme-soft text-theme-primary dark:bg-theme-soft-dark"><Upload className="size-8" /></div><h3 className="mt-4 font-bold">No documents in {activeCollection.name}</h3><p className="mt-1 text-sm text-zinc-500">Upload a PDF, DOCX, or TXT file and attach relevant tags.</p><button type="button" onClick={uploadToActiveCollection} className="mt-5 flex h-10 items-center gap-2 rounded-lg bg-theme-primary px-4 text-sm font-semibold text-white"><Upload className="size-4" />Upload Document</button></div>}
       </section>
 
-      <div className="flex overflow-x-auto border-b border-zinc-200 dark:border-zinc-800">
-        {filters.map(({ label, value }) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setFilter(value)}
-            className={`-mb-px whitespace-nowrap border-b-2 px-4 py-2.5 text-sm ${
-              filter === value
-                ? "border-theme-primary font-semibold text-theme-primary"
-                : "border-transparent font-medium text-zinc-500 dark:text-zinc-400"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
-          {error}
-        </p>
-      )}
-
-      {filtered.length > 0 ? (
-        <>
-          <div className="hidden overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:block">
-            <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto_auto] gap-4 border-b border-zinc-200 bg-zinc-50 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400">
-              <span>Name</span>
-              <span>Category</span>
-              <span>Size</span>
-              <span>Status</span>
-              <span>Actions</span>
-            </div>
-            {filtered.map((document, index) => (
-              <div
-                key={document.id}
-                className={`grid grid-cols-[minmax(0,1fr)_auto_auto_auto_auto] items-center gap-4 px-5 py-4 ${
-                  index < filtered.length - 1 ? "border-b border-zinc-200 dark:border-zinc-800" : ""
-                }`}
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <DocumentIcon type={document.file_type} />
-                  <div className="min-w-0">
-                    <Link
-                      href={`/documents/${document.id}`}
-                      prefetch
-                      onMouseEnter={() => prefetchDocument(document.id)}
-                      onFocus={() => prefetchDocument(document.id)}
-                      onTouchStart={() => prefetchDocument(document.id)}
-                      className="block truncate text-sm font-semibold text-zinc-950 transition hover:text-theme-primary dark:text-white dark:hover:text-theme-soft-foreground-dark"
-                    >
-                      {document.name}
-                    </Link>
-                    <p className="mt-0.5 text-xs uppercase text-zinc-500 dark:text-zinc-400">
-                      {document.file_type} · {formatDate(document.created_at)}
-                    </p>
-                  </div>
-                </div>
-                <span className="rounded-full border border-theme-border bg-theme-soft px-2.5 py-1 text-xs font-semibold text-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark">
-                  {productName}
-                </span>
-                <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                  {formatFileSize(document.file_size)}
-                </span>
-                <StatusBadge status={document.status} />
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setDocumentToDelete(document)}
-                    disabled={deleting === document.id}
-                    className="flex size-8 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 hover:border-red-200 hover:text-red-600 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-400"
-                    title="Delete document"
-                  >
-                    {deleting === document.id ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="size-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid gap-3 md:hidden">
-            {filtered.map((document) => (
-              <article
-                key={document.id}
-                className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
-              >
-                <div className="flex items-start gap-3">
-                  <DocumentIcon type={document.file_type} />
-                  <div className="min-w-0 flex-1">
-                    <Link
-                      href={`/documents/${document.id}`}
-                      prefetch
-                      onTouchStart={() => prefetchDocument(document.id)}
-                      className="block truncate text-sm font-semibold text-zinc-950 transition hover:text-theme-primary dark:text-white dark:hover:text-theme-soft-foreground-dark"
-                    >
-                      {document.name}
-                    </Link>
-                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                      {formatFileSize(document.file_size)} · {formatDate(document.created_at)}
-                    </p>
-                  </div>
-                  <StatusBadge status={document.status} />
-                </div>
-                <div className="mt-4 flex items-center justify-between border-t border-zinc-200 pt-3 dark:border-zinc-800">
-                  <span className="text-xs font-medium text-theme-primary">
-                    {productName}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setDocumentToDelete(document)}
-                    disabled={deleting === document.id}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-red-600 disabled:opacity-50"
-                  >
-                    {deleting === document.id ? (
-                      <Loader2 className="size-3.5 animate-spin" />
-                    ) : (
-                      <Trash2 className="size-3.5" />
-                    )}
-                    Delete
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </>
-      ) : (
-        <div className="flex flex-col items-center rounded-xl border border-dashed border-zinc-300 bg-white px-6 py-12 text-center dark:border-zinc-700 dark:bg-zinc-900">
-          <div className="flex size-16 items-center justify-center rounded-2xl bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark">
-            <Upload className="size-8" />
-          </div>
-          <h3 className="mt-4 font-bold text-zinc-950 dark:text-white">
-            {documents.length === 0 ? "Upload your first document" : "No matching documents"}
-          </h3>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Supported formats: PDF, DOCX, TXT
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              if (limitReached) {
-                setPlanModalOpen(true);
-              } else {
-                router.push("/documents/upload");
-              }
-            }}
-            className="mt-5 flex h-10 items-center gap-2 rounded-lg bg-theme-primary px-4 text-sm font-semibold text-white"
-          >
-            <Upload className="size-4" />
-            Upload Document
-          </button>
-        </div>
-      )}
-
-      {limitReached && (
-        <div className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900 dark:bg-amber-950/30 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="size-5 shrink-0 text-amber-600 dark:text-amber-400" />
-            <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">
-              You&apos;ve reached your plan document limit.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setPlanModalOpen(true)}
-            className="text-left text-sm font-bold text-theme-primary"
-          >
-            Upgrade to Pro →
-          </button>
-        </div>
-      )}
-
-      <DeleteDocumentModal
-        open={documentToDelete !== null}
-        documentName={documentToDelete?.name ?? ""}
-        deleting={documentToDelete ? deleting === documentToDelete.id : false}
-        onClose={() => setDocumentToDelete(null)}
-        onConfirm={() => {
-          if (documentToDelete) void deleteDocument(documentToDelete);
-        }}
-      />
-      <PlanLimitModal
-        open={planModalOpen}
-        onClose={() => setPlanModalOpen(false)}
-        used={documents.length}
-        limit={maxDocuments}
-      />
+      <DeleteDocumentModal open={documentToDelete !== null} documentName={documentToDelete?.name ?? ""} deleting={documentToDelete ? deleting === documentToDelete.id : false} onClose={() => setDocumentToDelete(null)} onConfirm={() => { if (documentToDelete) void deleteDocument(documentToDelete); }} />
+      <PlanLimitModal open={planModalOpen} onClose={() => setPlanModalOpen(false)} used={documents.length} limit={maxDocuments} />
       {requiresResolution && <ResolveDocumentLimitModal documents={documents} limit={maxDocuments} />}
     </div>
   );

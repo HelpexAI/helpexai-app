@@ -3,6 +3,7 @@ import { getDocumentAccessContext, getDocumentRequestContext } from "@/lib/docum
 import { NextResponse } from "next/server";
 import { revalidateWorkspacePaths } from "@/lib/cache/revalidate";
 import { logEvent } from "@/lib/monitoring";
+import { normalizeDocumentRelations } from "@/lib/documents/metadata";
 
 export const runtime = "nodejs";
 
@@ -25,7 +26,7 @@ export async function GET(
 
   const { data: document } = await context.service
     .from("documents")
-    .select("*")
+    .select("*, collection:collections(id, name, description, ai_context, icon), document_tag_assignments(tag:tags(id, name, description, ai_context, color))")
     .eq("id", id)
     .eq("user_id", context.user.id)
     .eq("category_slug", context.category)
@@ -43,7 +44,7 @@ export async function GET(
     if (file) extractedText = await extractReadableText(Buffer.from(await file.arrayBuffer()), document.file_type);
   }
 
-  return NextResponse.json({ document, downloadUrl: download.signedUrl, extractedText });
+  return NextResponse.json({ document: normalizeDocumentRelations(document), downloadUrl: download.signedUrl, extractedText });
 }
 
 export async function DELETE(

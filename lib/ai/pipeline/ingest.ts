@@ -15,6 +15,8 @@ export interface IngestOptions {
   docName: string
   fileBuffer: Buffer
   fileType: 'pdf' | 'docx' | 'txt'
+  collection?: { name: string; ai_context: string }
+  tags?: Array<{ name: string; ai_context: string }>
 }
 
 export interface IngestResult {
@@ -80,7 +82,7 @@ export async function extractDocumentText(buffer: Buffer, fileType: string): Pro
 }
 
 export async function ingestDocument(options: IngestOptions): Promise<IngestResult> {
-  const { userId, categorySlug, docId, docName, fileBuffer, fileType } = options
+  const { userId, categorySlug, docId, docName, fileBuffer, fileType, collection, tags = [] } = options
 
   // 1. Extract text
   const pages = await extractDocumentPages(fileBuffer, fileType)
@@ -107,7 +109,11 @@ export async function ingestDocument(options: IngestOptions): Promise<IngestResu
 
   // 3. Embed all chunks
   const embeddingProvider = getEmbeddingProvider()
-  const vectors = await embeddingProvider.embedBatch(chunks.map(chunk => chunk.text))
+  const metadataContext = [
+    collection ? `Collection: ${collection.name}. ${collection.ai_context}` : "",
+    tags.length ? `Tags: ${tags.map(tag => tag.name).join(", ")}. ${tags.map(tag => tag.ai_context).filter(Boolean).join(" ")}` : "",
+  ].filter(Boolean).join("\n")
+  const vectors = await embeddingProvider.embedBatch(chunks.map(chunk => metadataContext ? `${metadataContext}\n\n${chunk.text}` : chunk.text))
   if (vectors.length !== chunks.length || vectors.some(vector => vector.length !== embeddingProvider.getDimensions())) {
     throw new Error('Embedding provider returned an unexpected vector count or dimension')
   }
@@ -122,6 +128,10 @@ export async function ingestDocument(options: IngestOptions): Promise<IngestResu
       chunkIndex: index,
       pageNumber: chunk.pageNumber,
       text: chunk.text,
+      collectionName: collection?.name,
+      collectionContext: collection?.ai_context,
+      tags: tags.map(tag => tag.name),
+      tagContext: tags.map(tag => tag.ai_context).filter(Boolean).join(" "),
     },
   }))
 

@@ -23,7 +23,7 @@ async function queryWithSelectedDocumentFallback(
   async function querySelectedDocumentsDirectly() {
     const { data: documents, error: documentsError } = await context.service
       .from("documents")
-      .select("id, name, file_path, file_type")
+      .select("id, name, file_path, file_type, collection:collections(name, ai_context), document_tag_assignments(tag:tags(name, ai_context))")
       .eq("user_id", context.user.id)
       .eq("category_slug", context.category)
       .in("id", selectedDocumentIds);
@@ -32,6 +32,10 @@ async function queryWithSelectedDocumentFallback(
     const rawDocuments = [];
     for (const document of documents ?? []) {
       try {
+        const collection = Array.isArray(document.collection) ? document.collection[0] : document.collection;
+        const assignedTags = (document.document_tag_assignments ?? []).flatMap((assignment) =>
+          Array.isArray(assignment.tag) ? assignment.tag : [assignment.tag],
+        ).filter(Boolean);
         const { data: file, error: downloadError } = await context.service.storage
           .from("documents")
           .download(document.file_path);
@@ -39,6 +43,10 @@ async function queryWithSelectedDocumentFallback(
         rawDocuments.push({
           id: document.id,
           name: document.name,
+          collectionName: collection?.name,
+          collectionContext: collection?.ai_context,
+          tags: assignedTags.map((tag) => tag.name),
+          tagContext: assignedTags.map((tag) => tag.ai_context).filter(Boolean).join(" "),
           pages: await extractDocumentPages(Buffer.from(await file.arrayBuffer()), document.file_type),
         });
       } catch (error) {

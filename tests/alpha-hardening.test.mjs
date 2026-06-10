@@ -72,6 +72,8 @@ const publicToolSession = await readFile(new URL("../lib/public-tool/session.ts"
 const textSanitizer = await readFile(new URL("../lib/text/sanitize.ts", import.meta.url), "utf8");
 const dynamicProductsMigration = await readFile(new URL("../supabase/migrations/009_dynamic_products.sql", import.meta.url), "utf8");
 const productCatalog = await readFile(new URL("../lib/products/catalog.ts", import.meta.url), "utf8");
+const documentTaxonomyMigration = await readFile(new URL("../supabase/migrations/010_document_collections_and_tags.sql", import.meta.url), "utf8");
+const documentUploader = await readFile(new URL("../components/documents/document-uploader.tsx", import.meta.url), "utf8");
 
 test("account protected writes are revoked from authenticated clients", () => {
   assert.match(migration, /DROP POLICY IF EXISTS "Users can update own accounts"/);
@@ -318,6 +320,20 @@ test("products are database-driven and Business is the only active seed", () => 
   assert.match(productCatalog, /\.from\("categories"\)/);
   assert.match(productCatalog, /\.eq\("is_active", true\)/);
   assert.match(queryPipeline, /getProductForAccount/);
+});
+
+test("documents require dynamic collections and tags that enrich AI context", () => {
+  assert.match(documentTaxonomyMigration, /CREATE TABLE IF NOT EXISTS collections/);
+  assert.match(documentTaxonomyMigration, /CREATE TABLE IF NOT EXISTS tags/);
+  assert.match(documentTaxonomyMigration, /CREATE TABLE IF NOT EXISTS document_tag_assignments/);
+  assert.match(documentTaxonomyMigration, /ALTER COLUMN collection_id SET NOT NULL/);
+  assert.match(documentTaxonomyMigration, /seed_default_document_taxonomy/);
+  assert.match(documentUploader, /formData\.append\("collection_id"/);
+  assert.match(documentUploader, /formData\.append\("tag_ids"/);
+  assert.match(ingestion, /collectionContext/);
+  assert.match(ingestion, /tagContext/);
+  assert.match(queryPipeline, /Collection:/);
+  assert.doesNotMatch(documentLibrary, /Total Documents/);
 });
 
 test("public landing pages avoid app-only providers and defer non-critical rendering", () => {

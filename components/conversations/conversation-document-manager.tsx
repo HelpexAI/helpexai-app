@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Check, FilePlus2, FileText, Loader2, Paperclip, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, useEffect, useRef, useState } from "react";
+import type { DocumentCollection, DocumentTag } from "@/types";
 
 type ManagedDocument = { id: string; name: string };
 
@@ -26,10 +27,24 @@ export function ConversationDocumentManager({
   const [selected, setSelected] = useState(selectedDocuments.map((document) => document.id));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [collections, setCollections] = useState<DocumentCollection[]>([]);
+  const [tags, setTags] = useState<DocumentTag[]>([]);
+  const [collectionId, setCollectionId] = useState("");
+  const [tagIds, setTagIds] = useState<string[]>([]);
 
   useEffect(() => {
     setSelected(selectedDocuments.map((document) => document.id));
   }, [selectedDocuments]);
+
+  useEffect(() => {
+    if (!open || collections.length) return;
+    void fetch("/api/documents").then((response) => response.json()).then((body: { collections?: DocumentCollection[]; tags?: DocumentTag[] }) => {
+      const nextCollections = body.collections ?? [];
+      setCollections(nextCollections);
+      setTags(body.tags ?? []);
+      setCollectionId(nextCollections[0]?.id ?? "");
+    });
+  }, [collections.length, open]);
 
   async function saveDocuments(documentIds = selected) {
     if (!documentIds.length) {
@@ -57,6 +72,10 @@ export function ConversationDocumentManager({
     const files = Array.from(event.target.files ?? []);
     event.target.value = "";
     if (!files.length || saving) return;
+    if (!collectionId || !tagIds.length) {
+      setError("Choose a collection and at least one tag before uploading.");
+      return;
+    }
     if (files.some((file) => file.size > MAX_FILE_SIZE)) {
       setError("Each document must be no larger than 10MB.");
       return;
@@ -67,6 +86,8 @@ export function ConversationDocumentManager({
     try {
       const form = new FormData();
       files.forEach((file) => form.append("files", file));
+      form.append("collection_id", collectionId);
+      tagIds.forEach((tagId) => form.append("tag_ids", tagId));
       const uploadResponse = await fetch("/api/documents", { method: "POST", body: form });
       const uploadResult = await uploadResponse.json() as {
         error?: string;
@@ -118,7 +139,11 @@ export function ConversationDocumentManager({
             <p className="mt-1 text-sm text-zinc-500">Attach existing documents or upload a new one for future answers.</p>
           </div>
           <input ref={inputRef} type="file" accept=".pdf,.docx,.txt" multiple className="hidden" onChange={(event) => void uploadAndAttach(event)} />
-          <button type="button" onClick={() => inputRef.current?.click()} disabled={saving} className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-theme-primary bg-theme-soft text-sm font-semibold text-theme-primary disabled:opacity-50 dark:bg-theme-soft-dark">
+          <div className="grid gap-3">
+            <select value={collectionId} onChange={(event) => setCollectionId(event.target.value)} disabled={saving} className="h-10 rounded-lg border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950"><option value="">Choose upload collection</option>{collections.map((collection) => <option key={collection.id} value={collection.id}>{collection.name}</option>)}</select>
+            <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto rounded-lg border border-zinc-200 p-2 dark:border-zinc-700">{tags.map((tag) => { const checked = tagIds.includes(tag.id); return <button key={tag.id} type="button" disabled={saving} onClick={() => setTagIds((current) => checked ? current.filter((id) => id !== tag.id) : [...current, tag.id])} className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${checked ? "border-theme-primary bg-theme-soft text-theme-primary dark:bg-theme-soft-dark" : "border-zinc-200 text-zinc-500 dark:border-zinc-700"}`}>{tag.name}</button>; })}</div>
+          </div>
+          <button type="button" onClick={() => inputRef.current?.click()} disabled={saving || !collectionId || !tagIds.length} className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-theme-primary bg-theme-soft text-sm font-semibold text-theme-primary disabled:opacity-50 dark:bg-theme-soft-dark">
             <Upload className="size-4" />
             Upload and Attach Documents
           </button>

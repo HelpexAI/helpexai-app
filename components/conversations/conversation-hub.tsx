@@ -10,6 +10,7 @@ import { useState } from "react";
 import { invalidateWorkspaceQueries } from "@/lib/client/query";
 import { useQueryClient } from "@tanstack/react-query";
 import { ExternalResearchToggle } from "@/components/conversations/external-research-toggle";
+import { ConversationUploadModal } from "@/components/conversations/conversation-upload-modal";
 
 export function ConversationHub({
   conversations,
@@ -28,6 +29,7 @@ export function ConversationHub({
   const [error, setError] = useState("");
   const [mobileConversationsOpen, setMobileConversationsOpen] = useState(false);
   const [externalResearchEnabled, setExternalResearchEnabled] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   async function startConversation() {
     setLoading(true);
@@ -61,7 +63,7 @@ export function ConversationHub({
           {documents.length ? (
             <button onClick={() => setModalOpen(true)} className="mt-7 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-theme-primary px-6 text-sm font-semibold text-white transition hover:bg-theme-primary-hover"><Plus className="size-4" />Select Documents</button>
           ) : (
-            <button onClick={() => router.push("/documents/upload")} className="mt-7 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-theme-primary px-6 text-sm font-semibold text-white">Upload a Document</button>
+            <button onClick={() => setUploadOpen(true)} className="mt-7 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-theme-primary px-6 text-sm font-semibold text-white">Upload a Document</button>
           )}
           </div>
         </div>
@@ -87,6 +89,7 @@ export function ConversationHub({
           <button onClick={() => void startConversation()} disabled={!selected.length || loading} className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-theme-primary font-semibold text-white disabled:opacity-50">{loading ? <Loader2 className="size-4 animate-spin" /> : <ArrowRight className="size-4" />}Start Conversation</button>
         </div>
       </ResponsiveModal>
+      <ConversationUploadModal open={uploadOpen} onClose={() => setUploadOpen(false)} onUploaded={(ids) => { setSelected(ids); setModalOpen(true); }} />
     </div>
   );
 }

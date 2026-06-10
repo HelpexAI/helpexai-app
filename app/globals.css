@@ -138,3 +138,30 @@
   background: rgb(var(--theme-primary) / 0.8);
   background-clip: padding-box;
 }
+
+.theme-scrollbar {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--theme-primary) / 0.55) transparent;
+}
+
+.theme-scrollbar::-webkit-scrollbar {
+  width: 9px;
+  height: 7px;
+}
+
+.theme-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.theme-scrollbar::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgb(var(--theme-primary) / 0.48);
+  background-clip: padding-box;
+}
+
+.theme-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--theme-primary) / 0.78);
+  background-clip: padding-box;
+}

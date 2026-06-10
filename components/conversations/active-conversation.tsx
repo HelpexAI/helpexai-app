@@ -8,12 +8,13 @@ import { PlanLimitModal } from "@/components/dashboard/plan-limit-modal";
 import { aiDisclaimer, stripAiDisclaimer } from "@/lib/ai/disclaimer";
 import type { CategorySlug, Message, MessageSource } from "@/types";
 import { AlertTriangle, Bot, ChevronDown, ChevronUp, Eye, FileText, List, Loader2, Lock, Send } from "lucide-react";
-import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { invalidateWorkspaceQueries, queryKeys } from "@/lib/client/query";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { ExternalResearchToggle } from "@/components/conversations/external-research-toggle";
+import { ConversationDocumentViewerDrawer } from "@/components/conversations/conversation-document-viewer-drawer";
+import { ConversationUploadModal } from "@/components/conversations/conversation-upload-modal";
 
 type ChatDocument = { id: string; name: string };
 
@@ -65,6 +66,8 @@ export function ActiveConversation({
   const [mobileConversationsOpen, setMobileConversationsOpen] = useState(false);
   const [externalResearchEnabled, setExternalResearchEnabled] = useState(conversation.external_research_enabled);
   const [savingResearch, setSavingResearch] = useState(false);
+  const [previewDocumentId, setPreviewDocumentId] = useState<string | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
   const limitReached = used >= questionsLimit;
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), [messages, loading]);
@@ -143,6 +146,14 @@ export function ActiveConversation({
     setLoading(false);
   }
 
+  async function attachUploadedDocuments(ids: string[]) {
+    const documentIds = Array.from(new Set([...documents.map((document) => document.id), ...ids]));
+    await fetch(`/api/conversations/${conversation.id}/documents`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ document_ids: documentIds }) });
+    await invalidateWorkspaceQueries(queryClient);
+    await queryClient.invalidateQueries({ queryKey: queryKeys.conversation(conversation.id) });
+    router.refresh();
+  }
+
   return (
     <div className="flex h-screen min-h-[620px] overflow-hidden">
       <ConversationSidebar conversations={conversations} activeId={conversation.id} mobileOpen={mobileConversationsOpen} onMobileClose={() => setMobileConversationsOpen(false)} />
@@ -153,7 +164,7 @@ export function ActiveConversation({
             <ExternalResearchToggle compact enabled={externalResearchEnabled} disabled={savingResearch} onChange={(enabled) => void updateExternalResearch(enabled)} />
             <div className="relative">
             <button onClick={() => setDocsOpen((value) => !value)} className="flex h-9 items-center gap-2 rounded-full border border-theme-border bg-theme-soft px-3 text-xs font-semibold text-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark"><FileText className="size-3.5" />{documents.length} document{documents.length === 1 ? "" : "s"}<ChevronDown className="size-3" /></button>
-            {docsOpen && <div className="absolute right-0 top-11 z-20 w-72 rounded-xl border border-zinc-200 bg-white p-2 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">{documents.map((document) => <Link key={document.id} href={`/documents/${document.id}`} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-theme-soft hover:text-theme-primary dark:hover:bg-theme-soft-dark"><FileText className="size-4 shrink-0" /><span className="truncate">{document.name}</span></Link>)}<ConversationDocumentManager conversationId={conversation.id} selectedDocuments={documents} availableDocuments={availableDocuments} /></div>}
+            {docsOpen && <div className="absolute right-0 top-11 z-20 w-72 rounded-xl border border-zinc-200 bg-white p-2 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">{documents.map((document) => <button type="button" key={document.id} onClick={() => { setPreviewDocumentId(document.id); setDocsOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-medium hover:bg-theme-soft hover:text-theme-primary dark:hover:bg-theme-soft-dark"><FileText className="size-4 shrink-0" /><span className="truncate">{document.name}</span><Eye className="ml-auto size-3.5" /></button>)}<button type="button" onClick={() => { setUploadOpen(true); setDocsOpen(false); }} className="mt-1 flex w-full items-center gap-2 border-t border-zinc-200 px-3 py-2.5 text-left text-sm font-semibold text-theme-primary hover:bg-theme-soft dark:border-zinc-700 dark:hover:bg-theme-soft-dark"><FileText className="size-4" />Upload document</button><ConversationDocumentManager conversationId={conversation.id} selectedDocuments={documents} availableDocuments={availableDocuments} /></div>}
             </div>
           </div>
         </header>
@@ -173,6 +184,8 @@ export function ActiveConversation({
         </form>
       </section>
       {activeCitation && <CitationPreviewPanel source={activeCitation} onClose={() => setActiveCitation(null)} />}
+      {previewDocumentId && <ConversationDocumentViewerDrawer documentId={previewDocumentId} onClose={() => setPreviewDocumentId(null)} />}
+      <ConversationUploadModal open={uploadOpen} onClose={() => setUploadOpen(false)} onUploaded={(ids) => void attachUploadedDocuments(ids)} />
       <PlanLimitModal open={limitModalOpen} onClose={() => setLimitModalOpen(false)} used={used} limit={questionsLimit} resource="questions today" />
     </div>
   );

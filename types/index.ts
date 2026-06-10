@@ -72,6 +72,7 @@ export interface Document {
   id: string
   user_id: string
   category_slug: CategorySlug
+  collection_id: string
   name: string
   file_path: string
   file_size: number
@@ -81,11 +82,37 @@ export interface Document {
   error_message: string | null
   created_at: string
   updated_at: string
+  collection?: DocumentCollection | null
+  document_tag_assignments?: Array<{ tag: DocumentTag }>
+}
+
+export interface DocumentCollection {
+  id: string
+  category_slug: CategorySlug
+  name: string
+  description: string
+  ai_context: string
+  icon: string
+  sort_order: number
+  is_active: boolean
+}
+
+export interface DocumentTag {
+  id: string
+  category_slug: CategorySlug
+  name: string
+  description: string
+  ai_context: string
+  color: string
+  sort_order: number
+  is_active: boolean
 }
 
 export interface DocumentUploadInput {
   file: File
   category_slug: CategorySlug
+  collection_id: string
+  tag_ids: string[]
 }
 
 // ── Conversations & Messages ──────────────────
@@ -178,6 +205,10 @@ export interface VectorSearchResult {
     pageNumber: number | null
     text: string
     docName: string
+    collectionName?: string
+    collectionContext?: string
+    tags?: string[]
+    tagContext?: string
   }
 }
 

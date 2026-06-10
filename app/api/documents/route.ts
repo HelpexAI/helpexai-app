@@ -6,6 +6,7 @@ import { getProductForAccount } from "@/lib/products/catalog";
 import { validateReadableDocument, DocumentReadabilityError } from "@/lib/documents/readability";
 import { logEvent, reportError } from "@/lib/monitoring";
 import { revalidateWorkspacePaths } from "@/lib/cache/revalidate";
+import { normalizeDocumentRelations } from "@/lib/documents/metadata";
 
 export const runtime = "nodejs";
 
@@ -13,17 +14,23 @@ export async function GET() {
   const context = await getDocumentRequestContext();
   if (!context) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data: documents, error } = await context.service
+  const [{ data: documents, error }, { data: collections }, { data: tags }] = await Promise.all([
+    context.service
     .from("documents")
-    .select("*")
+    .select("*, collection:collections(id, name, description, ai_context, icon), document_tag_assignments(tag:tags(id, name, description, ai_context, color))")
     .eq("user_id", context.user.id)
     .eq("category_slug", context.category)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false }),
+    context.service.from("collections").select("*").eq("category_slug", context.category).eq("is_active", true).order("sort_order"),
+    context.service.from("tags").select("*").eq("category_slug", context.category).eq("is_active", true).order("sort_order"),
+  ]);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const product = await getProductForAccount(context.category);
   return NextResponse.json({
-    documents: documents ?? [],
+    documents: (documents ?? []).map(normalizeDocumentRelations),
+    collections: collections ?? [],
+    tags: tags ?? [],
     category: context.category,
     productName: product.name,
     maxDocuments: context.documentLimit.limit,
@@ -41,6 +48,21 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
   const files = formData.getAll("files").filter((item): item is File => item instanceof File);
+  const collectionId = String(formData.get("collection_id") ?? "");
+  const tagIds = Array.from(new Set(formData.getAll("tag_ids").map(String).filter(Boolean)));
+
+  const [{ data: collection }, { data: selectedTags }] = await Promise.all([
+    context.service.from("collections").select("id, name").eq("id", collectionId).eq("category_slug", context.category).eq("is_active", true).maybeSingle(),
+    tagIds.length
+      ? context.service.from("tags").select("id, name").in("id", tagIds).eq("category_slug", context.category).eq("is_active", true)
+      : Promise.resolve({ data: [] }),
+  ]);
+  if (!collection) {
+    return NextResponse.json({ error: "Choose a valid document collection." }, { status: 400 });
+  }
+  if ((selectedTags?.length ?? 0) !== tagIds.length) {
+    return NextResponse.json({ error: "One or more selected tags are invalid." }, { status: 400 });
+  }
 
   if (files.length === 0 || files.length > MAX_FILES_PER_UPLOAD) {
     return NextResponse.json(
@@ -127,10 +149,11 @@ export async function POST(request: Request) {
       file_path: item.storagePath,
       file_size: item.file.size,
       file_type: item.fileType,
+      collection_id: collectionId,
     })),
   });
   if (reservationError) {
-    return NextResponse.json({ error: "Document quota protection is unavailable. Apply the alpha hardening migration." }, { status: 503 });
+    return NextResponse.json({ error: "Document collection protection is unavailable. Apply migration 010." }, { status: 503 });
   }
   const quota = reservation?.[0];
   if (!quota?.allowed) {
@@ -180,6 +203,16 @@ export async function POST(request: Request) {
     }
 
     uploaded.push(document);
+    if (tagIds.length) {
+      const { error: tagError } = await context.service.from("document_tag_assignments").insert(
+        tagIds.map((tagId) => ({ document_id: id, tag_id: tagId })),
+      );
+      if (tagError) {
+        await context.service.storage.from("documents").remove([storagePath]);
+        await context.service.from("documents").delete().eq("id", id);
+        return NextResponse.json({ error: `Could not assign document tags: ${tagError.message}` }, { status: 500 });
+      }
+    }
     await context.service.from("usage_logs").insert({
       user_id: context.user.id,
       category_slug: context.category,
@@ -192,6 +225,8 @@ export async function POST(request: Request) {
       documentId: id,
       documentName: file.name,
       storagePath,
+      collection: collection.name,
+      tags: selectedTags?.map((tag) => tag.name) ?? [],
     });
   }
 

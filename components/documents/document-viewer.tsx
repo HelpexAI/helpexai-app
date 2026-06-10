@@ -34,7 +34,7 @@ function ToolButton({
       title={label}
       aria-label={label}
       onClick={onClick}
-      className="flex size-8 shrink-0 items-center justify-center rounded-md text-white/60 transition hover:bg-white/10 hover:text-white"
+      className="flex size-8 shrink-0 items-center justify-center rounded-md text-zinc-500 transition hover:bg-theme-soft hover:text-theme-primary dark:text-zinc-400 dark:hover:bg-theme-soft-dark"
     >
       {children}
     </button>
@@ -55,13 +55,13 @@ function PageThumbnail({
       type="button"
       onClick={onClick}
       className={`overflow-hidden rounded-lg border-2 ${
-        active ? "border-theme-primary" : "border-white/10"
+        active ? "border-theme-primary" : "border-zinc-200 dark:border-zinc-700"
       }`}
     >
       <div className="flex h-20 items-center justify-center bg-white text-2xl font-bold text-zinc-300">
         {page}
       </div>
-      <div className={`py-1 text-center text-xs font-semibold ${active ? "bg-theme-primary text-white" : "bg-[#10203a] text-white/40"}`}>
+      <div className={`py-1 text-center text-xs font-semibold ${active ? "bg-theme-primary text-white" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"}`}>
         {page}
       </div>
     </button>
@@ -128,18 +128,18 @@ export function DocumentViewer({
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] flex-col bg-[#18243a] text-white lg:h-screen lg:min-h-0">
-      <header className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#0a1628] px-3 py-3 sm:px-5 lg:px-8">
+    <div className="flex h-full min-h-0 flex-col bg-slate-50 text-zinc-950 dark:bg-zinc-950 dark:text-white">
+      <header className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-3 py-3 dark:border-zinc-800 dark:bg-zinc-900 sm:px-5 lg:px-8">
         <div className="flex min-w-0 items-center gap-2 text-sm">
-          <Link href="/documents" className="flex shrink-0 items-center gap-1 text-white/60 transition hover:text-white">
+          <Link href={`/documents?collection=${document.collection_id}`} className="flex shrink-0 items-center gap-1 text-zinc-500 transition hover:text-theme-primary dark:text-zinc-400">
             <ChevronLeft className="size-4" />
             <span className="hidden sm:inline">Documents</span>
           </Link>
           <ChevronRight className="hidden size-3 text-white/30 sm:block" />
-          <span className="truncate font-medium text-white">{document.name}</span>
+          <div className="min-w-0"><span className="block truncate font-medium text-white">{document.name}</span><span className="block truncate text-xs text-white/40">{document.collection?.name ?? "General"}{document.document_tag_assignments?.length ? ` · ${document.document_tag_assignments.map((assignment) => assignment.tag.name).join(", ")}` : ""}</span></div>
         </div>
         <div className="flex items-center gap-2">
-          <a href={downloadUrl} className="flex h-9 items-center gap-2 rounded-lg bg-white/10 px-3 text-sm transition hover:bg-white/15">
+          <a href={downloadUrl} className="flex h-9 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700">
             <Download className="size-4" />
             <span className="hidden sm:inline">Download</span>
           </a>
@@ -151,31 +151,31 @@ export function DocumentViewer({
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col">
-        <div className="flex min-h-12 items-center justify-between gap-3 overflow-x-auto border-b border-white/10 bg-[#10203a] px-2 py-2 sm:px-4">
+        <div className="flex min-h-12 items-center justify-between gap-3 overflow-x-auto border-b border-zinc-200 bg-white px-2 py-2 dark:border-zinc-800 dark:bg-zinc-900 sm:px-4">
           <div className="flex shrink-0 items-center gap-1">
             <ToolButton label={pagesOpen ? "Hide pages" : "Show pages"} onClick={() => setPagesOpen((open) => !open)}>
               {pagesOpen ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
             </ToolButton>
-            <div className="mx-1 h-5 w-px bg-white/10" />
+            <div className="mx-1 h-5 w-px bg-zinc-200 dark:bg-zinc-700" />
             <ToolButton label="Zoom out" onClick={() => setZoom((value) => Math.max(50, value - 10))}><ZoomOut className="size-4" /></ToolButton>
-            <span className="w-11 text-center text-xs text-white/60">{zoom}%</span>
+            <span className="w-11 text-center text-xs text-zinc-500 dark:text-zinc-400">{zoom}%</span>
             <ToolButton label="Zoom in" onClick={() => setZoom((value) => Math.min(180, value + 10))}><ZoomIn className="size-4" /></ToolButton>
             <ToolButton label="Rotate" onClick={() => setRotation((value) => (value + 90) % 360)}><RotateCw className="size-4" /></ToolButton>
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <ToolButton label="Previous page" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}><ChevronLeft className="size-4" /></ToolButton>
-            <span className="px-2 text-xs text-white/60">
-              Page <strong className="text-white">{currentPage}</strong> of {resolvedPageCount}
+            <span className="px-2 text-xs text-zinc-500 dark:text-zinc-400">
+              Page <strong className="text-zinc-950 dark:text-white">{currentPage}</strong> of {resolvedPageCount}
             </span>
             <ToolButton label="Next page" onClick={() => setCurrentPage((page) => Math.min(resolvedPageCount, page + 1))}><ChevronRight className="size-4" /></ToolButton>
             <ToolButton label="Full screen" onClick={() => void viewerRef.current?.requestFullscreen()}><Maximize2 className="size-4" /></ToolButton>
           </div>
         </div>
 
-        <div ref={viewerRef} className="flex min-h-0 flex-1 overflow-hidden bg-[#18243a]">
+        <div ref={viewerRef} className="flex min-h-0 flex-1 overflow-hidden bg-zinc-100 dark:bg-zinc-950">
           {pagesOpen && document.file_type === "pdf" && (
-            <aside className="hidden w-40 shrink-0 overflow-y-auto border-r border-white/10 bg-[#0d1b30] p-3 sm:block">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/40">Pages</p>
+            <aside className="theme-scrollbar hidden w-40 shrink-0 overflow-y-auto border-r border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:block">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-400">Pages</p>
               <div className="flex flex-col gap-3">
                 {Array.from({ length: resolvedPageCount }, (_, index) => index + 1).map((page) => (
                   <PageThumbnail
@@ -189,11 +189,11 @@ export function DocumentViewer({
             </aside>
           )}
 
-          <main className="min-w-0 flex-1 overflow-auto p-3 sm:p-6 lg:p-8">
+          <main className="theme-scrollbar min-w-0 flex-1 overflow-auto p-3 sm:p-6 lg:p-8">
             <div className="mx-auto flex min-h-[70vh] max-w-5xl flex-col items-center gap-5">
               {document.file_type === "pdf" ? (
                 <div className="relative flex min-h-[50vh] w-full justify-center">
-                  {pageLoading && !pageError && <div className="absolute inset-x-0 top-16 mx-auto flex max-w-xs flex-col items-center gap-3 rounded-xl bg-[#10203a] p-5 text-center text-sm text-white/60"><LoaderDocumentPage /><span>Rendering page {currentPage}...</span></div>}
+                  {pageLoading && !pageError && <div className="absolute inset-x-0 top-16 mx-auto flex max-w-xs flex-col items-center gap-3 rounded-xl border border-zinc-200 bg-white p-5 text-center text-sm text-zinc-500 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400"><LoaderDocumentPage /><span>Rendering page {currentPage}...</span></div>}
                   {pageError ? (
                     <div className="mt-16 flex max-w-sm flex-col items-center gap-3 rounded-xl border border-red-400/30 bg-red-950/30 p-6 text-center"><AlertCircle className="size-7 text-red-300" /><p className="font-semibold">This page could not be displayed.</p><p className="text-sm text-white/60">Download the original document to view it on this device.</p><a href={downloadUrl} className="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold">Download document</a></div>
                   ) : (
@@ -237,7 +237,7 @@ export function DocumentViewer({
 }
 
 function LoaderDocumentPage() {
-  return <div className="size-8 animate-spin rounded-full border-2 border-white/20 border-t-theme-primary" />;
+  return <div className="size-8 animate-spin rounded-full border-2 border-zinc-200 border-t-theme-primary dark:border-zinc-700" />;
 }
 
 function HighlightedDocumentText({ text, excerpt }: { text: string; excerpt?: string | null }) {

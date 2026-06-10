@@ -21,7 +21,7 @@ export async function POST(
 
   const { data: document } = await context.service
     .from("documents")
-    .select("*")
+    .select("*, collection:collections(name, ai_context), document_tag_assignments(tag:tags(name, ai_context))")
     .eq("id", id)
     .eq("user_id", context.user.id)
     .eq("category_slug", context.category)
@@ -33,6 +33,10 @@ export async function POST(
 
   let chunkCount = 0;
   let processingWarning: string | null = null;
+  const collection = Array.isArray(document.collection) ? document.collection[0] : document.collection;
+  const assignedTags = (document.document_tag_assignments ?? []).flatMap((assignment: { tag: Array<{ name: string; ai_context: string }> | { name: string; ai_context: string } }) =>
+    Array.isArray(assignment.tag) ? assignment.tag : [assignment.tag],
+  ).filter(Boolean);
 
   try {
     await logEvent("document_embedding_started", {
@@ -55,6 +59,8 @@ export async function POST(
       docName: document.name,
       fileBuffer: Buffer.from(await storedFile.arrayBuffer()),
       fileType: document.file_type,
+      collection: collection ?? undefined,
+      tags: assignedTags,
     });
     chunkCount = result.chunkCount;
     await logEvent("document_embedding_completed", {
