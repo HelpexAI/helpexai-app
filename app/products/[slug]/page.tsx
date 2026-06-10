@@ -5,7 +5,11 @@ import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
   const product = await getActiveProduct((await params).slug);
   if (!product) return {};
   return {
@@ -15,11 +19,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-export default async function DynamicProductPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function DynamicProductPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
   const product = await getActiveProduct((await params).slug);
   if (!product) notFound();
 
   // New products receive the established Business landing structure while all
   // product identity, copy, AI behavior, and theme come from the database.
-  return <ProductLandingPage category="business" databaseProduct={product} />;
+  return <ProductLandingPage category="business" />;
 }

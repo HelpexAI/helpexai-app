@@ -33,263 +33,384 @@ export type UseCasePage = {
 
 export const articles: SeoArticle[] = [
   {
-    slug: "how-to-review-a-contract-with-ai",
-    title: "How to Review a Contract with AI: A Practical, Citation-First Workflow",
+    slug: "what-is-a-business-knowledge-workspace",
+    title: "What Is a Business Knowledge Workspace and Why Companies Need One",
     description:
-      "Learn how to use AI to review contracts efficiently while verifying clauses, risks, obligations, and answers against the original document.",
-    category: "legal",
-    publishedAt: "2026-06-09",
-    readTime: "8 min read",
-    intro:
-      "AI can reduce the time spent locating and summarizing contract terms, but a reliable review still requires clear questions, source citations, and professional judgment. This workflow keeps the document, not the model, at the center of the review.",
-    sections: [
-      {
-        heading: "What AI contract review should do",
-        paragraphs: [
-          "A useful contract review tool helps you navigate the agreement. It should locate clauses, explain defined terms, summarize obligations, compare related provisions, and point you back to the relevant source.",
-          "It should not silently replace legal judgment. Important conclusions should remain traceable to the signed agreement and be reviewed in the context of the transaction.",
-        ],
-        bullets: ["Find key clauses quickly", "Summarize obligations by party", "Identify dates and notice periods", "Provide citations for verification"],
-      },
-      {
-        heading: "Start with a focused review checklist",
-        paragraphs: [
-          "Before asking questions, identify the commercial and legal issues that matter for the agreement. A focused checklist produces better results than asking for a generic summary alone.",
-        ],
-        bullets: ["Term, renewal, and termination", "Payment and pricing changes", "Liability, indemnity, and insurance", "Confidentiality and data handling", "Governing law and dispute resolution"],
-      },
-      {
-        heading: "Ask precise, verifiable questions",
-        paragraphs: [
-          "Phrase questions so the answer can be checked against the contract. Ask which party has an obligation, when it applies, and where the supporting language appears.",
-          "For example: What notice is required for termination for convenience? Which section supports the answer? Are there exceptions elsewhere in the agreement?",
-        ],
-      },
-      {
-        heading: "Verify citations and compare connected clauses",
-        paragraphs: [
-          "Open every important citation and read the surrounding paragraph. Contract provisions often depend on definitions, exhibits, exceptions, or precedence clauses elsewhere in the document.",
-          "For high-impact issues, ask follow-up questions that compare connected provisions instead of relying on a single extracted sentence.",
-        ],
-      },
-      {
-        heading: "Use AI as the first review layer",
-        paragraphs: [
-          "The strongest workflow uses AI for discovery and organization, followed by human verification and legal analysis. This saves time without weakening accountability.",
-        ],
-      },
-    ],
-    relatedUseCase: "/legal/contract-analysis",
-  },
-  {
-    slug: "ai-document-analysis-for-lawyers",
-    title: "AI Document Analysis for Lawyers: Where It Helps and Where It Does Not",
-    description:
-      "A practical guide to using AI document analysis for legal research, contract review, matter preparation, and cited document Q&A.",
-    category: "legal",
-    publishedAt: "2026-06-09",
-    readTime: "7 min read",
-    intro:
-      "Legal teams can use document AI to reduce repetitive reading and make large files easier to navigate. The value comes from faster access to evidence, not from treating generated text as legal advice.",
-    sections: [
-      {
-        heading: "High-value legal document workflows",
-        paragraphs: ["Document AI is most effective when the task is grounded in a defined set of files and the answer can be verified."],
-        bullets: ["Contract clause lookup", "Chronology and matter summaries", "Obligation and deadline extraction", "Cross-document comparison", "Preparation of review questions"],
-      },
-      {
-        heading: "Why citations matter",
-        paragraphs: [
-          "A legal answer without a source is difficult to trust and costly to verify. Citation-backed answers let reviewers inspect the exact document and surrounding context before relying on a conclusion.",
-        ],
-      },
-      {
-        heading: "Protecting professional judgment",
-        paragraphs: [
-          "AI may miss nuance, misunderstand a defined term, or overstate what a clause means. Lawyers should confirm material answers, assess applicable law, and consider facts that are not present in the uploaded documents.",
-        ],
-      },
-      {
-        heading: "Building a repeatable team process",
-        paragraphs: [
-          "Create standard question sets for recurring agreement types, require citation review for material findings, and document the final human conclusion separately from the AI response.",
-        ],
-      },
-    ],
-    relatedUseCase: "/legal/nda-review",
-  },
-  {
-    slug: "how-to-compare-invoices-with-contracts",
-    title: "How to Compare Invoices with Contracts and Catch Billing Differences",
-    description:
-      "Learn a repeatable process for comparing invoices against contracted rates, payment terms, quantities, and approved fees.",
-    category: "business",
-    publishedAt: "2026-06-09",
-    readTime: "7 min read",
-    intro:
-      "Invoice review becomes difficult when pricing rules, approved fees, and payment terms are spread across contracts, schedules, and amendments. A structured comparison helps businesses catch differences before payment.",
-    sections: [
-      {
-        heading: "Collect the complete agreement set",
-        paragraphs: [
-          "Start with the invoice, signed agreement, pricing schedule, and any amendments. Comparing against an outdated rate card can create false discrepancies.",
-        ],
-      },
-      {
-        heading: "Identify the comparison fields",
-        paragraphs: ["Define the information that should match before reviewing individual charges."],
-        bullets: ["Unit price or hourly rate", "Quantity and service period", "Discounts and credits", "Taxes and permitted fees", "Payment due date and currency"],
-      },
-      {
-        heading: "Ask cross-document questions",
-        paragraphs: [
-          "Ask the system to identify the contracted rate, the invoiced rate, and the difference. Require it to cite both documents so the result can be checked quickly.",
-        ],
-      },
-      {
-        heading: "Investigate exceptions before disputing",
-        paragraphs: [
-          "A difference may be explained by an amendment, usage tier, approved expense, or tax rule. Review the cited clauses and supporting records before contacting the vendor.",
-        ],
-      },
-      {
-        heading: "Keep an audit trail",
-        paragraphs: [
-          "Record the documents reviewed, the discrepancy, the supporting clauses, and the final resolution. This makes future invoice reviews faster and more consistent.",
-        ],
-      },
-    ],
-    relatedUseCase: "/business/invoice-analysis",
-  },
-  {
-    slug: "best-ai-workflows-for-small-business-documents",
-    title: "The Best AI Workflows for Small Business Documents",
-    description:
-      "Discover practical AI workflows for reviewing contracts, invoices, policies, reports, and vendor documents in a small business.",
+      "Learn how businesses can turn contracts, policies, reports, SOPs, invoices, and internal documents into a searchable AI-powered knowledge workspace.",
     category: "business",
     publishedAt: "2026-06-09",
     readTime: "8 min read",
     intro:
-      "Small businesses handle important documents without always having dedicated legal, finance, or operations teams. Document AI can make that information easier to access when it is used with clear processes and source verification.",
+      "Most businesses store knowledge across contracts, policies, reports, SOPs, invoices, and shared drives. A business knowledge workspace brings that information together and makes it accessible through AI-powered search, conversations, and reports.",
     sections: [
       {
-        heading: "Vendor and customer agreement review",
+        heading: "The problem with scattered business knowledge",
         paragraphs: [
-          "Use document Q&A to find renewal dates, cancellation terms, payment obligations, and service commitments before signing or renewing an agreement.",
+          "Important business information often lives in disconnected documents and folders. Teams waste time searching for answers or relying on institutional knowledge.",
+          "As organizations grow, finding the right information becomes increasingly difficult.",
         ],
       },
       {
-        heading: "Invoice and pricing checks",
+        heading: "What a business knowledge workspace does",
         paragraphs: [
-          "Compare invoices with pricing schedules and contracts to identify differences in rates, quantities, fees, or payment terms.",
+          "A business knowledge workspace organizes company documents into one searchable system where AI can answer questions, generate reports, and help teams make decisions.",
+        ],
+        bullets: [
+          "Centralized document knowledge",
+          "Source-backed AI answers",
+          "Document categories and tags",
+          "Cross-document understanding",
+          "Report generation",
         ],
       },
       {
-        heading: "Policy and procedure Q&A",
+        heading: "Beyond document storage",
         paragraphs: [
-          "Make internal policies easier to navigate by allowing teams to ask questions and verify answers against the original policy text.",
-        ],
-      },
-      {
-        heading: "Report and proposal summaries",
-        paragraphs: [
-          "Extract decisions, assumptions, deadlines, and follow-up items from long reports or proposals while retaining links to the source material.",
-        ],
-      },
-      {
-        heading: "A safe operating model",
-        paragraphs: [
-          "Use role-based access, verify important answers, avoid uploading files you are not authorized to process, and consult qualified professionals for legal or financial decisions.",
+          "Modern businesses need more than file storage. They need systems that transform documents into usable knowledge and actionable insights.",
         ],
       },
     ],
-    relatedUseCase: "/business/vendor-contract-review",
+    relatedUseCase: "/business/business-knowledge-workspace",
+  },
+
+  {
+    slug: "how-to-build-an-ai-business-knowledge-base",
+    title: "How to Build an AI-Powered Business Knowledge Base",
+    description:
+      "A practical guide to organizing contracts, policies, SOPs, reports, invoices, and internal documents into an AI-powered knowledge system.",
+    category: "business",
+    publishedAt: "2026-06-09",
+    readTime: "7 min read",
+    intro:
+      "An AI knowledge base starts with structured information. Categories, tags, and document organization help AI understand business context and deliver more accurate answers.",
+    sections: [
+      {
+        heading: "Organize documents into categories",
+        paragraphs: [
+          "Start by grouping documents into logical business categories.",
+        ],
+        bullets: [
+          "Legal & Contracts",
+          "Finance",
+          "HR",
+          "Operations",
+          "Compliance",
+          "General",
+        ],
+      },
+      {
+        heading: "Add tags for context",
+        paragraphs: [
+          "Tags provide additional business meaning and improve retrieval quality.",
+        ],
+        bullets: [
+          "vendor",
+          "invoice",
+          "renewal",
+          "employment",
+          "payment",
+          "supplier",
+        ],
+      },
+      {
+        heading: "Use conversations and reports",
+        paragraphs: [
+          "Once knowledge is organized, teams can ask questions, generate summaries, create reports, and make better decisions using company information.",
+        ],
+      },
+    ],
+    relatedUseCase: "/business/business-knowledge-workspace",
+  },
+
+  {
+    slug: "how-to-generate-business-reports-with-ai",
+    title: "How to Generate Business Reports from Documents Using AI",
+    description:
+      "Learn how AI can transform business documents into summaries, risk reports, action plans, decision briefs, and other structured outputs.",
+    category: "business",
+    publishedAt: "2026-06-09",
+    readTime: "8 min read",
+    intro:
+      "Reading documents is only the first step. Business teams often need summaries, recommendations, risks, action items, and decisions that can be shared and reused.",
+    sections: [
+      {
+        heading: "Why reports matter",
+        paragraphs: [
+          "Most users do not want raw document analysis. They want outcomes that help them understand information and take action.",
+        ],
+      },
+      {
+        heading: "Common report types",
+        paragraphs: [
+          "AI can generate multiple report formats depending on business needs.",
+        ],
+        bullets: [
+          "Business Summary Report",
+          "Contract Risk Report",
+          "Decision Brief",
+          "Action Items Report",
+          "Compliance Review",
+        ],
+      },
+      {
+        heading: "Review before finalizing",
+        paragraphs: [
+          "Reports should be reviewed, improved, and finalized before being saved or shared with others.",
+        ],
+      },
+      {
+        heading: "Turn reports into ongoing knowledge",
+        paragraphs: [
+          "Saved reports become reusable business assets that can be attached to future conversations and decisions.",
+        ],
+      },
+    ],
+    relatedUseCase: "/business/ai-document-reports",
+  },
+
+  {
+    slug: "using-ai-for-business-decisions",
+    title: "Using AI to Support Better Business Decisions",
+    description:
+      "Discover how AI-powered knowledge workspaces help teams make better decisions using contracts, policies, reports, SOPs, and business documents.",
+    category: "business",
+    publishedAt: "2026-06-09",
+    readTime: "9 min read",
+    intro:
+      "Business decisions require context. The challenge is not having information, but finding the right information at the right time. AI can help by turning documents into searchable knowledge.",
+    sections: [
+      {
+        heading: "The challenge of fragmented information",
+        paragraphs: [
+          "Important decisions often depend on information spread across multiple documents, departments, and systems.",
+        ],
+      },
+      {
+        heading: "Ask questions across business knowledge",
+        paragraphs: [
+          "Modern AI systems can answer questions using information from contracts, policies, reports, SOPs, and operational documents.",
+        ],
+      },
+      {
+        heading: "Use reports to support decisions",
+        paragraphs: [
+          "Decision briefs, risk reports, and business summaries help management evaluate information more quickly.",
+        ],
+      },
+      {
+        heading: "Always verify important conclusions",
+        paragraphs: [
+          "AI should support business decisions, not replace human judgment. Important conclusions should always be reviewed against the source material.",
+        ],
+      },
+    ],
+    relatedUseCase: "/business/business-decision-support",
   },
 ];
 
 export const useCases: UseCasePage[] = [
   {
-    slug: "contract-analysis",
-    category: "legal",
-    eyebrow: "AI contract analysis",
-    title: "Analyze contracts faster without losing the source",
-    description:
-      "Find clauses, summarize obligations, compare terms, and verify answers against cited contract language with Helpex Legal.",
-    problem:
-      "Important terms are often spread across definitions, clauses, schedules, and amendments. Manual review is necessary, but finding every relevant provision consumes valuable time.",
-    outcomes: ["Locate key clauses and dates", "Summarize obligations by party", "Compare connected provisions", "Verify findings with citations"],
-    workflow: [
-      { title: "Upload the agreement set", description: "Add the contract and relevant schedules or amendments." },
-      { title: "Ask focused review questions", description: "Review termination, liability, payment, renewal, and other material terms." },
-      { title: "Inspect cited sources", description: "Open the supporting page and review the surrounding contract language." },
-    ],
-    questions: ["What are each party's termination rights?", "Which obligations survive termination?", "What are the liability limits and exceptions?", "When does the agreement renew?"],
-    faq: [
-      { question: "Can HelpexAI review more than one contract?", answer: "Yes. You can attach multiple ready documents to a conversation and ask comparison questions." },
-      { question: "Does contract analysis replace legal review?", answer: "No. It accelerates document navigation and first-pass analysis, while final legal conclusions require qualified review." },
-    ],
-  },
-  {
-    slug: "nda-review",
-    category: "legal",
-    eyebrow: "AI NDA review",
-    title: "Review NDAs with a clear, repeatable checklist",
-    description:
-      "Identify confidentiality scope, exclusions, permitted disclosures, term, remedies, and other NDA provisions with cited AI answers.",
-    problem:
-      "NDAs are often treated as routine, but broad definitions, long survival periods, and restrictive use provisions can create meaningful obligations.",
-    outcomes: ["Understand confidentiality scope", "Find exclusions and permitted disclosures", "Review term and survival periods", "Flag provisions for closer legal review"],
-    workflow: [
-      { title: "Upload the NDA", description: "Add a readable PDF, DOCX, or TXT version of the agreement." },
-      { title: "Run your NDA checklist", description: "Ask consistent questions about scope, use, disclosure, term, and remedies." },
-      { title: "Verify and decide", description: "Review the cited language and apply your organization's legal standards." },
-    ],
-    questions: ["What information is excluded from confidentiality?", "How long do obligations survive?", "Are disclosures to advisers permitted?", "Does the NDA contain residuals language?"],
-    faq: [
-      { question: "Can I use HelpexAI for mutual and one-way NDAs?", answer: "Yes. Ask the AI to identify the parties' respective obligations and whether duties apply mutually." },
-      { question: "Will HelpexAI tell me whether to sign?", answer: "It can explain and organize the terms, but signing decisions should be made with appropriate legal judgment." },
-    ],
-  },
-  {
-    slug: "invoice-analysis",
+    slug: "business-knowledge-workspace",
     category: "business",
-    eyebrow: "AI invoice analysis",
-    title: "Compare invoices with agreements before you pay",
+    eyebrow: "AI business knowledge workspace",
+    title: "Turn company documents into searchable business knowledge",
     description:
-      "Use Helpex Business to compare invoice charges, rates, fees, and payment terms against your contracts and pricing schedules.",
+      "Upload contracts, policies, SOPs, invoices, reports, and internal documents into one AI workspace where your team can ask questions and generate source-backed answers.",
     problem:
-      "Billing differences can hide in line items, rate changes, service periods, and contract schedules. Manual comparisons become harder as vendor volume grows.",
-    outcomes: ["Compare contracted and invoiced rates", "Spot unexplained fees or differences", "Verify payment terms", "Create a review trail with cited sources"],
-    workflow: [
-      { title: "Upload the invoice and agreement", description: "Attach the invoice, contract, pricing schedule, and relevant amendments." },
-      { title: "Ask for a structured comparison", description: "Compare rates, quantities, fees, taxes, and payment terms." },
-      { title: "Confirm each difference", description: "Review cited source text before approving or disputing the invoice." },
+      "Business knowledge is often scattered across PDFs, contracts, policies, reports, spreadsheets, and internal files. Teams waste time searching manually, asking others for context, or making decisions without reviewing all relevant information.",
+    outcomes: [
+      "Create one workspace for company documents",
+      "Organize files with categories and tags",
+      "Ask questions across selected documents or the full knowledge base",
+      "Get answers grounded in cited source content",
     ],
-    questions: ["Does every invoice rate match the contract?", "Are these additional fees permitted?", "What is the payment due date?", "Which line items need review?"],
+    workflow: [
+      {
+        title: "Upload business documents",
+        description:
+          "Add contracts, policies, SOPs, invoices, reports, agreements, and other company files.",
+      },
+      {
+        title: "Organize knowledge",
+        description:
+          "Assign categories and tags so HelpexAI understands what type of document it is and where it belongs.",
+      },
+      {
+        title: "Ask or generate",
+        description:
+          "Ask questions, generate reports, and use your documents as a reusable business knowledge base.",
+      },
+    ],
+    questions: [
+      "What do our documents say about vendor payment terms?",
+      "Which policies mention refund or cancellation rules?",
+      "Summarize the key obligations across these documents.",
+      "What important risks or action items should we review?",
+    ],
     faq: [
-      { question: "Can HelpexAI identify invoice overcharges?", answer: "It can highlight differences between uploaded invoice and contract information for your team to verify." },
-      { question: "Can it process scanned invoices?", answer: "Uploaded PDFs need readable text. OCR-process image-only scans before uploading." },
+      {
+        question: "Is HelpexAI only for legal documents?",
+        answer:
+          "No. HelpexAI is designed as a business knowledge workspace. You can upload contracts, policies, SOPs, invoices, reports, agreements, and other company documents.",
+      },
+      {
+        question: "Can I organize documents by category?",
+        answer:
+          "Yes. Documents can be categorized and tagged so the AI has better context when answering questions or generating reports.",
+      },
     ],
   },
   {
-    slug: "vendor-contract-review",
+    slug: "ai-document-reports",
     category: "business",
-    eyebrow: "Vendor contract review",
-    title: "Understand vendor contracts before they become surprises",
+    eyebrow: "AI document reports",
+    title: "Generate professional reports from your business documents",
     description:
-      "Find pricing, renewals, service commitments, cancellation terms, and business obligations in vendor agreements with source-backed answers.",
+      "Create business summaries, risk reports, decision briefs, action item reports, and custom reports from one or more uploaded documents.",
     problem:
-      "Vendor agreements affect budgets, operations, data, and customer commitments. Important commercial terms can be difficult to find once the agreement is signed.",
-    outcomes: ["Find renewal and cancellation deadlines", "Understand pricing changes", "Review service and support commitments", "Summarize operational obligations"],
-    workflow: [
-      { title: "Upload vendor documents", description: "Add the main agreement, order form, service levels, and amendments." },
-      { title: "Review commercial terms", description: "Ask about pricing, renewals, commitments, data, support, and termination." },
-      { title: "Share verified findings", description: "Use cited answers to inform the relevant business owner or adviser." },
+      "Reading business documents is only the first step. Teams often need structured outputs like summaries, risks, decisions, recommendations, and action items that can be saved, shared, exported, and reused later.",
+    outcomes: [
+      "Generate structured reports from selected documents",
+      "Create summaries, risks, recommendations, and action items",
+      "Review and refine reports before saving",
+      "Export finalized reports as PDF",
     ],
-    questions: ["When and how can we cancel?", "Can the vendor increase prices?", "What service levels are promised?", "What happens to our data at termination?"],
+    workflow: [
+      {
+        title: "Select documents",
+        description:
+          "Choose one document, multiple documents, or a document category as the source for the report.",
+      },
+      {
+        title: "Choose report type",
+        description:
+          "Generate a business summary, contract risk report, decision brief, action items report, or custom report.",
+      },
+      {
+        title: "Review and finalize",
+        description:
+          "Review the draft, ask AI to improve it, save the final version, and export it as PDF.",
+      },
+    ],
+    questions: [
+      "Generate a business summary from these documents.",
+      "Create a risk report for this vendor agreement.",
+      "Extract action items from these policies and reports.",
+      "Create a decision brief for management review.",
+    ],
     faq: [
-      { question: "Can I compare competing vendor agreements?", answer: "Yes. Attach multiple vendor documents and ask HelpexAI to compare specific terms." },
-      { question: "Is this legal advice?", answer: "No. HelpexAI helps organize and explain documents; consult qualified counsel for legal decisions." },
+      {
+        question: "Can reports use more than one document?",
+        answer:
+          "Yes. Reports can be generated from one or more selected documents, allowing HelpexAI to combine information into one structured output.",
+      },
+      {
+        question: "Can I edit or improve a report before saving?",
+        answer:
+          "Yes. Generated reports should be reviewed as drafts first. You can ask AI to improve sections, then finalize and save the report for later use.",
+      },
+    ],
+  },
+  {
+    slug: "contract-risk-reports",
+    category: "business",
+    eyebrow: "AI contract risk reports",
+    title: "Understand contract risks before they become business problems",
+    description:
+      "Upload vendor agreements, NDAs, service contracts, and business agreements to generate risk reports with key terms, missing clauses, recommendations, and cited sources.",
+    problem:
+      "Contracts affect pricing, renewals, obligations, data, liability, and operations. Important terms are often spread across clauses, schedules, and amendments, making it hard for business teams to understand risk before signing or renewing.",
+    outcomes: [
+      "Find key contract terms and deadlines",
+      "Identify risks and missing clauses",
+      "Generate recommendations and questions to ask",
+      "Verify findings with source citations",
+    ],
+    workflow: [
+      {
+        title: "Upload contract documents",
+        description:
+          "Add the agreement, order form, schedule, amendment, NDA, or supporting contract documents.",
+      },
+      {
+        title: "Generate a risk report",
+        description:
+          "Create a structured report covering key terms, risks, missing clauses, recommendations, and questions to ask.",
+      },
+      {
+        title: "Continue in chat",
+        description:
+          "Open the report in conversation to ask follow-up questions, clarify risks, or compare terms with other documents.",
+      },
+    ],
+    questions: [
+      "What are the highest risks in this agreement?",
+      "Which obligations survive termination?",
+      "Are renewal or cancellation terms risky?",
+      "What questions should we ask before signing?",
+    ],
+    faq: [
+      {
+        question: "Does this replace legal review?",
+        answer:
+          "No. HelpexAI helps organize, summarize, and highlight document risks. Final legal decisions should be made with qualified professional advice.",
+      },
+      {
+        question: "Can contract reports be used inside conversations?",
+        answer:
+          "Yes. Saved reports can be attached to conversations so you can ask follow-up questions using both the report and the original source documents.",
+      },
+    ],
+  },
+  {
+    slug: "business-decision-support",
+    category: "business",
+    eyebrow: "AI business decision support",
+    title: "Make better business decisions with source-backed AI context",
+    description:
+      "Ask questions across your business documents, compare information, generate decision briefs, and get answers based on your company knowledge instead of generic AI responses.",
+    problem:
+      "Business decisions often require context from contracts, policies, reports, invoices, SOPs, and previous documents. Generic AI tools do not automatically understand your company knowledge or where important information is stored.",
+    outcomes: [
+      "Ask questions across the full business knowledge base",
+      "Compare information from different document categories",
+      "Generate decision briefs for management review",
+      "Use citations to verify important claims",
+    ],
+    workflow: [
+      {
+        title: "Build your knowledge base",
+        description:
+          "Upload and organize the documents your business relies on for decisions.",
+      },
+      {
+        title: "Ask cross-document questions",
+        description:
+          "Ask from selected documents or the whole workspace knowledge base.",
+      },
+      {
+        title: "Turn answers into outputs",
+        description:
+          "Generate reports, summaries, recommendations, and decision briefs from the AI response.",
+      },
+    ],
+    questions: [
+      "Does this vendor agreement conflict with our payment policy?",
+      "Which documents mention cancellation or refund obligations?",
+      "Create a decision brief from these files.",
+      "What risks and action items should management review?",
+    ],
+    faq: [
+      {
+        question: "How is this different from ChatGPT or Claude?",
+        answer:
+          "HelpexAI is built around a dedicated business workspace where documents, categories, tags, conversations, and reports stay organized together. The goal is not generic chat, but reusable business knowledge.",
+      },
+      {
+        question: "Can I ask questions from the whole workspace?",
+        answer:
+          "Yes. You can ask from selected documents or from the broader business knowledge base, depending on the workflow.",
+      },
     ],
   },
 ];
@@ -299,6 +420,7 @@ export function getArticle(slug: string) {
 }
 
 export function getUseCase(category: MarketingCategory, slug: string) {
-  return useCases.find((useCase) => useCase.category === category && useCase.slug === slug);
+  return useCases.find(
+    (useCase) => useCase.category === category && useCase.slug === slug,
+  );
 }
-
