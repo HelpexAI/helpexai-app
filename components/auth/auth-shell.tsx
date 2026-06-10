@@ -8,12 +8,25 @@ import Link from "next/link";
 import { LayoutDashboard } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
-export function AuthShell({ children, products }: { children: React.ReactNode; products: Product[] }) {
+export function AuthShell({
+  children,
+  products,
+}: {
+  children: React.ReactNode;
+  products: Product[];
+}) {
   const searchParams = useSearchParams();
   const requestedCategory = searchParams.get("category");
-  const product = products.find((item) => item.slug === requestedCategory) ?? (products.length === 1 ? products[0] : undefined);
+  const product =
+    products.find((item) => item.slug === requestedCategory) ??
+    (products.length === 1 ? products[0] : undefined);
   const category = product?.slug;
-  const productHref = category === "business" ? "/business" : category ? `/products/${category}` : "/";
+  const productHref =
+    category === "business"
+      ? "/business"
+      : category
+        ? `/products/${category}`
+        : "/";
 
   return (
     <div
@@ -21,7 +34,7 @@ export function AuthShell({ children, products }: { children: React.ReactNode; p
       style={themeStyle(product?.theme ?? "main")}
     >
       <div className="flex min-h-screen w-full">
-        <AuthBrandPanel homeHref={productHref} />
+        <AuthBrandPanel />
         <main className="relative flex min-h-screen w-full items-center justify-center px-4 py-20 sm:px-8 lg:w-[58%] lg:px-12 lg:py-12 xl:w-[60%]">
           <div className="absolute left-4 top-4 lg:hidden">
             <Link href={productHref} className="flex items-center gap-2">

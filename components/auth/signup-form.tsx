@@ -17,7 +17,9 @@ export function SignupForm({ products }: { products: Product[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedCategory = searchParams.get("category");
-  const requestedProduct = products.find((product) => product.slug === requestedCategory);
+  const requestedProduct = products.find(
+    (product) => product.slug === requestedCategory,
+  );
   const [category, setCategory] = useState<CategorySlug | null>(
     requestedProduct?.slug ?? (products.length === 1 ? products[0].slug : null),
   );
@@ -125,7 +127,10 @@ export function SignupForm({ products }: { products: Product[] }) {
   }
 
   return (
-    <div className="flex flex-col gap-7" style={themeStyle(activeProduct?.theme)}>
+    <div
+      className="flex flex-col gap-6"
+      style={themeStyle(activeProduct?.theme)}
+    >
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-white">
           Create your account
@@ -149,15 +154,13 @@ export function SignupForm({ products }: { products: Product[] }) {
                   key={slug}
                   type="button"
                   onClick={() => setCategory(slug)}
-                  style={themeStyle(products.find((product) => product.slug === slug)?.theme)}
-                  className={`relative flex min-h-40 flex-col items-center justify-center gap-3 rounded-xl border-2 p-5 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                    "border-theme-border bg-theme-soft hover:border-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark"
-                  }`}
+                  style={themeStyle(
+                    products.find((product) => product.slug === slug)?.theme,
+                  )}
+                  className={`relative flex min-h-40 flex-col items-center justify-center gap-3 rounded-xl border-2 p-5 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${"border-theme-border bg-theme-soft hover:border-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark"}`}
                 >
                   <div
-                    className={`flex size-12 items-center justify-center rounded-xl ${
-                      "bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark"
-                    }`}
+                    className={`flex size-12 items-center justify-center rounded-xl ${"bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark"}`}
                   >
                     <Icon className="size-6" />
                   </div>
@@ -170,9 +173,7 @@ export function SignupForm({ products }: { products: Product[] }) {
                     </p>
                   </div>
                   <div
-                    className={`flex size-5 items-center justify-center rounded-full border-2 text-white ${
-                      "border-theme-primary bg-theme-primary"
-                    }`}
+                    className={`flex size-5 items-center justify-center rounded-full border-2 text-white ${"border-theme-primary bg-theme-primary"}`}
                   >
                     <Check className="size-3" />
                   </div>
@@ -185,92 +186,96 @@ export function SignupForm({ products }: { products: Product[] }) {
 
       {category && (
         <>
-      <button
-        type="button"
-        onClick={continueWithGoogle}
-        disabled={loading !== null}
-        className="flex h-11 w-full items-center justify-center gap-3 rounded-lg border border-zinc-200 bg-white text-sm font-medium text-zinc-950 shadow-sm transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
-      >
-        {loading === "google" ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : (
-          <GoogleIcon />
-        )}
-        Continue with Google
-      </button>
-
-      <div className="flex items-center gap-4">
-        <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
-        <span className="text-xs font-medium uppercase text-zinc-500">or</span>
-        <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
-      </div>
-
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <label className="space-y-1.5 text-sm font-medium text-zinc-950 dark:text-zinc-100">
-          <span>Email address</span>
-          <input
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="you@example.com"
-            autoComplete="email"
-            className={inputClass}
-            required
-          />
-        </label>
-        <label className="space-y-1.5 text-sm font-medium text-zinc-950 dark:text-zinc-100">
-          <span>Password</span>
-          <input
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="Create a strong password"
-            autoComplete="new-password"
-            className={inputClass}
-            required
-          />
-        </label>
-        <label className="space-y-1.5 text-sm font-medium text-zinc-950 dark:text-zinc-100">
-          <span>Confirm password</span>
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
-            placeholder="Repeat your password"
-            autoComplete="new-password"
-            className={inputClass}
-            required
-          />
-        </label>
-
-        {error && (
-          <p
-            role="alert"
-            className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+          <button
+            type="button"
+            onClick={continueWithGoogle}
+            disabled={loading !== null}
+            className="flex h-11 w-full items-center justify-center gap-3 rounded-lg border border-zinc-200 bg-white text-sm font-medium text-zinc-950 shadow-sm transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
           >
-            {error}
+            {loading === "google" ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <GoogleIcon />
+            )}
+            Continue with Google
+          </button>
+
+          <div className="flex items-center gap-4">
+            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+            <span className="text-xs font-medium uppercase text-zinc-500">
+              or
+            </span>
+            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+          </div>
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <label className="space-y-1.5 text-sm font-medium text-zinc-950 dark:text-zinc-100">
+              <span>Email address</span>
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
+                autoComplete="email"
+                className={inputClass}
+                required
+              />
+            </label>
+            <label className="space-y-1.5 text-sm font-medium text-zinc-950 dark:text-zinc-100">
+              <span>Password</span>
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Create a strong password"
+                autoComplete="new-password"
+                className={inputClass}
+                required
+              />
+            </label>
+            <label className="space-y-1.5 text-sm font-medium text-zinc-950 dark:text-zinc-100">
+              <span>Confirm password</span>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                placeholder="Repeat your password"
+                autoComplete="new-password"
+                className={inputClass}
+                required
+              />
+            </label>
+
+            {error && (
+              <p
+                role="alert"
+                className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+              >
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading !== null}
+              className="mt-1 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-theme-primary text-sm font-semibold text-white shadow-sm transition hover:bg-theme-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading === "email" && (
+                <Loader2 className="size-4 animate-spin" />
+              )}
+              Create Account
+            </button>
+          </form>
+
+          <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
+            Already have an account?{" "}
+            <Link
+              href={`/login?category=${category}`}
+              className="font-semibold text-theme-primary"
+            >
+              Sign in
+            </Link>
           </p>
-        )}
-
-        <button
-          type="submit"
-          disabled={loading !== null}
-          className="mt-1 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-theme-primary text-sm font-semibold text-white shadow-sm transition hover:bg-theme-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {loading === "email" && <Loader2 className="size-4 animate-spin" />}
-          Create Account
-        </button>
-      </form>
-
-      <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
-        Already have an account?{" "}
-        <Link
-          href={`/login?category=${category}`}
-          className="font-semibold text-theme-primary"
-        >
-          Sign in
-        </Link>
-      </p>
         </>
       )}
       <p className="text-center text-xs leading-5 text-zinc-400 dark:text-zinc-500">
