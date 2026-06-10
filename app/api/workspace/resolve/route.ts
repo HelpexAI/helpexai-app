@@ -2,6 +2,7 @@ import { setActiveWorkspaceCookie } from "@/lib/dashboard/workspace-session";
 import { createClient } from "@/lib/supabase/server";
 import type { CategorySlug } from "@/types";
 import { NextResponse } from "next/server";
+import { getActiveProducts } from "@/lib/products/catalog";
 
 export async function POST() {
   const supabase = await createClient();
@@ -23,7 +24,9 @@ export async function POST() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  if (!accounts?.length) {
+  const activeSlugs = new Set((await getActiveProducts()).map((product) => product.slug));
+  const activeAccounts = accounts?.filter((account) => activeSlugs.has(account.category_slug)) ?? [];
+  if (!activeAccounts.length) {
     await supabase.auth.signOut();
     return NextResponse.json(
       { error: "No Helpex account exists for this email." },
@@ -31,13 +34,12 @@ export async function POST() {
     );
   }
 
-  if (accounts.length > 1) {
+  if (activeAccounts.length > 1) {
     return NextResponse.json({ next: "/select-workspace" });
   }
 
-  const category = accounts[0].category_slug as CategorySlug;
+  const category = activeAccounts[0].category_slug as CategorySlug;
   const response = NextResponse.json({ next: "/dashboard", category });
   setActiveWorkspaceCookie(response, category);
   return response;
 }
-

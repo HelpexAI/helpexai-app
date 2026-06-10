@@ -12,10 +12,7 @@ export default async function VerifyEmailPage({
   searchParams: Promise<{ email?: string; category?: string }>;
 }) {
   const resolvedSearchParams = await searchParams;
-  const category: CategorySlug | undefined =
-    resolvedSearchParams.category === "legal" || resolvedSearchParams.category === "business"
-      ? resolvedSearchParams.category
-      : undefined;
+  const category: CategorySlug | undefined = resolvedSearchParams.category || undefined;
 
   return <VerifyEmailCard email={resolvedSearchParams.email} category={category} />;
 }

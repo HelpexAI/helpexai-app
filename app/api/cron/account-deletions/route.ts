@@ -16,7 +16,7 @@ async function handleDeletionCron(request: Request) {
   const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const { data: accounts, error } = await service
     .from("accounts")
-    .select("user_id")
+    .select("user_id, category_slug")
     .not("deletion_requested_at", "is", null)
     .lte("deletion_requested_at", cutoff);
 
@@ -35,10 +35,10 @@ async function handleDeletionCron(request: Request) {
       const paths = (documents ?? []).map((document) => document.file_path);
       if (paths.length) await service.storage.from("documents").remove(paths);
       const vectorDB = getVectorDBProvider();
-      await Promise.all([
-        vectorDB.deleteNamespace(generateNamespace(userId, "legal")),
-        vectorDB.deleteNamespace(generateNamespace(userId, "business")),
-      ]);
+      const categories = Array.from(new Set(
+        (accounts ?? []).filter((account) => account.user_id === userId).map((account) => account.category_slug),
+      ));
+      await Promise.all(categories.map((category) => vectorDB.deleteNamespace(generateNamespace(userId, category))));
 
       const { error: deleteError } = await service.auth.admin.deleteUser(userId);
       if (deleteError) throw deleteError;

@@ -1,7 +1,7 @@
 import { getCurrentWorkspace } from "@/lib/dashboard/workspace";
 import { startOfTodayUtc } from "@/lib/usage/daily";
 import { createClient } from "@/lib/supabase/server";
-import { PLAN_LIMITS } from "@/lib/stripe/plans";
+import { getProductPlan } from "@/lib/plans/catalog";
 import {
   ArrowRight,
   Briefcase,
@@ -124,7 +124,7 @@ export default async function DashboardPage() {
   const workspace = await getCurrentWorkspace();
   const supabase = await createClient();
 
-  const [questionsResult, recentResult] = await Promise.all([
+  const [questionsResult, recentResult, plan] = await Promise.all([
     supabase
       .from("usage_logs")
       .select("*", { count: "exact", head: true })
@@ -139,15 +139,15 @@ export default async function DashboardPage() {
       .eq("category_slug", workspace.category)
       .order("created_at", { ascending: false })
       .limit(3),
+    getProductPlan(supabase, workspace.category, workspace.plan),
   ]);
 
-  const limits = PLAN_LIMITS[workspace.plan];
+  const limits = plan;
   const documentsCount = workspace.documentsUsed;
   const questionsCount = questionsResult.count ?? 0;
   const conversationsCount = recentResult.count ?? 0;
   const recentConversations = recentResult.data ?? [];
-  const business = workspace.category === "business";
-  const CategoryIcon = business ? Briefcase : Scale;
+  const CategoryIcon = workspace.product.icon === "scale" ? Scale : Briefcase;
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6 lg:p-8">
@@ -189,16 +189,14 @@ export default async function DashboardPage() {
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="font-bold text-zinc-950 dark:text-white">
-                Helpex {business ? "Business" : "Legal"}
+                {workspace.product.name}
               </h3>
               <span className="rounded-full border border-theme-border bg-theme-soft px-2 py-0.5 text-xs font-semibold text-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark">
                 Active
               </span>
             </div>
             <p className="max-w-2xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-              {business
-                ? "Analyze business documents, compare contracts and invoices, and uncover costly discrepancies."
-                : "Analyze legal documents, understand clauses and obligations, and receive clear cited insights."}
+              {workspace.product.description}
             </p>
           </div>
         </div>

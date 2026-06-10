@@ -5,7 +5,7 @@ import { CitationPreviewPanel } from "@/components/conversations/citation-previe
 import { MarkdownMessage } from "@/components/conversations/markdown-message";
 import { ConversationDocumentManager } from "@/components/conversations/conversation-document-manager";
 import { PlanLimitModal } from "@/components/dashboard/plan-limit-modal";
-import { AI_DISCLAIMERS, stripAiDisclaimer } from "@/lib/ai/disclaimer";
+import { aiDisclaimer, stripAiDisclaimer } from "@/lib/ai/disclaimer";
 import type { CategorySlug, Message, MessageSource } from "@/types";
 import { AlertTriangle, Bot, ChevronDown, ChevronUp, Eye, FileText, List, Loader2, Lock, Send } from "lucide-react";
 import Link from "next/link";
@@ -39,6 +39,7 @@ export function ActiveConversation({
   category,
   questionsUsed,
   questionsLimit,
+  disclaimer,
 }: {
   conversation: ConversationSummary;
   conversations: ConversationSummary[];
@@ -48,6 +49,7 @@ export function ActiveConversation({
   category: CategorySlug;
   questionsUsed: number;
   questionsLimit: number;
+  disclaimer?: string;
 }) {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -160,7 +162,7 @@ export function ActiveConversation({
           {!messages.length && <div className="mx-auto mt-12 max-w-md text-center"><div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-theme-soft text-theme-primary dark:bg-theme-soft-dark"><Bot className="size-7" /></div><h3 className="mt-4 text-xl font-bold">Ask your first question</h3><p className="mt-2 text-sm text-zinc-500">Your first message will automatically name this conversation.</p></div>}
           {messages.map((message) => message.role === "user" ? <div key={message.id} className="flex justify-end"><div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-theme-primary px-4 py-3 text-sm leading-6 text-white sm:max-w-[70%]">{message.content}</div></div> : <div key={message.id} className="flex items-start gap-3"><div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-theme-soft text-theme-primary dark:bg-theme-soft-dark"><Bot className="size-4" /></div><div className="min-w-0 max-w-[88%] space-y-2 sm:max-w-[75%]"><div className="rounded-2xl rounded-tl-sm border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900"><MarkdownMessage content={stripAiDisclaimer(message.content)} /></div><Sources sources={(message.sources ?? []) as MessageSource[]} onPreview={setActiveCitation} /></div></div>)}
           {loading && <div className="flex items-start gap-3"><div className="flex size-8 items-center justify-center rounded-full bg-theme-soft text-theme-primary"><Bot className="size-4" /></div><div className="flex items-center gap-2 rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-zinc-400 dark:border-zinc-800 dark:bg-zinc-900"><Loader2 className="size-4 animate-spin" />Analyzing documents...</div></div>}
-          <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"><AlertTriangle className="size-3.5 shrink-0" />{AI_DISCLAIMERS[category]}</div>
+          <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"><AlertTriangle className="size-3.5 shrink-0" />{disclaimer ?? aiDisclaimer(category)}</div>
           <div ref={endRef} />
         </div>
 

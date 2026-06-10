@@ -27,7 +27,7 @@ export default function OpenGraphImage() {
             Your documents. Clear, cited AI answers.
           </div>
           <div style={{ color: "#b6c4d8", display: "flex", fontSize: 30, marginTop: 30 }}>
-            Document intelligence for legal professionals and growing businesses.
+            Document intelligence for growing businesses.
           </div>
         </div>
       </div>
@@ -35,4 +35,3 @@ export default function OpenGraphImage() {
     size,
   );
 }
-

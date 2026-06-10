@@ -2,6 +2,7 @@ import { getDocumentRequestContext, fileTypeFromFile, safeStorageFilename } from
 import { MAX_FILES_PER_UPLOAD, MAX_FILE_SIZE } from "@/lib/validations/schemas";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { NextResponse } from "next/server";
+import { getProductForAccount } from "@/lib/products/catalog";
 import { validateReadableDocument, DocumentReadabilityError } from "@/lib/documents/readability";
 import { logEvent, reportError } from "@/lib/monitoring";
 import { revalidateWorkspacePaths } from "@/lib/cache/revalidate";
@@ -20,9 +21,11 @@ export async function GET() {
     .order("created_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  const product = await getProductForAccount(context.category);
   return NextResponse.json({
     documents: documents ?? [],
     category: context.category,
+    productName: product.name,
     maxDocuments: context.documentLimit.limit,
     requiresResolution: context.documentLimit.requiresResolution,
   });

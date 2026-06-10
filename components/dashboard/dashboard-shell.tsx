@@ -2,7 +2,7 @@
 
 import { AuthThemeToggle } from "@/components/auth/auth-theme-toggle";
 import type { CurrentWorkspace } from "@/lib/dashboard/workspace";
-import { dashboardTheme, themeStyle } from "@/lib/theme";
+import { themeStyle } from "@/lib/theme";
 import { createClient } from "@/lib/supabase/client";
 import {
   Briefcase,
@@ -140,13 +140,12 @@ export function DashboardShell({
   const documentViewerOpen = /^\/documents\/[^/]+$/.test(pathname);
   const activeConversationOpen = /^\/conversations\/[^/]+$/.test(pathname);
   const immersivePageOpen = documentViewerOpen || activeConversationOpen;
-  const business = workspace.category === "business";
-  const CategoryIcon = business ? Briefcase : Scale;
+  const CategoryIcon = workspace.product.icon === "scale" ? Scale : Briefcase;
 
   return (
     <div
       className="min-h-screen bg-slate-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-50"
-      style={themeStyle(dashboardTheme(workspace.category))}
+      style={themeStyle(workspace.product.theme)}
     >
       {pendingHref && (
         <div className="fixed inset-x-0 top-0 z-[100] h-0.5 overflow-hidden bg-theme-soft dark:bg-theme-soft-dark">
@@ -190,7 +189,7 @@ export function DashboardShell({
           </Link>
           {!collapsed && (
             <span className="mt-4 inline-flex rounded-full border border-theme-primary/30 bg-theme-primary/15 px-2.5 py-1 text-xs font-semibold text-theme-soft-foreground-dark">
-              Helpex {business ? "Business" : "Legal"}
+              {workspace.product.name}
             </span>
           )}
         </div>
@@ -319,7 +318,7 @@ export function DashboardShell({
                 {current.label}
               </h1>
               <p className="hidden text-xs text-zinc-500 dark:text-zinc-400 sm:block lg:hidden">
-                Helpex {business ? "Business" : "Legal"}
+                {workspace.product.name}
               </p>
             </div>
           </div>

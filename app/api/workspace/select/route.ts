@@ -2,6 +2,7 @@ import { setActiveWorkspaceCookie } from "@/lib/dashboard/workspace-session";
 import { createClient } from "@/lib/supabase/server";
 import type { CategorySlug } from "@/types";
 import { NextResponse } from "next/server";
+import { getActiveProduct } from "@/lib/products/catalog";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -18,7 +19,8 @@ export async function POST(request: Request) {
   } | null;
   const category = body?.category;
 
-  if (category !== "legal" && category !== "business") {
+  const product = await getActiveProduct(category);
+  if (!category || !product) {
     return NextResponse.json({ error: "Choose a valid Helpex account." }, { status: 400 });
   }
 
@@ -36,7 +38,7 @@ export async function POST(request: Request) {
   if (!account) {
     return NextResponse.json(
       {
-        error: `No Helpex ${category === "legal" ? "Legal" : "Business"} account exists for this email.`,
+        error: `No ${product.name} account exists for this email.`,
       },
       { status: 404 },
     );

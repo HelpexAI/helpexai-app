@@ -11,6 +11,7 @@ type DocumentsResponse = {
   error?: string;
   documents: Document[];
   category: CategorySlug;
+  productName: string;
   maxDocuments: number;
   requiresResolution: boolean;
 };
@@ -22,5 +23,5 @@ export function DocumentsClientPage() {
   });
   if (error) return <ClientPageError message={error.message} onRetry={() => void refetch()} />;
   if (!data) return <SectionLoading label="Loading documents..." />;
-  return <DocumentLibrary documents={data.documents} category={data.category} maxDocuments={data.maxDocuments} requiresResolution={data.requiresResolution} />;
+  return <DocumentLibrary documents={data.documents} productName={data.productName} maxDocuments={data.maxDocuments} requiresResolution={data.requiresResolution} />;
 }

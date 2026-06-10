@@ -1,16 +1,19 @@
 import { AuthShell } from "@/components/auth/auth-shell";
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { getActiveProducts } from "@/lib/products/catalog";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
+export const dynamic = "force-dynamic";
 
-export default function AuthLayout({
+export default async function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const products = await getActiveProducts();
   return (
     <Suspense
       fallback={
@@ -19,7 +22,7 @@ export default function AuthLayout({
         </div>
       }
     >
-      <AuthShell>{children}</AuthShell>
+      <AuthShell products={products}>{children}</AuthShell>
     </Suspense>
   );
 }

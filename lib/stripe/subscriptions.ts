@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { normalizePlanSlug } from "@/lib/stripe/plans";
-import type { CategorySlug, PlanSlug, SubscriptionStatus } from "@/types";
+import type { CategorySlug, SubscriptionStatus } from "@/types";
 import type Stripe from "stripe";
 
 export function validStripePriceId(value: string | null | undefined) {
@@ -14,20 +14,6 @@ export function subscriptionStatus(status: Stripe.Subscription.Status): Subscrip
   return "cancelled";
 }
 
-function planFromPriceId(priceId: string | undefined): PlanSlug {
-  const premiumPrices = [
-    process.env.STRIPE_LEGAL_PREMIUM_PRICE_ID,
-    process.env.STRIPE_BUSINESS_PREMIUM_PRICE_ID,
-  ];
-  const proPrices = [
-    process.env.STRIPE_LEGAL_PRO_PRICE_ID,
-    process.env.STRIPE_BUSINESS_PRO_PRICE_ID,
-  ];
-  if (priceId && premiumPrices.includes(priceId)) return "premium";
-  if (priceId && proPrices.includes(priceId)) return "pro";
-  return "free";
-}
-
 export async function updateAccountFromSubscription(subscription: Stripe.Subscription) {
   const service = createServiceClient();
   const userId = subscription.metadata.user_id;
@@ -37,7 +23,11 @@ export async function updateAccountFromSubscription(subscription: Stripe.Subscri
   const status = subscriptionStatus(subscription.status);
   const active = status === "active" || status === "trialing";
   const metadataPlan = normalizePlanSlug(subscription.metadata.plan_slug);
-  const pricePlan = planFromPriceId(subscription.items.data[0]?.price.id);
+  const priceId = subscription.items.data[0]?.price.id;
+  const { data: configuredPlan } = priceId
+    ? await service.from("plans").select("slug").eq("category_slug", category).eq("stripe_price_id", priceId).maybeSingle()
+    : { data: null };
+  const pricePlan = normalizePlanSlug(configuredPlan?.slug);
   const paidPlan = metadataPlan !== "free" ? metadataPlan : pricePlan;
   const { error } = await service
     .from("accounts")

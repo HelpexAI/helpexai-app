@@ -3,23 +3,22 @@
 import { AuthBrandPanel } from "@/components/auth/auth-brand-panel";
 import { AuthThemeToggle } from "@/components/auth/auth-theme-toggle";
 import { themeStyle } from "@/lib/theme";
+import type { Product } from "@/types";
 import Link from "next/link";
 import { LayoutDashboard } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
-export function AuthShell({ children }: { children: React.ReactNode }) {
+export function AuthShell({ children, products }: { children: React.ReactNode; products: Product[] }) {
   const searchParams = useSearchParams();
   const requestedCategory = searchParams.get("category");
-  const category =
-    requestedCategory === "business" || requestedCategory === "legal"
-      ? requestedCategory
-      : undefined;
-  const productHref = category ? `/${category}` : "/";
+  const product = products.find((item) => item.slug === requestedCategory) ?? (products.length === 1 ? products[0] : undefined);
+  const category = product?.slug;
+  const productHref = category === "business" ? "/business" : category ? `/products/${category}` : "/";
 
   return (
     <div
       className="min-h-screen bg-slate-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-50"
-      style={themeStyle(category ?? "main")}
+      style={themeStyle(product?.theme ?? "main")}
     >
       <div className="flex min-h-screen w-full">
         <AuthBrandPanel homeHref={productHref} />

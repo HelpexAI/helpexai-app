@@ -1,38 +1,17 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import type { CategorySlug } from "@/types";
+import type { CategorySlug, Product } from "@/types";
 import { Briefcase, Loader2, Scale } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-
-const workspaces = {
-  legal: {
-    name: "Helpex Legal",
-    description: "Open your legal document workspace",
-    icon: Scale,
-    classes:
-      "border-theme-border bg-theme-soft text-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark",
-  },
-  business: {
-    name: "Helpex Business",
-    description: "Open your business document workspace",
-    icon: Briefcase,
-    classes:
-      "border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400",
-  },
-} satisfies Record<CategorySlug, {
-  name: string;
-  description: string;
-  icon: typeof Scale;
-  classes: string;
-}>;
+import { themeStyle } from "@/lib/theme";
 
 export function WorkspaceSelector({
-  categories,
+  products,
 }: {
-  categories: CategorySlug[];
+  products: Product[];
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -79,24 +58,25 @@ export function WorkspaceSelector({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {categories.map((category) => {
-          const workspace = workspaces[category];
-          const Icon = workspace.icon;
+        {products.map((product) => {
+          const category = product.slug;
+          const Icon = product.icon === "scale" ? Scale : Briefcase;
           return (
             <button
               key={category}
               type="button"
               onClick={() => void selectWorkspace(category)}
               disabled={loading !== null}
+              style={themeStyle(product.theme)}
               className="group flex min-h-44 flex-col items-center justify-center gap-4 rounded-2xl border-2 border-zinc-200 bg-white p-5 text-center shadow-sm transition hover:-translate-y-0.5 hover:border-current hover:shadow-md disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900"
             >
-              <span className={`flex size-14 items-center justify-center rounded-2xl border ${workspace.classes}`}>
+              <span className="flex size-14 items-center justify-center rounded-2xl border border-theme-border bg-theme-soft text-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark">
                 {loading === category ? <Loader2 className="size-6 animate-spin" /> : <Icon className="size-6" />}
               </span>
               <span>
-                <span className="block font-bold text-zinc-950 dark:text-white">{workspace.name}</span>
+                <span className="block font-bold text-zinc-950 dark:text-white">{product.name}</span>
                 <span className="mt-1 block text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                  {workspace.description}
+                  {product.description}
                 </span>
               </span>
             </button>

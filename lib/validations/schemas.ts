@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+export const CategorySlugSchema = z.string().trim().min(1).max(63).regex(/^[a-z0-9][a-z0-9-]*$/)
+
 // ── Auth ──────────────────────────────────────
 
 export const SignUpSchema = z.object({
@@ -8,7 +10,7 @@ export const SignUpSchema = z.object({
     .string()
     .min(8, 'Password must be at least 8 characters')
     .max(72, 'Password too long'),
-  category_slug: z.enum(['legal', 'business'] as const),
+  category_slug: CategorySlugSchema,
 })
 
 export const SignInSchema = z.object({
@@ -22,7 +24,7 @@ export type SignInInput = z.infer<typeof SignInSchema>
 // ── Documents ─────────────────────────────────
 
 export const DocumentUploadSchema = z.object({
-  category_slug: z.enum(['legal', 'business'] as const),
+  category_slug: CategorySlugSchema,
 })
 
 export const ACCEPTED_FILE_TYPES = [
@@ -37,7 +39,7 @@ export const MAX_FILES_PER_UPLOAD = 5
 // ── Conversations ─────────────────────────────
 
 export const CreateConversationSchema = z.object({
-  category_slug: z.enum(['legal', 'business'] as const),
+  category_slug: CategorySlugSchema,
   external_research_enabled: z.boolean().default(false),
   selected_document_ids: z
     .array(z.string().uuid())
@@ -65,7 +67,7 @@ export const SendMessageSchema = z.object({
     .string()
     .min(1, 'Message cannot be empty')
     .max(2000, 'Message too long'),
-  category_slug: z.enum(['legal', 'business'] as const),
+  category_slug: CategorySlugSchema,
 })
 
 export type SendMessageInput = z.infer<typeof SendMessageSchema>

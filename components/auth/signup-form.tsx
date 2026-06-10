@@ -3,46 +3,30 @@
 import { GoogleIcon } from "@/components/auth/google-icon";
 import { createClient } from "@/lib/supabase/client";
 import { SignUpSchema } from "@/lib/validations/schemas";
-import type { CategorySlug } from "@/types";
+import type { CategorySlug, Product } from "@/types";
 import { Briefcase, Check, Loader2, Scale } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
-
-const categories = [
-  {
-    slug: "legal" as const,
-    name: "Helpex Legal",
-    description: "For lawyers and legal teams",
-    icon: Scale,
-  },
-  {
-    slug: "business" as const,
-    name: "Helpex Business",
-    description: "For owners and business teams",
-    icon: Briefcase,
-  },
-];
+import { themeStyle } from "@/lib/theme";
 
 const inputClass =
   "h-11 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/15 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500";
 
-export function SignupForm() {
+export function SignupForm({ products }: { products: Product[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedCategory = searchParams.get("category");
+  const requestedProduct = products.find((product) => product.slug === requestedCategory);
   const [category, setCategory] = useState<CategorySlug | null>(
-    requestedCategory === "business"
-      ? "business"
-      : requestedCategory === "legal"
-        ? "legal"
-        : null,
+    requestedProduct?.slug ?? (products.length === 1 ? products[0].slug : null),
   );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState<"google" | "email" | null>(null);
   const [error, setError] = useState("");
+  const activeProduct = products.find((product) => product.slug === category);
 
   async function continueWithGoogle() {
     if (!category) return;
@@ -66,7 +50,7 @@ export function SignupForm() {
     setError("");
 
     if (!category) {
-      setError("Choose Helpex Legal or Helpex Business first.");
+      setError("Choose a product first.");
       return;
     }
 
@@ -141,7 +125,7 @@ export function SignupForm() {
   }
 
   return (
-    <div className="flex flex-col gap-7">
+    <div className="flex flex-col gap-7" style={themeStyle(activeProduct?.theme)}>
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-white">
           Create your account
@@ -157,25 +141,22 @@ export function SignupForm() {
             Choose your product
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {categories.map(({ slug, name, description, icon: Icon }) => {
-              const business = slug === "business";
+            {products.map(({ slug, name, description, icon }) => {
+              const Icon = icon === "scale" ? Scale : Briefcase;
 
               return (
                 <button
                   key={slug}
                   type="button"
                   onClick={() => setCategory(slug)}
+                  style={themeStyle(products.find((product) => product.slug === slug)?.theme)}
                   className={`relative flex min-h-40 flex-col items-center justify-center gap-3 rounded-xl border-2 p-5 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                    business
-                      ? "border-emerald-200 bg-emerald-50 hover:border-emerald-500 dark:border-emerald-900 dark:bg-emerald-950/20"
-                      : "border-theme-border bg-theme-soft hover:border-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark"
+                    "border-theme-border bg-theme-soft hover:border-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark"
                   }`}
                 >
                   <div
                     className={`flex size-12 items-center justify-center rounded-xl ${
-                      business
-                        ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"
-                        : "bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark"
+                      "bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark"
                     }`}
                   >
                     <Icon className="size-6" />
@@ -190,9 +171,7 @@ export function SignupForm() {
                   </div>
                   <div
                     className={`flex size-5 items-center justify-center rounded-full border-2 text-white ${
-                      business
-                        ? "border-emerald-500 bg-emerald-500"
-                        : "border-theme-primary bg-theme-primary"
+                      "border-theme-primary bg-theme-primary"
                     }`}
                   >
                     <Check className="size-3" />

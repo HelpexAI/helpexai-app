@@ -29,18 +29,11 @@ export async function POST(request: Request) {
     .eq("category_slug", context.category)
     .maybeSingle();
 
-  const envPrice = context.category === "business"
-    ? targetPlan === "premium" ? process.env.STRIPE_BUSINESS_PREMIUM_PRICE_ID : process.env.STRIPE_BUSINESS_PRO_PRICE_ID
-    : targetPlan === "premium" ? process.env.STRIPE_LEGAL_PREMIUM_PRICE_ID : process.env.STRIPE_LEGAL_PRO_PRICE_ID;
-  const priceId = validStripePriceId(envPrice)
-    ? envPrice
-    : validStripePriceId(plan?.stripe_price_id)
-      ? plan!.stripe_price_id
-      : null;
+  const priceId = validStripePriceId(plan?.stripe_price_id) ? plan!.stripe_price_id : null;
 
   if (!priceId) {
     return NextResponse.json(
-      { error: `Stripe ${targetPlan} price is not configured. Add the category's Stripe test-mode recurring price ID.` },
+      { error: `Stripe ${targetPlan} price is not configured for this product.` },
       { status: 503 },
     );
   }

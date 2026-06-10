@@ -3,7 +3,7 @@
 import { PlanLimitModal } from "@/components/dashboard/plan-limit-modal";
 import { DeleteDocumentModal } from "@/components/documents/delete-document-modal";
 import { ResolveDocumentLimitModal } from "@/components/documents/resolve-document-limit-modal";
-import type { CategorySlug, Document as DocumentRecord, DocumentStatus } from "@/types";
+import type { Document as DocumentRecord, DocumentStatus } from "@/types";
 import { formatDate, formatFileSize } from "@/lib/utils";
 import {
   AlertTriangle,
@@ -68,12 +68,12 @@ function DocumentIcon({ type }: { type: DocumentRecord["file_type"] }) {
 
 export function DocumentLibrary({
   documents: initialDocuments,
-  category,
+  productName,
   maxDocuments,
   requiresResolution,
 }: {
   documents: DocumentRecord[];
-  category: CategorySlug;
+  productName: string;
   maxDocuments: number;
   requiresResolution: boolean;
 }) {
@@ -246,7 +246,7 @@ export function DocumentLibrary({
                   </div>
                 </div>
                 <span className="rounded-full border border-theme-border bg-theme-soft px-2.5 py-1 text-xs font-semibold text-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark">
-                  Helpex {category === "business" ? "Business" : "Legal"}
+                  {productName}
                 </span>
                 <span className="text-sm text-zinc-500 dark:text-zinc-400">
                   {formatFileSize(document.file_size)}
@@ -296,7 +296,7 @@ export function DocumentLibrary({
                 </div>
                 <div className="mt-4 flex items-center justify-between border-t border-zinc-200 pt-3 dark:border-zinc-800">
                   <span className="text-xs font-medium text-theme-primary">
-                    Helpex {category === "business" ? "Business" : "Legal"}
+                    {productName}
                   </span>
                   <button
                     type="button"

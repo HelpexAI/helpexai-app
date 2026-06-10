@@ -2,7 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspaceCategory } from "@/lib/dashboard/active-workspace";
 import { getDocumentLimitState } from "@/lib/usage/limits";
 import type { CategorySlug, PlanSlug } from "@/types";
-import { normalizePlanSlug, PLAN_LIMITS } from "@/lib/stripe/plans";
+import type { Product } from "@/types";
+import { normalizePlanSlug } from "@/lib/stripe/plans";
+import { getActiveProduct, getActiveProducts, getProductForAccount } from "@/lib/products/catalog";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import type { User } from "@supabase/supabase-js";
@@ -13,6 +15,7 @@ export interface CurrentWorkspace {
   name: string;
   initials: string;
   category: CategorySlug;
+  product: Product;
   plan: PlanSlug;
   documentsOverLimit: boolean;
   documentsUsed: number;
@@ -46,7 +49,7 @@ export const getCurrentWorkspace = cache(async (): Promise<CurrentWorkspace> => 
     redirect("/login");
   }
 
-  if (activeCategory) {
+  if (activeCategory && await getActiveProduct(activeCategory)) {
     const [accountResult, documentLimit] = await Promise.all([
       supabase
         .from("accounts")
@@ -60,12 +63,7 @@ export const getCurrentWorkspace = cache(async (): Promise<CurrentWorkspace> => 
     if (account) {
       if (account.deletion_requested_at) redirect("/login?account=deletion-requested");
       const plan = normalizePlanSlug(account.plan);
-      const limit = PLAN_LIMITS[plan].max_documents;
-      return buildWorkspace(user, activeCategory, plan, {
-        ...documentLimit,
-        limit,
-        requiresResolution: documentLimit.used > limit,
-      });
+      return buildWorkspace(user, await getProductForAccount(activeCategory), plan, documentLimit);
     }
   }
 
@@ -74,19 +72,21 @@ export const getCurrentWorkspace = cache(async (): Promise<CurrentWorkspace> => 
     .select("category_slug, plan, deletion_requested_at")
     .eq("user_id", user.id)
     .order("created_at", { ascending: true });
-  if (!accounts?.length) redirect("/login?error=no_accounts");
-  if (accounts.some(account => account.deletion_requested_at)) redirect("/login?account=deletion-requested");
-  if (accounts.length > 1) redirect("/select-workspace");
-  const account = accounts[0];
-  const category = account.category_slug === "business" ? "business" : "legal";
+  const activeSlugs = new Set((await getActiveProducts()).map((product) => product.slug));
+  const activeAccounts = accounts?.filter((account) => activeSlugs.has(account.category_slug)) ?? [];
+  if (!activeAccounts.length) redirect("/login?error=no_accounts");
+  if (activeAccounts.some(account => account.deletion_requested_at)) redirect("/login?account=deletion-requested");
+  if (activeAccounts.length > 1) redirect("/select-workspace");
+  const account = activeAccounts[0];
+  const category = account.category_slug as CategorySlug;
   const plan = normalizePlanSlug(account.plan);
   const documentLimit = await getDocumentLimitState(supabase, user.id, category, plan);
-  return buildWorkspace(user, category, plan, documentLimit);
+  return buildWorkspace(user, await getProductForAccount(category), plan, documentLimit);
 });
 
 function buildWorkspace(
   user: User,
-  category: CategorySlug,
+  product: Product,
   plan: PlanSlug,
   documentLimit: Awaited<ReturnType<typeof getDocumentLimitState>>,
 ): CurrentWorkspace {
@@ -112,7 +112,8 @@ function buildWorkspace(
     email: user.email ?? "",
     name,
     initials: initials || "U",
-    category,
+    category: product.slug,
+    product,
     plan,
     documentsOverLimit: documentLimit.requiresResolution,
     documentsUsed: documentLimit.used,

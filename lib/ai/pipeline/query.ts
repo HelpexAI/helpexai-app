@@ -2,14 +2,8 @@ import { getLLMProvider, getEmbeddingProvider, getVectorDBProvider } from '../fa
 import { generateNamespace } from '@/lib/utils'
 import { CategorySlug, MessageSource, VectorSearchResult } from '@/types'
 import { stripAiDisclaimer } from '@/lib/ai/disclaimer'
-import {
-  LEGAL_SYSTEM_PROMPT,
-  LEGAL_OFF_TOPIC_RESPONSE,
-} from '../prompts/legal'
-import {
-  BUSINESS_SYSTEM_PROMPT,
-  BUSINESS_OFF_TOPIC_RESPONSE,
-} from '../prompts/business'
+import { getProductForAccount } from '@/lib/products/catalog'
+import type { Product } from '@/types'
 import { formatWebContext, searchWeb, type WebSearchResult } from '../web-search'
 
 const TOP_K = 5
@@ -49,16 +43,8 @@ function lexicalScore(question: string, text: string): number {
   return [...terms].reduce((score, term) => score + (lowerText.includes(term) ? 1 : 0), 0)
 }
 
-function getSystemPrompt(categorySlug: CategorySlug): string {
-  return categorySlug === 'legal' ? LEGAL_SYSTEM_PROMPT : BUSINESS_SYSTEM_PROMPT
-}
-
-function getOffTopicResponse(categorySlug: CategorySlug): string {
-  return categorySlug === 'legal' ? LEGAL_OFF_TOPIC_RESPONSE : BUSINESS_OFF_TOPIC_RESPONSE
-}
-
-function getSystemPromptForQuery(categorySlug: CategorySlug, externalResearchEnabled: boolean): string {
-  const categoryPrompt = getSystemPrompt(categorySlug)
+function getSystemPromptForQuery(product: Product, externalResearchEnabled: boolean): string {
+  const categoryPrompt = product.system_prompt
   if (!externalResearchEnabled) return categoryPrompt
   return `${categoryPrompt}
 
@@ -126,11 +112,12 @@ ${MARKDOWN_RESPONSE_INSTRUCTION}`
 
 export async function queryDocuments(options: QueryOptions): Promise<QueryResult> {
   const { userId, categorySlug, question, selectedDocumentIds, externalResearchEnabled = false } = options
+  const product = await getProductForAccount(categorySlug)
 
   // 1. Check for off-topic
   if (!externalResearchEnabled && isOffTopic(question)) {
     return {
-      answer: getOffTopicResponse(categorySlug),
+      answer: product.off_topic_response,
       sources: [],
       answerType: 'off_topic',
       tokensUsed: 0,
@@ -159,7 +146,7 @@ export async function queryDocuments(options: QueryOptions): Promise<QueryResult
   // 4. Build prompt
   const webResults = externalResearchEnabled ? await searchWeb(question).catch(() => []) : []
   const prompt = buildPromptWithContext(question, results, hasContext, categorySlug, webResults, externalResearchEnabled)
-  const systemPrompt = getSystemPromptForQuery(categorySlug, externalResearchEnabled)
+  const systemPrompt = getSystemPromptForQuery(product, externalResearchEnabled)
 
   // 5. Get LLM answer
   const llm = getLLMProvider()
@@ -193,9 +180,10 @@ export async function queryDocumentsFromRawText(
   options: Pick<QueryOptions, 'categorySlug' | 'question' | 'externalResearchEnabled'> & { documents: RawDocumentContext[] },
 ): Promise<QueryResult> {
   const { categorySlug, question, externalResearchEnabled = false } = options
+  const product = await getProductForAccount(categorySlug)
   if (!externalResearchEnabled && isOffTopic(question)) {
     return {
-      answer: getOffTopicResponse(categorySlug),
+      answer: product.off_topic_response,
       sources: [],
       answerType: 'off_topic',
       tokensUsed: 0,
@@ -241,7 +229,7 @@ User Question: ${question}
 Use document context as the source of truth for document facts. ${externalResearchEnabled ? 'You may use reliable general knowledge and live web research for benchmarks, estimates, and practical context. Separate document evidence from external context, cite document names/pages, link web sources, and clearly label assumptions.' : 'Answer only from the document context. If the documents cannot support the requested outside benchmark or estimate, suggest turning on **External Research** for this conversation.'}
 
 ${MARKDOWN_RESPONSE_INSTRUCTION}`
-  const answer = stripAiDisclaimer(await getLLMProvider().complete(prompt, getSystemPromptForQuery(categorySlug, externalResearchEnabled)))
+  const answer = stripAiDisclaimer(await getLLMProvider().complete(prompt, getSystemPromptForQuery(product, externalResearchEnabled)))
 
   return {
     answer,

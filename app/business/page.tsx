@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { ProductLandingPage } from "@/components/marketing/product-landing-page";
 import { absoluteUrl } from "@/lib/seo";
+import { getActiveProduct } from "@/lib/products/catalog";
+import { notFound } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "AI Document Analysis for Small Businesses",
@@ -20,8 +22,10 @@ export const metadata: Metadata = {
     url: absoluteUrl("/business"),
   },
 };
+export const dynamic = "force-dynamic";
 
-export default function BusinessPage() {
-  return <ProductLandingPage category="business" />;
+export default async function BusinessPage() {
+  const product = await getActiveProduct("business");
+  if (!product) notFound();
+  return <ProductLandingPage category="business" databaseProduct={product} />;
 }
-

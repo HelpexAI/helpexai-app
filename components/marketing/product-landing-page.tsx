@@ -16,6 +16,7 @@ import { MarketingFooter } from "@/components/marketing-footer";
 import { MarketingHeader } from "@/components/marketing-header";
 import { themeStyle } from "@/lib/theme";
 import { absoluteUrl, SITE_NAME } from "@/lib/seo";
+import type { Product } from "@/types";
 
 type ProductCategory = "legal" | "business";
 
@@ -147,8 +148,17 @@ const products: Record<ProductCategory, ProductConfig> = {
   },
 };
 
-export function ProductLandingPage({ category }: { category: ProductCategory }) {
-  const product = products[category];
+export function ProductLandingPage({ category, databaseProduct }: { category: ProductCategory; databaseProduct?: Product }) {
+  const baseProduct = products[category];
+  const marketing = databaseProduct?.marketing ?? {};
+  const product = {
+    ...baseProduct,
+    name: databaseProduct?.name ?? baseProduct.name,
+    description: databaseProduct?.description || baseProduct.description,
+    eyebrow: String(marketing.eyebrow || baseProduct.eyebrow),
+    headline: String(marketing.headline || databaseProduct?.hero_message || baseProduct.headline),
+    audience: String(marketing.audience || baseProduct.audience),
+  };
   const ProductIcon = product.icon;
   const signupHref = `/signup?category=${category}`;
   const jsonLd = {
@@ -183,7 +193,7 @@ export function ProductLandingPage({ category }: { category: ProductCategory }) 
   return (
     <div
       className="marketing-page min-h-screen bg-white text-zinc-950 dark:bg-zinc-950 dark:text-zinc-50"
-      style={themeStyle(category)}
+      style={themeStyle(databaseProduct?.theme ?? category)}
     >
       <script
         type="application/ld+json"

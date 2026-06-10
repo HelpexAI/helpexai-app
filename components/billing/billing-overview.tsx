@@ -1,6 +1,6 @@
 "use client";
 
-import type { PlanSlug, SubscriptionStatus } from "@/types";
+import type { Plan, PlanSlug, SubscriptionStatus } from "@/types";
 import { Check, CreditCard, Download, Loader2, Settings2, X, Zap } from "lucide-react";
 import { useState } from "react";
 
@@ -42,15 +42,21 @@ export function BillingOverview({
   invoices,
   notice,
   subscriptionStatus,
+  plans,
 }: {
   plan: PlanSlug;
   usage: Usage[];
   invoices: Invoice[];
   notice?: "success" | "cancelled";
   subscriptionStatus: SubscriptionStatus | null;
+  plans: Plan[];
 }) {
   const [loading, setLoading] = useState<"pro" | "premium" | "portal" | null>(null);
   const [error, setError] = useState("");
+  const planConfig = (slug: PlanSlug) => plans.find((item) => item.slug === slug);
+  const free = planConfig("free");
+  const pro = planConfig("pro");
+  const premium = planConfig("premium");
 
   async function openStripe(path: string, action: "pro" | "premium" | "portal") {
     setLoading(action);
@@ -90,18 +96,18 @@ export function BillingOverview({
       <section className="grid gap-5 lg:grid-cols-3">
         <article className={`flex flex-col gap-5 rounded-2xl border-2 bg-white p-6 shadow-sm dark:bg-zinc-900 ${plan === "free" ? "border-theme-primary" : "border-zinc-200 dark:border-zinc-800"}`}>
           <div className="flex items-center justify-between"><h2 className="font-bold">Free</h2>{plan === "free" && <span className="rounded-full bg-theme-soft px-3 py-1 text-xs font-semibold text-theme-soft-foreground dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark">CURRENT PLAN</span>}</div>
-          <div><strong className="text-4xl font-black">$0</strong><span className="ml-1 text-sm text-zinc-500">/month</span></div>
+          <div><strong className="text-4xl font-black">${(free?.price_monthly ?? 0) / 100}</strong><span className="ml-1 text-sm text-zinc-500">/month</span></div>
           <ul className="flex flex-1 flex-col gap-2 border-t border-zinc-200 pt-5 dark:border-zinc-800">
-            <PlanFeature enabled>3 documents</PlanFeature><PlanFeature enabled>5 questions/day</PlanFeature><PlanFeature enabled>Unlimited conversations</PlanFeature><PlanFeature enabled={false}>30 documents</PlanFeature><PlanFeature enabled={false}>Priority processing</PlanFeature>
+            <PlanFeature enabled>{free?.max_documents ?? 3} documents</PlanFeature><PlanFeature enabled>{free?.max_queries_day ?? 5} questions/day</PlanFeature><PlanFeature enabled>Unlimited conversations</PlanFeature><PlanFeature enabled={false}>Priority processing</PlanFeature>
           </ul>
           <button disabled className="h-11 rounded-full bg-zinc-100 text-sm font-semibold text-zinc-400 dark:bg-zinc-800">{plan === "free" ? "Current Plan" : "Free Plan"}</button>
         </article>
 
         <article className={`flex flex-col gap-5 rounded-2xl border-2 bg-theme-primary p-6 text-white shadow-lg ${plan === "pro" ? "border-white" : "border-transparent"}`}>
           <div className="flex items-center justify-between"><h2 className="font-bold">Pro</h2><span className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold">{plan === "pro" ? "CURRENT PLAN" : "MOST POPULAR"}</span></div>
-          <div><strong className="text-4xl font-black">$29</strong><span className="ml-1 text-sm text-white/80">/month</span></div>
+          <div><strong className="text-4xl font-black">${(pro?.price_monthly ?? 2900) / 100}</strong><span className="ml-1 text-sm text-white/80">/month</span></div>
           <ul className="flex flex-1 flex-col gap-2 border-t border-white/20 pt-5 text-white [&_svg]:text-white">
-            <PlanFeature enabled>30 documents</PlanFeature><PlanFeature enabled>30 questions/day</PlanFeature><PlanFeature enabled>Unlimited conversations</PlanFeature><PlanFeature enabled>Advanced citations</PlanFeature><PlanFeature enabled>Priority processing</PlanFeature><PlanFeature enabled>Cancel anytime</PlanFeature>
+            <PlanFeature enabled>{pro?.max_documents ?? 30} documents</PlanFeature><PlanFeature enabled>{pro?.max_queries_day ?? 30} questions/day</PlanFeature><PlanFeature enabled>Unlimited conversations</PlanFeature><PlanFeature enabled>Advanced citations</PlanFeature><PlanFeature enabled>Priority processing</PlanFeature><PlanFeature enabled>Cancel anytime</PlanFeature>
           </ul>
           {plan === "pro" ? (
             <button onClick={() => void openStripe("/api/stripe/portal", "portal")} disabled={loading !== null} className="flex h-11 items-center justify-center gap-2 rounded-full bg-white font-semibold text-theme-primary disabled:opacity-70">
@@ -116,9 +122,9 @@ export function BillingOverview({
 
         <article className={`flex flex-col gap-5 rounded-2xl border-2 bg-white p-6 shadow-sm dark:bg-zinc-900 ${plan === "premium" ? "border-theme-primary" : "border-zinc-200 dark:border-zinc-800"}`}>
           <div className="flex items-center justify-between"><h2 className="font-bold">Premium</h2><span className="rounded-full bg-theme-soft px-3 py-1 text-xs font-semibold text-theme-soft-foreground dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark">{plan === "premium" ? "CURRENT PLAN" : "MAXIMUM POWER"}</span></div>
-          <div><strong className="text-4xl font-black">$49</strong><span className="ml-1 text-sm text-zinc-500">/month</span></div>
+          <div><strong className="text-4xl font-black">${(premium?.price_monthly ?? 4900) / 100}</strong><span className="ml-1 text-sm text-zinc-500">/month</span></div>
           <ul className="flex flex-1 flex-col gap-2 border-t border-zinc-200 pt-5 dark:border-zinc-800">
-            <PlanFeature enabled>100 documents</PlanFeature><PlanFeature enabled>100 questions/day</PlanFeature><PlanFeature enabled>Unlimited conversations</PlanFeature><PlanFeature enabled>Advanced citations</PlanFeature><PlanFeature enabled>Priority processing</PlanFeature><PlanFeature enabled>Cancel anytime</PlanFeature>
+            <PlanFeature enabled>{premium?.max_documents ?? 100} documents</PlanFeature><PlanFeature enabled>{premium?.max_queries_day ?? 100} questions/day</PlanFeature><PlanFeature enabled>Unlimited conversations</PlanFeature><PlanFeature enabled>Advanced citations</PlanFeature><PlanFeature enabled>Priority processing</PlanFeature><PlanFeature enabled>Cancel anytime</PlanFeature>
           </ul>
           {plan === "premium" ? (
             <button onClick={() => void openStripe("/api/stripe/portal", "portal")} disabled={loading !== null} className="flex h-11 items-center justify-center gap-2 rounded-full bg-theme-primary font-semibold text-white disabled:opacity-70">

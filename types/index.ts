@@ -2,7 +2,35 @@
 // HelpexAI — Shared TypeScript Types
 // ─────────────────────────────────────────────
 
-export type CategorySlug = 'legal' | 'business'
+export type CategorySlug = string
+
+export interface ProductTheme {
+  primary: string
+  primaryHover: string
+  primaryForeground: string
+  soft: string
+  softDark: string
+  softForeground: string
+  softForegroundDark: string
+  border: string
+  borderDark: string
+}
+
+export interface Product {
+  slug: CategorySlug
+  name: string
+  short_name: string
+  description: string
+  hero_message: string
+  icon: string
+  is_active: boolean
+  sort_order: number
+  system_prompt: string
+  off_topic_response: string
+  disclaimer_text: string
+  theme: ProductTheme
+  marketing: Record<string, unknown>
+}
 
 export type PlanSlug = 'free' | 'pro' | 'premium'
 

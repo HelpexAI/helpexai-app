@@ -27,5 +27,5 @@ export function ConversationsClientPage() {
   if (error) return <ClientPageError message={error.message} onRetry={() => void refetch()} />;
   if (!data) return <ConversationSkeleton root />;
   if (data.locked) return <ConversationsLocked used={data.used ?? 0} limit={data.limit ?? 0} />;
-  return <ConversationHub conversations={data.conversations ?? []} documents={data.documents ?? []} category={data.category ?? "legal"} />;
+  return <ConversationHub conversations={data.conversations ?? []} documents={data.documents ?? []} category={data.category ?? "business"} />;
 }

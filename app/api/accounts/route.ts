@@ -2,8 +2,9 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { z } from "zod";
 import { NextResponse } from "next/server";
+import { isActiveProductSlug } from "@/lib/products/catalog";
 
-const schema = z.object({ category: z.enum(["legal", "business"]) });
+const schema = z.object({ category: z.string().min(1).max(63) });
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -14,7 +15,9 @@ export async function POST(request: Request) {
   if (limited) return limited;
 
   const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Choose a valid product." }, { status: 400 });
+  if (!parsed.success || !(await isActiveProductSlug(parsed.data.category))) {
+    return NextResponse.json({ error: "Choose a valid active product." }, { status: 400 });
+  }
 
   const service = createServiceClient();
   const { error } = await service.from("accounts").upsert(

@@ -2,6 +2,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { setActiveWorkspaceCookie } from "@/lib/dashboard/workspace-session";
 import type { CategorySlug } from "@/types";
 import { NextResponse } from "next/server";
+import { getActiveProducts, isActiveProductSlug } from "@/lib/products/catalog";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -22,9 +23,9 @@ export async function GET(request: Request) {
 
   const metadataCategory = data.user.user_metadata.category_slug;
   const category: CategorySlug | null =
-    requestedCategory === "legal" || requestedCategory === "business"
+    (await isActiveProductSlug(requestedCategory))
       ? requestedCategory
-      : metadataCategory === "legal" || metadataCategory === "business"
+      : (await isActiveProductSlug(metadataCategory))
         ? metadataCategory
         : null;
 
@@ -61,16 +62,18 @@ export async function GET(request: Request) {
     .eq("user_id", data.user.id)
     .order("created_at", { ascending: true });
 
-  if (accountsError || !accounts?.length) {
+  const activeSlugs = new Set((await getActiveProducts()).map((product) => product.slug));
+  const activeAccounts = accounts?.filter((account) => activeSlugs.has(account.category_slug)) ?? [];
+  if (accountsError || !activeAccounts.length) {
     await supabase.auth.signOut();
     return NextResponse.redirect(new URL("/login?error=no_accounts", url.origin));
   }
 
-  if (accounts.length > 1) {
+  if (activeAccounts.length > 1) {
     return NextResponse.redirect(new URL("/select-workspace", url.origin));
   }
 
   const response = NextResponse.redirect(new URL(safeNext, url.origin));
-  setActiveWorkspaceCookie(response, accounts[0].category_slug as CategorySlug);
+  setActiveWorkspaceCookie(response, activeAccounts[0].category_slug as CategorySlug);
   return response;
 }

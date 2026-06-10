@@ -3,6 +3,7 @@ import { getActiveWorkspaceCategory } from "@/lib/dashboard/active-workspace";
 import { getDocumentLimitState } from "@/lib/usage/limits";
 import type { CategorySlug, FileType, PlanSlug } from "@/types";
 import { normalizePlanSlug } from "@/lib/stripe/plans";
+import { getActiveProducts } from "@/lib/products/catalog";
 
 export async function getDocumentRequestContext() {
   const supabase = await createClient();
@@ -13,18 +14,19 @@ export async function getDocumentRequestContext() {
   if (!user) return null;
 
   const activeCategory = await getActiveWorkspaceCategory();
+  const activeSlugs = new Set((await getActiveProducts()).map((product) => product.slug));
   let accountQuery = supabase
     .from("accounts")
     .select("category_slug, plan")
     .order("created_at", { ascending: true });
 
-  if (activeCategory) {
+  if (activeCategory && activeSlugs.has(activeCategory)) {
     accountQuery = accountQuery.eq("category_slug", activeCategory);
   }
 
   let { data: account } = await accountQuery.limit(1).maybeSingle();
 
-  if (activeCategory && !account) {
+  if (activeCategory && activeSlugs.has(activeCategory) && !account) {
     const fallback = await supabase
       .from("accounts")
       .select("category_slug, plan")
@@ -35,8 +37,9 @@ export async function getDocumentRequestContext() {
   }
 
   if (!account) return null;
+  if (!activeSlugs.has(account.category_slug)) return null;
 
-  const category = (account?.category_slug === "business" ? "business" : "legal") as CategorySlug;
+  const category = account.category_slug as CategorySlug;
   const plan = normalizePlanSlug(account?.plan) as PlanSlug;
   const service = createServiceClient();
   const documentLimit = await getDocumentLimitState(service, user.id, category, plan);

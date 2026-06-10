@@ -70,6 +70,8 @@ const dashboardLayout = await readFile(new URL("../app/(dashboard)/layout.tsx", 
 const selectWorkspacePage = await readFile(new URL("../app/(auth)/select-workspace/page.tsx", import.meta.url), "utf8");
 const publicToolSession = await readFile(new URL("../lib/public-tool/session.ts", import.meta.url), "utf8");
 const textSanitizer = await readFile(new URL("../lib/text/sanitize.ts", import.meta.url), "utf8");
+const dynamicProductsMigration = await readFile(new URL("../supabase/migrations/009_dynamic_products.sql", import.meta.url), "utf8");
+const productCatalog = await readFile(new URL("../lib/products/catalog.ts", import.meta.url), "utf8");
 
 test("account protected writes are revoked from authenticated clients", () => {
   assert.match(migration, /DROP POLICY IF EXISTS "Users can update own accounts"/);
@@ -260,26 +262,26 @@ test("public navigation is session-aware while Get Started remains signup", () =
   assert.match(marketingHeader, /authCategory \? `\/signup\?category=\$\{authCategory\}` : "\/signup"/);
 });
 
-test("public product pages provide niche SEO and category-aware conversion paths", () => {
-  assert.match(marketingHeader, /Products/);
-  assert.match(marketingHeader, /href="\/legal"/);
-  assert.match(marketingHeader, /href="\/business"/);
-  assert.match(legalLanding, /alternates: \{ canonical: "\/legal" \}/);
+test("single-product marketing hides inactive products and keeps the active conversion path", () => {
+  assert.doesNotMatch(marketingHeader, /Helpex Legal/);
+  assert.doesNotMatch(marketingHeader, />Products</);
+  assert.match(legalLanding, /redirect\("\/business"\)/);
   assert.match(businessLanding, /alternates: \{ canonical: "\/business" \}/);
+  assert.match(businessLanding, /getActiveProduct\("business"\)/);
   assert.match(productLanding, /FAQPage/);
   assert.match(productLanding, /SoftwareApplication/);
   assert.match(productLanding, /`\/signup\?category=\$\{category\}`/);
   assert.match(robotsRoute, /sitemap/);
-  assert.match(sitemapRoute, /absoluteUrl\("\/legal"\)/);
+  assert.doesNotMatch(sitemapRoute, /absoluteUrl\("\/legal"\)/);
   assert.match(sitemapRoute, /absoluteUrl\("\/business"\)/);
 });
 
-test("product auth flows remain explicit and preserve their category theme", () => {
+test("product auth flows resolve active database products and preserve their theme", () => {
   assert.match(productLanding, /<MarketingHeader authCategory=\{category\} \/>/);
   assert.match(marketingHeader, /authCategory \? `\/login\?category=\$\{authCategory\}`/);
   assert.match(marketingHeader, /const showSignIn = Boolean\(authCategory\) \|\| authenticated !== null/);
-  assert.match(authShell, /themeStyle\(category \?\? "main"\)/);
-  assert.match(authShell, /requestedCategory === "business" \|\| requestedCategory === "legal"/);
+  assert.match(authShell, /products\.find/);
+  assert.match(authShell, /themeStyle\(product\?\.theme \?\? "main"\)/);
   assert.match(loginForm, /`\/signup\$\{categoryQuery\}`/);
   assert.match(signupForm, /`\/login\?category=\$\{category\}`/);
   assert.match(middleware, /isProductAuthFlow/);
@@ -296,15 +298,26 @@ test("SEO content and high-intent use-case routes are static, structured, and in
   assert.match(marketingContent, /slug: "invoice-analysis"/);
   assert.match(marketingContent, /slug: "vendor-contract-review"/);
   assert.match(articleRoute, /generateStaticParams/);
-  assert.match(legalUseCaseRoute, /generateStaticParams/);
+  assert.match(legalUseCaseRoute, /redirect\("\/business"\)/);
   assert.match(businessUseCaseRoute, /generateStaticParams/);
   assert.match(articlePage, /"@type": "Article"/);
   assert.match(articlePage, /"@type": "BreadcrumbList"/);
   assert.match(useCasePage, /"@type": "FAQPage"/);
   assert.match(productLanding, /href: "\/legal\/contract-analysis"/);
   assert.match(productLanding, /href: "\/business\/invoice-analysis"/);
-  assert.match(sitemapRoute, /articles\.map/);
-  assert.match(sitemapRoute, /useCases\.map/);
+  assert.match(sitemapRoute, /articles\.filter/);
+  assert.match(sitemapRoute, /useCases\.filter/);
+});
+
+test("products are database-driven and Business is the only active seed", () => {
+  assert.match(dynamicProductsMigration, /DROP CONSTRAINT IF EXISTS accounts_category_slug_check/);
+  assert.match(dynamicProductsMigration, /ADD COLUMN IF NOT EXISTS theme JSONB/);
+  assert.match(dynamicProductsMigration, /ADD COLUMN IF NOT EXISTS marketing JSONB/);
+  assert.match(dynamicProductsMigration, /WHERE slug <> 'business'/);
+  assert.match(dynamicProductsMigration, /seed_default_product_plans/);
+  assert.match(productCatalog, /\.from\("categories"\)/);
+  assert.match(productCatalog, /\.eq\("is_active", true\)/);
+  assert.match(queryPipeline, /getProductForAccount/);
 });
 
 test("public landing pages avoid app-only providers and defer non-critical rendering", () => {

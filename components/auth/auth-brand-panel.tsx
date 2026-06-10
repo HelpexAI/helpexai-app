@@ -20,7 +20,7 @@ const benefits = [
   {
     icon: Sparkles,
     title: "Category-aware AI",
-    description: "Built for legal analysis and business insights",
+    description: "Built for practical business document insights",
   },
 ];
 

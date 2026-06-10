@@ -4,7 +4,8 @@ import { stripe } from "@/lib/stripe/client";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { updateAccountFromSubscription } from "@/lib/stripe/subscriptions";
 import { startOfTodayUtc } from "@/lib/usage/daily";
-import { normalizePlanSlug, PLAN_LIMITS } from "@/lib/stripe/plans";
+import { normalizePlanSlug } from "@/lib/stripe/plans";
+import { getProductPlan, getProductPlans } from "@/lib/plans/catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +47,10 @@ export default async function BillingPage({
   ]);
   const account = accountResult.data;
   const currentPlan = normalizePlanSlug(account?.plan);
-  const limits = PLAN_LIMITS[currentPlan];
+  const [limits, plans] = await Promise.all([
+    getProductPlan(service, workspace.category, currentPlan),
+    getProductPlans(service, workspace.category),
+  ]);
 
   const invoices = [];
   if (account?.stripe_customer_id) {
@@ -76,6 +80,7 @@ export default async function BillingPage({
         { label: "Questions Today", current: questionsResult.count ?? 0, limit: limits.max_queries_day },
       ]}
       invoices={invoices}
+      plans={plans}
     />
   );
 }

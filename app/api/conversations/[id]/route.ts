@@ -2,9 +2,10 @@ import { getDocumentRequestContext } from "@/lib/documents/server";
 import { RenameConversationSchema } from "@/lib/validations/schemas";
 import { NextResponse } from "next/server";
 import { startOfTodayUtc } from "@/lib/usage/daily";
-import { PLAN_LIMITS } from "@/lib/stripe/plans";
+import { getProductPlan } from "@/lib/plans/catalog";
 import { revalidateWorkspacePaths } from "@/lib/cache/revalidate";
 import { logEvent } from "@/lib/monitoring";
+import { getProductForAccount } from "@/lib/products/catalog";
 
 export async function GET(
   _request: Request,
@@ -21,11 +22,13 @@ export async function GET(
     });
   }
 
-  const [{ data: conversations }, { data: messages }, { count: questionsUsed }, { data: availableDocuments }] = await Promise.all([
+  const [{ data: conversations }, { data: messages }, { count: questionsUsed }, { data: availableDocuments }, plan, product] = await Promise.all([
     context.service.from("conversations").select("id, title, selected_document_ids, external_research_enabled, updated_at").eq("user_id", context.user.id).eq("category_slug", context.category).order("updated_at", { ascending: false }),
     context.service.from("messages").select("id, conversation_id, role, content, sources, answer_type, tokens_used, created_at").eq("conversation_id", id).order("created_at", { ascending: true }),
     context.service.from("usage_logs").select("*", { count: "exact", head: true }).eq("user_id", context.user.id).eq("category_slug", context.category).eq("action", "query").gte("created_at", startOfTodayUtc()),
     context.service.from("documents").select("id, name").eq("user_id", context.user.id).eq("category_slug", context.category).eq("status", "ready"),
+    getProductPlan(context.service, context.category, context.plan),
+    getProductForAccount(context.category),
   ]);
   const conversation = conversations?.find(item => item.id === id);
   if (!conversation) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
@@ -40,7 +43,8 @@ export async function GET(
     messages: messages ?? [],
     category: context.category,
     questionsUsed: questionsUsed ?? 0,
-    questionsLimit: PLAN_LIMITS[context.plan].max_queries_day,
+    questionsLimit: plan.max_queries_day,
+    disclaimer: product.disclaimer_text,
   });
 }
 

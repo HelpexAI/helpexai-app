@@ -18,8 +18,8 @@ export const metadata: Metadata = {
     template: '%s | HelpexAI',
   },
   description:
-    'Upload your legal documents or business contracts and get instant expert AI answers with exact source citations.',
-  keywords: ['AI', 'legal documents', 'contract analysis', 'invoice analysis', 'document intelligence'],
+    'Upload business documents and get clear AI answers with exact source citations.',
+  keywords: ['AI', 'business documents', 'contract analysis', 'invoice analysis', 'document intelligence'],
   openGraph: {
     title: 'HelpexAI — Document Intelligence Platform',
     description: 'Upload your documents. Ask anything. Get expert answers.',

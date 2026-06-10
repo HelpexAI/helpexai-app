@@ -5,11 +5,11 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "HelpexAI Document Intelligence Platform",
     short_name: "HelpexAI",
     description:
-      "AI document intelligence for legal professionals and growing businesses.",
+      "AI document intelligence for growing businesses.",
     start_url: "/",
     display: "standalone",
     background_color: "#f8fafc",
-    theme_color: "#1d4ed8",
+    theme_color: "#10b981",
     icons: [
       {
         src: "/favicon.ico",

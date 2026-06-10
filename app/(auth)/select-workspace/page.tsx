@@ -1,7 +1,7 @@
 import { WorkspaceSelector } from "@/components/auth/workspace-selector";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { createClient } from "@/lib/supabase/server";
-import type { CategorySlug } from "@/types";
+import { getActiveProducts } from "@/lib/products/catalog";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
@@ -24,16 +24,19 @@ export default async function SelectWorkspacePage() {
     .eq("user_id", user.id)
     .order("created_at", { ascending: true });
 
-  if (!accounts?.length) {
+  const products = (await getActiveProducts()).filter((product) =>
+    accounts?.some((account) => account.category_slug === product.slug),
+  );
+  if (!products.length) {
     await supabase.auth.signOut();
     redirect("/login?error=no_accounts");
   }
-  if (accounts.length === 1) redirect("/dashboard");
+  if (products.length === 1) redirect("/dashboard");
 
   return (
     <QueryProvider>
       <WorkspaceSelector
-        categories={accounts.map((account) => account.category_slug as CategorySlug)}
+        products={products}
       />
     </QueryProvider>
   );

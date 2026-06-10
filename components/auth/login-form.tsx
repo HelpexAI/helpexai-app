@@ -15,10 +15,7 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedCategory = searchParams.get("category");
-  const categoryQuery =
-    requestedCategory === "legal" || requestedCategory === "business"
-      ? `?category=${requestedCategory}`
-      : "";
+  const categoryQuery = requestedCategory ? `?category=${encodeURIComponent(requestedCategory)}` : "";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
