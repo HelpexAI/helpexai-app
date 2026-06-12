@@ -29,7 +29,7 @@ export default function ContactPage() {
 
                 <p className="mt-4 text-lg text-zinc-500">
                   Questions, support requests, billing inquiries, or privacy
-                  concerns? We'd be happy to help.
+                  concerns? We&apos;d be happy to help.
                 </p>
               </div>
             </section>
