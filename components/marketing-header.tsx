@@ -8,8 +8,8 @@ import { useEffect, useState } from "react";
 const links = [
   { label: "Free Tool", homeHref: "/free-tool", otherHref: "/free-tool" },
   { label: "Guides", homeHref: "/blog", otherHref: "/blog" },
-  { label: "Features", homeHref: "#features", otherHref: "/#features" },
-  { label: "Pricing", homeHref: "#pricing", otherHref: "/#pricing" },
+  // { label: "Features", homeHref: "#features", otherHref: "/#features" },
+  { label: "Pricing", homeHref: "/pricing", otherHref: "/pricing" },
   { label: "Privacy Policy", homeHref: "/privacy", otherHref: "/privacy" },
 ];
 
@@ -33,9 +33,11 @@ export function MarketingHeader({ authCategory }: MarketingHeaderProps = {}) {
       void supabase.auth.getSession().then(({ data }) => {
         setAuthenticated(Boolean(data.session));
       });
-      const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-        setAuthenticated(Boolean(session));
-      });
+      const { data: subscription } = supabase.auth.onAuthStateChange(
+        (_event, session) => {
+          setAuthenticated(Boolean(session));
+        },
+      );
       unsubscribe = () => subscription.subscription.unsubscribe();
     });
     return () => unsubscribe?.();
@@ -48,9 +50,19 @@ export function MarketingHeader({ authCategory }: MarketingHeaderProps = {}) {
     setDark(nextDark);
   }
 
-  const signInHref = authCategory ? `/login?category=${authCategory}` : authenticated ? "/dashboard" : "/login";
-  const signInLabel = authCategory ? "Sign In" : authenticated ? "Open Dashboard" : "Sign In";
-  const signupHref = authCategory ? `/signup?category=${authCategory}` : "/signup";
+  const signInHref = authCategory
+    ? `/login?category=${authCategory}`
+    : authenticated
+      ? "/dashboard"
+      : "/login";
+  const signInLabel = authCategory
+    ? "Sign In"
+    : authenticated
+      ? "Open Dashboard"
+      : "Sign In";
+  const signupHref = authCategory
+    ? `/signup?category=${authCategory}`
+    : "/signup";
   const showSignIn = Boolean(authCategory) || authenticated !== null;
 
   return (
@@ -103,12 +115,14 @@ export function MarketingHeader({ authCategory }: MarketingHeaderProps = {}) {
             {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
           </button>
           <div className="hidden items-center gap-4 lg:flex">
-            {showSignIn && <Link
-              className="text-sm font-medium leading-5 text-zinc-800 transition-colors hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white"
-              href={signInHref}
-            >
-              {signInLabel}
-            </Link>}
+            {showSignIn && (
+              <Link
+                className="text-sm font-medium leading-5 text-zinc-800 transition-colors hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white"
+                href={signInHref}
+              >
+                {signInLabel}
+              </Link>
+            )}
             <Link
               href={signupHref}
               className="rounded-full bg-theme-primary px-5 py-2 text-sm font-semibold leading-5 text-theme-primary-foreground shadow-sm transition-colors hover:bg-theme-primary-hover"
@@ -121,7 +135,9 @@ export function MarketingHeader({ authCategory }: MarketingHeaderProps = {}) {
             onClick={() => setMenuOpen((open) => !open)}
             className="flex size-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 lg:hidden"
             aria-expanded={menuOpen}
-            aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-label={
+              menuOpen ? "Close navigation menu" : "Open navigation menu"
+            }
           >
             {menuOpen ? <X className="size-4" /> : <Menu className="size-4" />}
           </button>
@@ -141,12 +157,14 @@ export function MarketingHeader({ authCategory }: MarketingHeaderProps = {}) {
             </Link>
           ))}
           <div className="mt-2 grid grid-cols-2 gap-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">
-            {showSignIn && <Link
-              href={signInHref}
-              className="rounded-full border border-zinc-200 px-4 py-2.5 text-center text-sm font-semibold text-zinc-800 dark:border-zinc-700 dark:text-zinc-200"
-            >
-              {signInLabel}
-            </Link>}
+            {showSignIn && (
+              <Link
+                href={signInHref}
+                className="rounded-full border border-zinc-200 px-4 py-2.5 text-center text-sm font-semibold text-zinc-800 dark:border-zinc-700 dark:text-zinc-200"
+              >
+                {signInLabel}
+              </Link>
+            )}
             <Link
               href={signupHref}
               className="rounded-full bg-theme-primary px-4 py-2.5 text-center text-sm font-semibold text-white"

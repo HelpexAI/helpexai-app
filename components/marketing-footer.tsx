@@ -19,10 +19,18 @@ export function MarketingFooter() {
       </Link>
       <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm leading-5 text-zinc-500 dark:text-zinc-400 sm:gap-x-6">
         <Link href="/free-tool">Free Tool</Link>
+        <Link href="/pricing">Pricing</Link>
         <Link href="/blog">Guides</Link>
         <Link href="/#features">Features</Link>
-        <Link href="/#pricing">Pricing</Link>
+
+        <span className="hidden text-zinc-300 dark:text-zinc-700 sm:inline">
+          |
+        </span>
+
         <Link href="/privacy">Privacy Policy</Link>
+        <Link href="/terms">Terms of Service</Link>
+        <Link href="/refunds">Refund Policy</Link>
+        <Link href="/contact">Contact</Link>
       </div>
       <p className="text-sm leading-5 text-zinc-500 dark:text-zinc-400">
         &copy; 2026 HelpexAI. All rights reserved.
