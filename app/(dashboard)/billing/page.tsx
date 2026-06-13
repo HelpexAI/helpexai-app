@@ -1,10 +1,7 @@
 // app/billing/page.tsx
 
 import { BillingOverview } from "@/components/billing/billing-overview";
-import {
-  createCreemCustomerPortalLink,
-  listCreemCustomerTransactions,
-} from "@/lib/creem/client";
+import { listCreemCustomerTransactions } from "@/lib/creem/client";
 import { getCurrentWorkspace } from "@/lib/dashboard/workspace";
 import { getProductPlan, getProductPlans } from "@/lib/plans/catalog";
 import { normalizePlanSlug } from "@/lib/stripe/plans";
@@ -90,18 +87,9 @@ export default async function BillingPage({
 
   if (account?.creem_customer_id) {
     try {
-      const [transactionsResult, portalResult] = await Promise.all([
+      const [transactionsResult] = await Promise.all([
         listCreemCustomerTransactions(account.creem_customer_id),
-        createCreemCustomerPortalLink(account.creem_customer_id).catch(
-          () => null,
-        ),
       ]);
-
-      const portalUrl =
-        portalResult?.customer_portal_link ??
-        portalResult?.url ??
-        portalResult?.link ??
-        null;
 
       const transactions =
         transactionsResult.items ?? transactionsResult.data ?? [];

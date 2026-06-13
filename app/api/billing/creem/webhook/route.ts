@@ -12,7 +12,7 @@ type CreemEvent = {
   eventType?: string;
   type?: string;
   created_at?: number;
-  object?: Record<string, any>;
+  object?: Record<string, unknown>;
 };
 
 function verifyCreemSignature({
