@@ -1,42 +1,68 @@
+// app/billing/page.tsx
+
 import { BillingOverview } from "@/components/billing/billing-overview";
+import {
+  createCreemCustomerPortalLink,
+  listCreemCustomerTransactions,
+} from "@/lib/creem/client";
 import { getCurrentWorkspace } from "@/lib/dashboard/workspace";
-import { stripe } from "@/lib/stripe/client";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { updateAccountFromSubscription } from "@/lib/stripe/subscriptions";
-import { startOfTodayUtc } from "@/lib/usage/daily";
-import { normalizePlanSlug } from "@/lib/stripe/plans";
 import { getProductPlan, getProductPlans } from "@/lib/plans/catalog";
+import { normalizePlanSlug } from "@/lib/stripe/plans";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { startOfTodayUtc } from "@/lib/usage/daily";
 
 export const dynamic = "force-dynamic";
+
+function formatCreemDate(value?: number | string) {
+  if (!value) return "Unknown";
+
+  const date =
+    typeof value === "number"
+      ? new Date(value > 10_000_000_000 ? value : value * 1000)
+      : new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "Unknown";
+
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
+}
+
+function formatCreemAmount(amount?: number, currency = "USD") {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currency.toUpperCase(),
+  }).format((amount ?? 0) / 100);
+}
+
+function getTransactionStatus(amountPaid: number, refundedAmount: number) {
+  if (refundedAmount > 0 && refundedAmount >= amountPaid) return "refunded";
+  if (refundedAmount > 0) return "partially refunded";
+  if (amountPaid > 0) return "paid";
+  return "open";
+}
 
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ checkout?: string; session_id?: string }>;
+  searchParams: Promise<{ checkout?: string }>;
 }) {
   const resolvedSearchParams = await searchParams;
+
   const workspace = await getCurrentWorkspace();
   const supabase = await createClient();
   const service = createServiceClient();
 
-  if (resolvedSearchParams.checkout === "success" && resolvedSearchParams.session_id) {
-    try {
-      const session = await stripe.checkout.sessions.retrieve(resolvedSearchParams.session_id);
-      if (session.client_reference_id === workspace.userId && typeof session.subscription === "string") {
-        await updateAccountFromSubscription(await stripe.subscriptions.retrieve(session.subscription));
-      }
-    } catch (error) {
-      console.warn("Stripe checkout return sync skipped:", error);
-    }
-  }
-
   const [accountResult, questionsResult] = await Promise.all([
     service
       .from("accounts")
-      .select("plan, stripe_customer_id, subscription_status")
+      .select("plan, creem_customer_id, subscription_status")
       .eq("user_id", workspace.userId)
       .eq("category_slug", workspace.category)
       .maybeSingle(),
+
     supabase
       .from("usage_logs")
       .select("*", { count: "exact", head: true })
@@ -45,28 +71,58 @@ export default async function BillingPage({
       .eq("action", "query")
       .gte("created_at", startOfTodayUtc()),
   ]);
+
   const account = accountResult.data;
   const currentPlan = normalizePlanSlug(account?.plan);
+
   const [limits, plans] = await Promise.all([
     getProductPlan(service, workspace.category, currentPlan),
     getProductPlans(service, workspace.category),
   ]);
 
-  const invoices = [];
-  if (account?.stripe_customer_id) {
+  const invoices: {
+    id: string;
+    date: string;
+    amount: string;
+    status: string;
+    url: string | null;
+  }[] = [];
+
+  if (account?.creem_customer_id) {
     try {
-      const result = await stripe.invoices.list({ customer: account.stripe_customer_id, limit: 12 });
-      for (const invoice of result.data) {
+      const [transactionsResult, portalResult] = await Promise.all([
+        listCreemCustomerTransactions(account.creem_customer_id),
+        createCreemCustomerPortalLink(account.creem_customer_id).catch(
+          () => null,
+        ),
+      ]);
+
+      const portalUrl =
+        portalResult?.customer_portal_link ??
+        portalResult?.url ??
+        portalResult?.link ??
+        null;
+
+      const transactions =
+        transactionsResult.items ?? transactionsResult.data ?? [];
+
+      for (const transaction of transactions) {
+        const amountPaid = transaction.amount_paid ?? transaction.amount ?? 0;
+        const refundedAmount = transaction.refunded_amount ?? 0;
+
         invoices.push({
-          id: invoice.id,
-          date: new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric" }).format(new Date(invoice.created * 1000)),
-          amount: new Intl.NumberFormat("en-US", { style: "currency", currency: invoice.currency.toUpperCase() }).format(invoice.amount_paid / 100),
-          status: invoice.status ?? "open",
-          url: invoice.invoice_pdf ?? null,
+          id: transaction.id,
+          date: formatCreemDate(transaction.created_at),
+          amount: formatCreemAmount(amountPaid, transaction.currency ?? "USD"),
+          status: getTransactionStatus(amountPaid, refundedAmount),
+
+          // Creem does not return Stripe-style invoice_pdf here.
+          // This opens Creem customer portal instead.
+          url: `/api/billing/invoices/${transaction.id}`,
         });
       }
     } catch (error) {
-      console.warn("Stripe invoice history unavailable:", error);
+      console.warn("Creem payment history unavailable:", error);
     }
   }
 
@@ -74,10 +130,24 @@ export default async function BillingPage({
     <BillingOverview
       plan={currentPlan}
       subscriptionStatus={account?.subscription_status ?? null}
-      notice={resolvedSearchParams.checkout === "success" ? "success" : resolvedSearchParams.checkout === "cancelled" ? "cancelled" : undefined}
+      notice={
+        resolvedSearchParams.checkout === "success"
+          ? "success"
+          : resolvedSearchParams.checkout === "cancelled"
+            ? "cancelled"
+            : undefined
+      }
       usage={[
-        { label: "Documents", current: workspace.documentsUsed, limit: limits.max_documents },
-        { label: "Questions Today", current: questionsResult.count ?? 0, limit: limits.max_queries_day },
+        {
+          label: "Documents",
+          current: workspace.documentsUsed,
+          limit: limits.max_documents,
+        },
+        {
+          label: "Questions Today",
+          current: questionsResult.count ?? 0,
+          limit: limits.max_queries_day,
+        },
       ]}
       invoices={invoices}
       plans={plans}

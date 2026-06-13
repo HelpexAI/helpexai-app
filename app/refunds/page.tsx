@@ -94,12 +94,11 @@ export default function RefundPolicyPage() {
 
                       <p>
                         When you cancel a subscription, future renewals are
-                        stopped. Your subscription remains active until the end
-                        of the current billing period.
+                        stopped.
                       </p>
 
                       <p>
-                        Cancellation does not immediately terminate access to
+                        Cancellation will immediately terminate access to
                         features that have already been paid for.
                       </p>
                     </div>
