@@ -18,6 +18,7 @@ type ReportRecord = {
   template_slug: string | null;
   generated_at: string | null;
   created_at: string;
+  current_version_id: string | null;
 };
 
 const PAGE_WIDTH = 595.28;
@@ -73,6 +74,8 @@ function cleanPdfText(value: string) {
 
 function stripMarkdownInline(value: string) {
   return cleanPdfText(value)
+    .replace(/^\s{0,3}#{1,6}\s*/gm, "")
+    .replace(/^\s{0,3}>\s?/gm, "")
     .replace(/\*\*(.*?)\*\*/g, "$1")
     .replace(/__(.*?)__/g, "$1")
     .replace(/\*(.*?)\*/g, "$1")
@@ -538,34 +541,27 @@ async function createReportPdf(report: ReportRecord) {
 
     insideTable = false;
 
-    if (line.startsWith("### ")) {
-      writer.writeHeading(line.replace(/^###\s+/, ""), 3);
-      continue;
-    }
+    const headingMatch = line.match(/^\s{0,3}(#{1,6})\s*(.+)$/);
 
-    if (line.startsWith("## ")) {
-      writer.writeHeading(line.replace(/^##\s+/, ""), 2);
-      continue;
-    }
-
-    if (line.startsWith("# ")) {
-      writer.writeHeading(line.replace(/^#\s+/, ""), 1);
+    if (headingMatch) {
+      const level = Math.min(headingMatch[1].length, 3) as 1 | 2 | 3;
+      writer.writeHeading(headingMatch[2], level);
       continue;
     }
 
     if (line.startsWith(">")) {
-      writer.writeQuote(line.replace(/^>\s?/, ""));
+      writer.writeQuote(line.replace(/^\s{0,3}>\s?/, ""));
       continue;
     }
 
-    const bulletMatch = line.match(/^[-*]\s+(.+)$/);
+    const bulletMatch = line.match(/^\s{0,3}[-*+]\s+(.+)$/);
 
     if (bulletMatch) {
       writer.writeBullet(bulletMatch[1]);
       continue;
     }
 
-    const numberedMatch = line.match(/^(\d+)\.\s+(.+)$/);
+    const numberedMatch = line.match(/^\s{0,3}(\d+)\.\s+(.+)$/);
 
     if (numberedMatch) {
       writer.writeNumbered(numberedMatch[2], numberedMatch[1]);
@@ -604,6 +600,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         "template_slug",
         "generated_at",
         "created_at",
+        "current_version_id",
       ].join(", "),
     )
     .eq("id", id)
@@ -620,6 +617,19 @@ export async function GET(_request: Request, { params }: RouteContext) {
   }
 
   const typedReport = report as unknown as ReportRecord;
+
+  if (typedReport.current_version_id) {
+    const { data: version } = await context.service
+      .from("report_versions")
+      .select("title, content_markdown")
+      .eq("id", typedReport.current_version_id)
+      .eq("report_id", typedReport.id)
+      .maybeSingle();
+    if (version) {
+      typedReport.title = version.title;
+      typedReport.content = version.content_markdown;
+    }
+  }
 
   if (!typedReport.content?.trim()) {
     return NextResponse.json(

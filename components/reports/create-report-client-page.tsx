@@ -2,8 +2,6 @@
 
 import { ClientPageError } from "@/components/dashboard/client-page-error";
 import { fetchJson, queryKeys } from "@/lib/client/query";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import {
   ArrowLeft,
   Check,
@@ -14,7 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 type PlanSlug = "free" | "pro" | "premium";
 
@@ -93,7 +91,7 @@ type SaveReportResponse = {
     status: string;
     chunk_count: number;
     error_message: string | null;
-  };
+  } | null;
   embedded: boolean;
   warning: string | null;
 };
@@ -308,88 +306,6 @@ function CreateReportSkeleton() {
   );
 }
 
-function MarkdownPaperContent({ content }: { content: string }) {
-  return (
-    <div className="space-y-5 text-zinc-800 dark:text-zinc-100">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          h1: ({ children }) => (
-            <h1 className="mb-5 border-b border-zinc-200 pb-4 text-3xl font-extrabold tracking-tight text-zinc-950 dark:border-zinc-800 dark:text-white">
-              {children}
-            </h1>
-          ),
-          h2: ({ children }) => (
-            <h2 className="mt-8 text-xl font-bold text-zinc-950 dark:text-white">
-              {children}
-            </h2>
-          ),
-          h3: ({ children }) => (
-            <h3 className="mt-6 text-lg font-bold text-zinc-900 dark:text-zinc-100">
-              {children}
-            </h3>
-          ),
-          p: ({ children }) => (
-            <p className="text-sm leading-7 text-zinc-700 dark:text-zinc-300">
-              {children}
-            </p>
-          ),
-          ul: ({ children }) => (
-            <ul className="ml-5 list-disc space-y-2 text-sm leading-7 text-zinc-700 dark:text-zinc-300">
-              {children}
-            </ul>
-          ),
-          ol: ({ children }) => (
-            <ol className="ml-5 list-decimal space-y-2 text-sm leading-7 text-zinc-700 dark:text-zinc-300">
-              {children}
-            </ol>
-          ),
-          li: ({ children }) => <li>{children}</li>,
-          strong: ({ children }) => (
-            <strong className="font-bold text-zinc-950 dark:text-white">
-              {children}
-            </strong>
-          ),
-          blockquote: ({ children }) => (
-            <blockquote className="rounded-xl border-l-4 border-theme-primary bg-theme-soft px-4 py-3 text-sm text-zinc-700 dark:bg-theme-soft-dark dark:text-zinc-300">
-              {children}
-            </blockquote>
-          ),
-          table: ({ children }) => (
-            <div className="my-5 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
-              <table className="w-full border-collapse text-sm">
-                {children}
-              </table>
-            </div>
-          ),
-          thead: ({ children }) => (
-            <thead className="bg-zinc-100 text-zinc-950 dark:bg-zinc-800 dark:text-white">
-              {children}
-            </thead>
-          ),
-          th: ({ children }) => (
-            <th className="border-b border-zinc-200 px-4 py-3 text-left text-xs font-bold uppercase tracking-wide dark:border-zinc-700">
-              {children}
-            </th>
-          ),
-          td: ({ children }) => (
-            <td className="border-b border-zinc-100 px-4 py-3 text-zinc-700 last:border-b-0 dark:border-zinc-800 dark:text-zinc-300">
-              {children}
-            </td>
-          ),
-          code: ({ children }) => (
-            <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs font-semibold text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100">
-              {children}
-            </code>
-          ),
-        }}
-      >
-        {content}
-      </ReactMarkdown>
-    </div>
-  );
-}
-
 function buildPromptPreview({
   template,
   sourceMode,
@@ -452,19 +368,9 @@ export function CreateReportClientPage() {
     string | null
   >(null);
   const [customInstructions, setCustomInstructions] = useState("");
-  const [generatedReport, setGeneratedReport] =
-    useState<GeneratedReportPreview | null>(null);
-
-  const generateMutation = useMutation({
-    mutationFn: generateReportPreview,
-    onSuccess: (result) => {
-      setGeneratedReport(result);
-      scrollToPreviewSection();
-    },
-  });
   const saveMutation = useMutation({
     mutationFn: saveGeneratedReport,
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.reports });
 
       queryClient.removeQueries({ queryKey: queryKeys.reports });
@@ -475,24 +381,17 @@ export function CreateReportClientPage() {
         queryClient.invalidateQueries({ queryKey: queryKeys.reportTemplates }),
       ]);
 
-      router.push("/reports");
+      router.push(`/reports/${result.report.id}/preview`);
 
       window.setTimeout(() => {
         router.refresh();
       }, 50);
     },
   });
-
-  const previewSectionRef = useRef<HTMLDivElement | null>(null);
-
-  function scrollToPreviewSection() {
-    window.setTimeout(() => {
-      previewSectionRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }, 100);
-  }
+  const generateMutation = useMutation({
+    mutationFn: generateReportPreview,
+    onSuccess: (result) => saveMutation.mutate(result),
+  });
   const { data, error, refetch, isFetching } = useQuery({
     queryKey: [...queryKeys.reportTemplates, "new", templateId],
     queryFn: () =>
@@ -501,12 +400,6 @@ export function CreateReportClientPage() {
       ),
     enabled: Boolean(templateId),
   });
-
-  useEffect(() => {
-    if (generateMutation.isPending) {
-      scrollToPreviewSection();
-    }
-  }, [generateMutation.isPending]);
 
   const selectedCount = useMemo(() => {
     if (sourceMode === "collection") {
@@ -825,11 +718,9 @@ export function CreateReportClientPage() {
 
             <button
               type="button"
-              disabled={!canGenerate || generateMutation.isPending}
+              disabled={!canGenerate || generateMutation.isPending || saveMutation.isPending}
               className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-theme-primary px-4 text-sm font-bold text-white transition hover:bg-theme-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
               onClick={() => {
-                setGeneratedReport(null);
-
                 generateMutation.mutate({
                   templateId: data.template.id,
                   sourceType: sourceMode,
@@ -839,14 +730,12 @@ export function CreateReportClientPage() {
                     sourceMode === "collection" ? selectedCollectionId : null,
                   customInstructions,
                 });
-
-                scrollToPreviewSection();
               }}
             >
-              {generateMutation.isPending ? (
+              {generateMutation.isPending || saveMutation.isPending ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
-                  Generating...
+                  {generateMutation.isPending ? "Generating..." : "Opening preview..."}
                 </>
               ) : (
                 <>
@@ -860,6 +749,11 @@ export function CreateReportClientPage() {
                 {generateMutation.error.message}
               </p>
             )}
+            {saveMutation.error instanceof Error && (
+              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+                {saveMutation.error.message}
+              </p>
+            )}
 
             {!canGenerate && (
               <p className="mt-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
@@ -869,8 +763,8 @@ export function CreateReportClientPage() {
           </section>
         </aside>
       </div>
-      <div ref={previewSectionRef} className="scroll-mt-24 space-y-6">
-        {generateMutation.isPending && (
+      <div className="space-y-6">
+        {(generateMutation.isPending || saveMutation.isPending) && (
           <section className="overflow-hidden rounded-2xl border border-theme-border bg-theme-soft shadow-sm dark:border-theme-border-dark dark:bg-theme-soft-dark">
             <div className="p-6 sm:p-8">
               <div className="flex items-start gap-4">
@@ -885,8 +779,7 @@ export function CreateReportClientPage() {
 
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600 dark:text-zinc-300">
                     HelpexAI is reading the selected knowledge, applying the
-                    selected template, and preparing a professional markdown
-                    report preview.
+                    selected template, and preparing your revision workspace.
                   </p>
 
                   <div className="mt-5 grid gap-3 text-sm sm:grid-cols-3">
@@ -923,65 +816,6 @@ export function CreateReportClientPage() {
           </section>
         )}
 
-        {generatedReport && (
-          <section className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="flex flex-col gap-4 border-b border-zinc-200 p-5 dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="text-xs font-bold uppercase tracking-wide text-theme-primary">
-                  Generated preview
-                </div>
-
-                <h2 className="mt-1 text-xl font-bold text-zinc-950 dark:text-white">
-                  {generatedReport.title}
-                </h2>
-
-                <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                  Review the report before saving it to your knowledge base.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setGeneratedReport(null)}
-                  className="h-10 rounded-lg border border-zinc-200 px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-950"
-                >
-                  Discard
-                </button>
-
-                <button
-                  type="button"
-                  disabled={saveMutation.isPending}
-                  onClick={() => {
-                    if (!generatedReport) return;
-                    saveMutation.mutate(generatedReport);
-                  }}
-                  className="flex h-10 items-center gap-2 rounded-lg bg-theme-primary px-4 text-sm font-semibold text-white transition hover:bg-theme-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {saveMutation.isPending ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    "Save report"
-                  )}
-                </button>
-              </div>
-            </div>
-            {saveMutation.error instanceof Error && (
-              <div className="mx-5 mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
-                {saveMutation.error.message}
-              </div>
-            )}
-
-            <div className="bg-zinc-100 p-4 dark:bg-zinc-950 sm:p-8">
-              <div className="mx-auto max-w-4xl rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800 sm:p-10">
-                <MarkdownPaperContent content={generatedReport.content} />
-              </div>
-            </div>
-          </section>
-        )}
       </div>
     </div>
   );

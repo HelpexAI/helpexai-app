@@ -49,6 +49,8 @@ function StatusBadge({ status }: { status: ReportStatus }) {
       "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300",
     completed:
       "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300",
+    finalized:
+      "border-theme-border bg-theme-soft text-theme-primary dark:border-theme-border-dark dark:bg-theme-soft-dark",
     failed:
       "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300",
   };
@@ -98,7 +100,7 @@ function ReportsList({ reports }: { reports: ReportSummary[] }) {
             className="flex flex-col gap-3 p-5 transition hover:bg-zinc-50 dark:hover:bg-zinc-950 sm:flex-row sm:items-center sm:justify-between"
           >
             <Link
-              href={`/reports/${report.id}`}
+              href={report.status === "finalized" ? `/reports/${report.id}` : `/reports/${report.id}/preview`}
               className="flex min-w-0 flex-1 items-start gap-3"
             >
               <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-theme-soft text-theme-primary dark:bg-theme-soft-dark">

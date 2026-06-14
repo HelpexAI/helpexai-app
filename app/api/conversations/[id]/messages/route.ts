@@ -141,7 +141,7 @@ export async function POST(
   const quota = reservation?.[0];
   if (!quota?.allowed) {
     return NextResponse.json(
-      { error: `You have reached today's ${quota?.quota_limit ?? 3}-question limit.`, code: "QUERY_LIMIT_REACHED" },
+      { error: `You have reached today's ${quota?.quota_limit ?? 100}-question limit.`, code: "QUERY_LIMIT_REACHED" },
       { status: 403 },
     );
   }

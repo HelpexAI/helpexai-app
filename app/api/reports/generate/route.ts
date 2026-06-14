@@ -2,6 +2,7 @@ import { extractDocumentPages } from "@/lib/ai/pipeline/ingest";
 import { getLLMProvider } from "@/lib/ai/factory";
 import { stripAiDisclaimer } from "@/lib/ai/disclaimer";
 import { getDocumentRequestContext } from "@/lib/documents/server";
+import { getProductPlan } from "@/lib/plans/catalog";
 import { reportError, logEvent } from "@/lib/monitoring";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { sanitizeTextForStorage } from "@/lib/text/sanitize";
@@ -313,6 +314,7 @@ export async function POST(request: Request) {
   const customInstructions = sanitizeTextForStorage(
     cleanString(body.custom_instructions),
   ).slice(0, MAX_CUSTOM_INSTRUCTION_CHARACTERS);
+  const usageRequestId = crypto.randomUUID();
   if (!templateId) {
     return NextResponse.json(
       { error: "Report template is required." },
@@ -485,6 +487,49 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+    const { data: reservation, error: reservationError } = await context.service.rpc(
+      "reserve_monthly_report",
+      {
+        p_user_id: context.user.id,
+        p_category_slug: context.category,
+        p_request_id: usageRequestId,
+      },
+    );
+    if (reservationError) {
+      const plan = await getProductPlan(context.service, context.category, context.plan);
+      const monthStart = new Date(
+        Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1),
+      ).toISOString();
+      const { count } = await context.service
+        .from("usage_logs")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", context.user.id)
+        .eq("category_slug", context.category)
+        .eq("action", "report_generate")
+        .gte("created_at", monthStart);
+      const used = count ?? 0;
+      const limit = plan.max_reports_month ?? 5;
+      if (used >= limit) {
+        return NextResponse.json(
+          { error: `You have reached this month's ${limit}-report limit.`, code: "REPORT_LIMIT_REACHED" },
+          { status: 403 },
+        );
+      }
+      await context.service.from("usage_logs").insert({
+        user_id: context.user.id,
+        category_slug: context.category,
+        action: "report_generate",
+        tokens_used: 0,
+        request_id: usageRequestId,
+      });
+    }
+    const quota = reservation?.[0];
+    if (reservation && !quota?.allowed) {
+      return NextResponse.json(
+        { error: `You have reached this month's ${quota?.quota_limit ?? 5}-report limit.`, code: "REPORT_LIMIT_REACHED" },
+        { status: 403 },
+      );
+    }
     const rawContent = await llm.complete(
       finalPrompt,
       typedTemplate.system_prompt,
@@ -492,6 +537,10 @@ export async function POST(request: Request) {
     const content = sanitizeTextForStorage(stripAiDisclaimer(rawContent));
     const title = buildReportTitle(typedTemplate.name);
     const tokensUsed = Math.ceil(content.length / 4);
+    await context.service
+      .from("usage_logs")
+      .update({ tokens_used: tokensUsed })
+      .eq("request_id", usageRequestId);
     await logEvent("report_generation_completed", {
       userId: context.user.id,
       userEmail: context.user.email,
@@ -523,6 +572,7 @@ export async function POST(request: Request) {
       tokensUsed,
     });
   } catch (error) {
+    await context.service.from("usage_logs").delete().eq("request_id", usageRequestId);
     await reportError(error, {
       area: "report-generation",
       userId: context.user.id,

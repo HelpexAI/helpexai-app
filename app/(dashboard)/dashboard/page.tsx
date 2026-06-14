@@ -6,11 +6,12 @@ import {
   ArrowRight,
   Briefcase,
   ChevronRight,
-  FileText,
   HelpCircle,
   MessageSquare,
   Scale,
   Zap,
+  HardDrive,
+  ChartNoAxesColumn,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -28,7 +29,14 @@ function UsageCard({
   icon: LucideIcon;
   warning?: boolean;
 }) {
+  const unlimited = limit < 0;
   const percentage = limit > 0 ? Math.min(100, Math.round((current / limit) * 100)) : 0;
+  const display = label === "Storage Usage"
+    ? `${(current / 1024 ** 2).toFixed(current ? 1 : 0)} MB`
+    : current.toLocaleString();
+  const limitDisplay = label === "Storage Usage"
+    ? `${Math.round(limit / 1024 ** 2)} MB`
+    : unlimited ? "Unlimited" : limit.toLocaleString();
 
   return (
     <article className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-6">
@@ -48,10 +56,10 @@ function UsageCard({
       </div>
       <div className="flex items-end gap-1">
         <span className="text-3xl font-bold leading-9 text-zinc-950 dark:text-white">
-          {current}
+          {display}
         </span>
         <span className="mb-0.5 text-lg font-medium text-zinc-500 dark:text-zinc-400">
-          /{limit}
+          /{limitDisplay}
         </span>
       </div>
       <div className="space-y-1.5">
@@ -62,7 +70,7 @@ function UsageCard({
               warning ? "text-amber-600 dark:text-amber-400" : "text-theme-primary"
             }`}
           >
-            {percentage}%
+            {unlimited ? "Unlimited" : `${percentage}%`}
           </span>
         </div>
         <div
@@ -82,35 +90,6 @@ function UsageCard({
   );
 }
 
-function CountCard({
-  label,
-  current,
-  icon: Icon,
-}: {
-  label: string;
-  current: number;
-  icon: LucideIcon;
-}) {
-  return (
-    <article className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-6">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 sm:text-sm">
-          {label}
-        </span>
-        <div className="flex size-8 items-center justify-center rounded-lg bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark">
-          <Icon className="size-4" />
-        </div>
-      </div>
-      <span className="text-3xl font-bold leading-9 text-zinc-950 dark:text-white">
-        {current}
-      </span>
-      <p className="text-xs text-zinc-500 dark:text-zinc-400">
-        Unlimited conversations
-      </p>
-    </article>
-  );
-}
-
 function formatConversationDate(value: string) {
   return new Intl.DateTimeFormat("en", {
     month: "short",
@@ -124,7 +103,8 @@ export default async function DashboardPage() {
   const workspace = await getCurrentWorkspace();
   const supabase = await createClient();
 
-  const [questionsResult, recentResult, plan] = await Promise.all([
+  const monthStart = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString();
+  const [questionsResult, recentResult, storageResult, reportsResult, plan] = await Promise.all([
     supabase
       .from("usage_logs")
       .select("*", { count: "exact", head: true })
@@ -139,13 +119,14 @@ export default async function DashboardPage() {
       .eq("category_slug", workspace.category)
       .order("created_at", { ascending: false })
       .limit(3),
+    supabase.from("documents").select("file_size").eq("user_id", workspace.userId).eq("category_slug", workspace.category),
+    supabase.from("usage_logs").select("*", { count: "exact", head: true }).eq("user_id", workspace.userId).eq("category_slug", workspace.category).eq("action", "report_generate").gte("created_at", monthStart),
     getProductPlan(supabase, workspace.category, workspace.plan),
   ]);
 
   const limits = plan;
-  const documentsCount = workspace.documentsUsed;
+  const storageUsed = (storageResult.data ?? []).reduce((total, document) => total + document.file_size, 0);
   const questionsCount = questionsResult.count ?? 0;
-  const conversationsCount = recentResult.count ?? 0;
   const recentConversations = recentResult.data ?? [];
   const CategoryIcon = workspace.product.icon === "scale" ? Scale : Briefcase;
 
@@ -162,22 +143,23 @@ export default async function DashboardPage() {
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <UsageCard
-          label="Documents"
-          current={documentsCount}
-          limit={limits.max_documents}
-          icon={FileText}
-          warning={documentsCount >= limits.max_documents}
+          label="Storage Usage"
+          current={storageUsed}
+          limit={limits.max_storage_bytes}
+          icon={HardDrive}
+          warning={storageUsed >= limits.max_storage_bytes}
         />
         <UsageCard
-          label="Questions Today"
+          label="Chat Queries Today"
           current={questionsCount}
           limit={limits.max_queries_day}
           icon={HelpCircle}
         />
-        <CountCard
-          label="Conversations"
-          current={conversationsCount}
-          icon={MessageSquare}
+        <UsageCard
+          label="Reports This Month"
+          current={reportsResult.count ?? 0}
+          limit={limits.max_reports_month}
+          icon={ChartNoAxesColumn}
         />
       </section>
 
@@ -290,7 +272,7 @@ export default async function DashboardPage() {
                 You&apos;re on the Free plan
               </p>
               <p className="mt-0.5 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Upgrade to Pro for 30 documents and 30 daily questions.
+                Upgrade to Pro for 500 MB storage, 500 daily queries, and 30 monthly reports.
               </p>
             </div>
           </div>

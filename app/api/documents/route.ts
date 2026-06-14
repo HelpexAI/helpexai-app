@@ -33,7 +33,8 @@ export async function GET() {
     tags: tags ?? [],
     category: context.category,
     productName: product.name,
-    maxDocuments: context.documentLimit.limit,
+    storageUsed: context.documentLimit.used,
+    storageLimit: context.documentLimit.limit,
     requiresResolution: context.documentLimit.requiresResolution,
   });
 }
@@ -159,10 +160,10 @@ export async function POST(request: Request) {
   if (!quota?.allowed) {
     return NextResponse.json(
       {
-        error: `Your ${context.plan} plan allows ${quota?.quota_limit ?? 1} document${quota?.quota_limit === 1 ? "" : "s"}.`,
+        error: `Your ${context.plan} plan storage limit has been reached.`,
         code: "DOCUMENT_LIMIT_REACHED",
         used: quota?.used ?? 0,
-        limit: quota?.quota_limit ?? 1,
+        limit: quota?.quota_limit ?? 30 * 1024 * 1024,
       },
       { status: 403 },
     );

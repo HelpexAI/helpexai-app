@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 function ToolButton({
   label,
@@ -92,6 +94,12 @@ export function DocumentViewer({
   const [shared, setShared] = useState(false);
   const [pageLoading, setPageLoading] = useState(document.file_type === "pdf");
   const [pageError, setPageError] = useState(false);
+  const isReportDocument = document.document_tag_assignments?.some(
+    (assignment) => assignment.tag.name === "Report",
+  );
+  const displayName = isReportDocument
+    ? document.name.replace(/\.(txt|md)$/i, "")
+    : document.name;
 
   useEffect(() => {
     if (!shared) return;
@@ -136,7 +144,7 @@ export function DocumentViewer({
             <span className="hidden sm:inline">Documents</span>
           </Link>
           <ChevronRight className="hidden size-3 text-white/30 sm:block" />
-          <div className="min-w-0"><span className="block truncate font-medium text-white">{document.name}</span><span className="block truncate text-xs text-white/40">{document.collection?.name ?? "General"}{document.document_tag_assignments?.length ? ` · ${document.document_tag_assignments.map((assignment) => assignment.tag.name).join(", ")}` : ""}</span></div>
+          <div className="min-w-0"><span className="block truncate font-medium text-white">{displayName}</span><span className="block truncate text-xs text-white/40">{document.collection?.name ?? "General"}{document.document_tag_assignments?.length ? ` · ${document.document_tag_assignments.map((assignment) => assignment.tag.name).join(", ")}` : ""}</span></div>
         </div>
         <div className="flex items-center gap-2">
           <a href={downloadUrl} className="flex h-9 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700">
@@ -217,9 +225,15 @@ export function DocumentViewer({
                 <article className="mx-auto min-h-[80vh] max-w-3xl whitespace-pre-wrap rounded-lg bg-white p-6 text-sm leading-7 text-zinc-700 shadow-2xl sm:p-10 lg:p-14">
                   <div className="mb-8 flex items-center gap-3 border-b border-zinc-200 pb-5">
                     <FileText className="size-6 text-theme-primary" />
-                    <h1 className="break-all text-lg font-bold text-zinc-900">{document.name}</h1>
+                    <h1 className="break-all text-lg font-bold text-zinc-900">{displayName}</h1>
                   </div>
-                  <HighlightedDocumentText text={extractedText || "No readable text was found in this document."} excerpt={highlightExcerpt} />
+                  {isReportDocument ? (
+                    <ReportDocumentMarkdown
+                      content={extractedText || "No readable text was found in this report."}
+                    />
+                  ) : (
+                    <HighlightedDocumentText text={extractedText || "No readable text was found in this document."} excerpt={highlightExcerpt} />
+                  )}
                 </article>
               )}
               {highlightExcerpt && document.file_type === "pdf" && (
@@ -238,6 +252,30 @@ export function DocumentViewer({
 
 function LoaderDocumentPage() {
   return <div className="size-8 animate-spin rounded-full border-2 border-zinc-200 border-t-theme-primary dark:border-zinc-700" />;
+}
+
+function ReportDocumentMarkdown({ content }: { content: string }) {
+  return (
+    <div className="report-paper-content whitespace-normal">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          h1: ({ children }) => <h1 className="mb-6 border-b border-zinc-200 pb-4 text-3xl font-extrabold text-zinc-950">{children}</h1>,
+          h2: ({ children }) => <h2 className="mb-3 mt-8 text-xl font-bold text-zinc-950">{children}</h2>,
+          h3: ({ children }) => <h3 className="mb-2 mt-6 text-lg font-bold text-zinc-900">{children}</h3>,
+          p: ({ children }) => <p className="mb-4 text-sm leading-7 text-zinc-700">{children}</p>,
+          ul: ({ children }) => <ul className="mb-4 ml-5 list-disc space-y-2 text-sm leading-7 text-zinc-700">{children}</ul>,
+          ol: ({ children }) => <ol className="mb-4 ml-5 list-decimal space-y-2 text-sm leading-7 text-zinc-700">{children}</ol>,
+          blockquote: ({ children }) => <blockquote className="my-5 rounded-lg border-l-4 border-theme-primary bg-theme-soft px-4 py-3 text-sm text-zinc-700">{children}</blockquote>,
+          table: ({ children }) => <div className="my-6 overflow-x-auto rounded-xl border border-zinc-200"><table className="w-full border-collapse text-left text-sm">{children}</table></div>,
+          th: ({ children }) => <th className="border-b border-zinc-200 bg-zinc-100 px-4 py-3 text-xs font-bold uppercase">{children}</th>,
+          td: ({ children }) => <td className="border-b border-zinc-100 px-4 py-3 align-top text-zinc-700">{children}</td>,
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
 }
 
 function HighlightedDocumentText({ text, excerpt }: { text: string; excerpt?: string | null }) {

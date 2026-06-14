@@ -44,7 +44,19 @@ export async function GET(
     if (file) extractedText = await extractReadableText(Buffer.from(await file.arrayBuffer()), document.file_type);
   }
 
-  return NextResponse.json({ document: normalizeDocumentRelations(document), downloadUrl: download.signedUrl, extractedText });
+  const { data: report } = await context.service
+    .from("reports")
+    .select("id")
+    .eq("generated_document_id", document.id)
+    .eq("user_id", context.user.id)
+    .eq("category_slug", context.category)
+    .maybeSingle();
+
+  return NextResponse.json({
+    document: normalizeDocumentRelations(document),
+    downloadUrl: report ? `/api/reports/${report.id}/download` : download.signedUrl,
+    extractedText,
+  });
 }
 
 export async function DELETE(

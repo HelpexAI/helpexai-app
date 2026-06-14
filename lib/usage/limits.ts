@@ -8,18 +8,19 @@ export async function getDocumentLimitState(
   category: CategorySlug,
   plan: PlanSlug,
 ) {
-  const { count } = await client
+  const { data } = await client
     .from("documents")
-    .select("*", { count: "exact", head: true })
+    .select("file_size")
     .eq("user_id", userId)
     .eq("category_slug", category);
 
-  const limit = (await getProductPlan(client, category, plan)).max_documents;
-  const used = count ?? 0;
+  const limit = (await getProductPlan(client, category, plan)).max_storage_bytes;
+  const used = (data ?? []).reduce((total, document) => total + document.file_size, 0);
 
   return {
     used,
     limit,
-    requiresResolution: used > limit,
+    // Storage quotas prevent new uploads; existing documents remain usable.
+    requiresResolution: false,
   };
 }

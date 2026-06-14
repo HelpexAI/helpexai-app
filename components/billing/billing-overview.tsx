@@ -12,7 +12,13 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-type Usage = { label: string; current: number; limit: number };
+type Usage = { label: string; current: number; limit: number; format?: "bytes" };
+
+function formatUsage(value: number, format?: "bytes") {
+  if (format !== "bytes") return value.toLocaleString();
+  if (value >= 1024 ** 3) return `${(value / 1024 ** 3).toFixed(1)} GB`;
+  return `${(value / 1024 ** 2).toFixed(value ? 1 : 0)} MB`;
+}
 
 type Invoice = {
   id: string;
@@ -50,8 +56,9 @@ function PlanFeature({
   );
 }
 
-function UsageRow({ label, current, limit }: Usage) {
-  const percent = limit
+function UsageRow({ label, current, limit, format }: Usage) {
+  const unlimited = limit < 0;
+  const percent = unlimited ? 0 : limit
     ? Math.min(100, Math.round((current / limit) * 100))
     : 0;
 
@@ -68,7 +75,7 @@ function UsageRow({ label, current, limit }: Usage) {
             warning ? "text-amber-600" : "text-theme-primary"
           }`}
         >
-          {percent}%
+          {unlimited ? "Unlimited" : `${percent}%`}
         </span>
       </div>
 
@@ -83,7 +90,7 @@ function UsageRow({ label, current, limit }: Usage) {
         </div>
 
         <span className="w-12 text-right text-xs text-zinc-500 dark:text-zinc-400">
-          {current}/{limit}
+          {formatUsage(current, format)}/{unlimited ? "∞" : formatUsage(limit, format)}
         </span>
       </div>
     </div>
@@ -196,12 +203,12 @@ export function BillingOverview({
 
           <ul className="flex flex-1 flex-col gap-2 border-t border-zinc-200 pt-5 dark:border-zinc-800">
             <PlanFeature enabled>
-              {free?.max_documents ?? 3} documents
+              {formatUsage(free?.max_storage_bytes ?? 30 * 1024 ** 2, "bytes")} storage
             </PlanFeature>
             <PlanFeature enabled>
-              {free?.max_queries_day ?? 5} questions/day
+              {free?.max_queries_day ?? 100} questions/day
             </PlanFeature>
-            <PlanFeature enabled>Unlimited conversations</PlanFeature>
+            <PlanFeature enabled>{free?.max_reports_month ?? 5} reports/month</PlanFeature>
             <PlanFeature enabled={false}>Priority processing</PlanFeature>
           </ul>
 
@@ -235,12 +242,12 @@ export function BillingOverview({
 
           <ul className="flex flex-1 flex-col gap-2 border-t border-white/20 pt-5 text-white [&_svg]:text-white">
             <PlanFeature enabled>
-              {pro?.max_documents ?? 30} documents
+              {formatUsage(pro?.max_storage_bytes ?? 500 * 1024 ** 2, "bytes")} storage
             </PlanFeature>
             <PlanFeature enabled>
-              {pro?.max_queries_day ?? 30} questions/day
+              {pro?.max_queries_day ?? 500} questions/day
             </PlanFeature>
-            <PlanFeature enabled>Unlimited conversations</PlanFeature>
+            <PlanFeature enabled>{pro?.max_reports_month ?? 30} reports/month</PlanFeature>
             <PlanFeature enabled>Advanced citations</PlanFeature>
             <PlanFeature enabled>Priority processing</PlanFeature>
             <PlanFeature enabled>Cancel anytime</PlanFeature>
@@ -299,12 +306,12 @@ export function BillingOverview({
 
           <ul className="flex flex-1 flex-col gap-2 border-t border-zinc-200 pt-5 dark:border-zinc-800">
             <PlanFeature enabled>
-              {premium?.max_documents ?? 100} documents
+              {formatUsage(premium?.max_storage_bytes ?? 2 * 1024 ** 3, "bytes")} storage
             </PlanFeature>
             <PlanFeature enabled>
-              {premium?.max_queries_day ?? 100} questions/day
+              Unlimited questions/day
             </PlanFeature>
-            <PlanFeature enabled>Unlimited conversations</PlanFeature>
+            <PlanFeature enabled>{premium?.max_reports_month ?? 100} reports/month</PlanFeature>
             <PlanFeature enabled>Advanced citations</PlanFeature>
             <PlanFeature enabled>Priority processing</PlanFeature>
             <PlanFeature enabled>Cancel anytime</PlanFeature>

@@ -38,6 +38,7 @@ const nextConfig = {
   outputFileTracingIncludes: {
     "/api/public-tool": pdfTextAssets,
     "/api/conversations/*": pdfTextAssets,
+    "/api/reports/*": pdfTextAssets,
     "/api/documents/*": pdfRenderAssets,
     "/documents/*": pdfRenderAssets,
   },

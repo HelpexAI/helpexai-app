@@ -61,14 +61,16 @@ export function ActiveConversation({
   const [docsOpen, setDocsOpen] = useState(false);
   const [error, setError] = useState("");
   const [used, setUsed] = useState(questionsUsed);
-  const [limitModalOpen, setLimitModalOpen] = useState(questionsUsed >= questionsLimit);
+  const [limitModalOpen, setLimitModalOpen] = useState(
+    questionsLimit >= 0 && questionsUsed >= questionsLimit,
+  );
   const [activeCitation, setActiveCitation] = useState<MessageSource | null>(null);
   const [mobileConversationsOpen, setMobileConversationsOpen] = useState(false);
   const [externalResearchEnabled, setExternalResearchEnabled] = useState(conversation.external_research_enabled);
   const [savingResearch, setSavingResearch] = useState(false);
   const [previewDocumentId, setPreviewDocumentId] = useState<string | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
-  const limitReached = used >= questionsLimit;
+  const limitReached = questionsLimit >= 0 && used >= questionsLimit;
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), [messages, loading]);
   useEffect(() => setTitle(conversation.title), [conversation.title]);
@@ -180,7 +182,7 @@ export function ActiveConversation({
         <form onSubmit={sendMessage} className="shrink-0 border-t border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:px-6 sm:py-4">
           {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
           <div className="flex items-center gap-2"><input value={input} onChange={(event) => setInput(event.target.value)} disabled={limitReached} placeholder={limitReached ? "Daily question limit reached" : "Ask anything about your documents..."} className="h-11 min-w-0 flex-1 rounded-xl border border-zinc-200 bg-zinc-50 px-4 text-sm outline-none focus:border-theme-primary disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:disabled:bg-zinc-800" /><button type="submit" onClick={() => { if (limitReached) setLimitModalOpen(true); }} disabled={loading || (!input.trim() && !limitReached)} aria-label={limitReached ? "View upgrade options" : "Send message"} className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-theme-primary text-white disabled:cursor-not-allowed disabled:opacity-50">{limitReached ? <Lock className="size-4" /> : <Send className="size-4" />}</button></div>
-          <div className="mt-2 flex items-center gap-3 text-xs text-zinc-400"><span>{used}/{questionsLimit} questions today</span><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800"><div className="h-full rounded-full bg-theme-primary" style={{ width: `${Math.min(100, questionsLimit ? (used / questionsLimit) * 100 : 0)}%` }} /></div></div>
+          <div className="mt-2 flex items-center gap-3 text-xs text-zinc-400"><span>{used}/{questionsLimit < 0 ? "Unlimited" : questionsLimit} questions today</span><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800"><div className="h-full rounded-full bg-theme-primary" style={{ width: `${questionsLimit < 0 ? 0 : Math.min(100, questionsLimit ? (used / questionsLimit) * 100 : 0)}%` }} /></div></div>
         </form>
       </section>
       {activeCitation && <CitationPreviewPanel source={activeCitation} onClose={() => setActiveCitation(null)} />}

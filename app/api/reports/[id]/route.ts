@@ -128,7 +128,7 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
   try {
     const { data: report, error: reportErrorResult } = await context.service
       .from("reports")
-      .select("id, title, generated_document_id")
+      .select("id, title, status, generated_document_id")
       .eq("id", id)
       .eq("user_id", context.user.id)
       .eq("category_slug", context.category)
@@ -237,7 +237,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   try {
     const { data: existingReport, error: existingError } = await context.service
       .from("reports")
-      .select("id, title, generated_document_id")
+      .select("id, title, status, generated_document_id")
       .eq("id", id)
       .eq("user_id", context.user.id)
       .eq("category_slug", context.category)
@@ -247,6 +247,12 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
     if (!existingReport) {
       return NextResponse.json({ error: "Report not found." }, { status: 404 });
+    }
+    if (existingReport.status === "finalized") {
+      return NextResponse.json(
+        { error: "Finalized reports cannot be edited." },
+        { status: 409 },
+      );
     }
 
     const { data: report, error: updateError } = await context.service

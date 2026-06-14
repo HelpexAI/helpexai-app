@@ -3,16 +3,19 @@ import type { Plan } from '@/types'
 // Plan limits
 export const PLAN_LIMITS = {
   free: {
-    max_documents: 3,
-    max_queries_day: 5,
+    max_storage_bytes: 30 * 1024 * 1024,
+    max_queries_day: 100,
+    max_reports_month: 5,
   },
   pro: {
-    max_documents: 30,
-    max_queries_day: 30,
+    max_storage_bytes: 500 * 1024 * 1024,
+    max_queries_day: 500,
+    max_reports_month: 30,
   },
   premium: {
-    max_documents: 100,
-    max_queries_day: 100,
+    max_storage_bytes: 2 * 1024 * 1024 * 1024,
+    max_queries_day: -1,
+    max_reports_month: 100,
   },
 } as const
 

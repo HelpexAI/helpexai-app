@@ -8,6 +8,11 @@ import { normalizePlanSlug } from "@/lib/stripe/plans";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { startOfTodayUtc } from "@/lib/usage/daily";
 
+function startOfMonthUtc() {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+}
+
 export const dynamic = "force-dynamic";
 
 function formatCreemDate(value?: number | string) {
@@ -52,7 +57,7 @@ export default async function BillingPage({
   const supabase = await createClient();
   const service = createServiceClient();
 
-  const [accountResult, questionsResult] = await Promise.all([
+  const [accountResult, questionsResult, storageResult, reportsResult] = await Promise.all([
     service
       .from("accounts")
       .select("plan, creem_customer_id, subscription_status")
@@ -67,6 +72,8 @@ export default async function BillingPage({
       .eq("category_slug", workspace.category)
       .eq("action", "query")
       .gte("created_at", startOfTodayUtc()),
+    service.from("documents").select("file_size").eq("user_id", workspace.userId).eq("category_slug", workspace.category),
+    supabase.from("usage_logs").select("*", { count: "exact", head: true }).eq("user_id", workspace.userId).eq("category_slug", workspace.category).eq("action", "report_generate").gte("created_at", startOfMonthUtc()),
   ]);
 
   const account = accountResult.data;
@@ -127,14 +134,20 @@ export default async function BillingPage({
       }
       usage={[
         {
-          label: "Documents",
-          current: workspace.documentsUsed,
-          limit: limits.max_documents,
+          label: "Storage Used",
+          current: (storageResult.data ?? []).reduce((total, document) => total + document.file_size, 0),
+          limit: limits.max_storage_bytes,
+          format: "bytes",
         },
         {
-          label: "Questions Today",
+          label: "Chat Queries Today",
           current: questionsResult.count ?? 0,
           limit: limits.max_queries_day,
+        },
+        {
+          label: "Reports This Month",
+          current: reportsResult.count ?? 0,
+          limit: limits.max_reports_month,
         },
       ]}
       invoices={invoices}

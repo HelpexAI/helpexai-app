@@ -166,8 +166,9 @@ export interface Plan {
   category_slug: CategorySlug;
   price_monthly: number; // cents
   stripe_price_id?: string | null;
-  max_documents: number;
+  max_storage_bytes: number;
   max_queries_day: number;
+  max_reports_month: number;
   creem_prod_id: string | null;
 }
 
@@ -256,7 +257,12 @@ export type ApiResponse<T> = ApiSuccess<T> | ApiError;
 
 // ── Reports ───────────────────────────────────
 
-export type ReportStatus = "draft" | "generating" | "completed" | "failed";
+export type ReportStatus =
+  | "draft"
+  | "generating"
+  | "completed"
+  | "finalized"
+  | "failed";
 
 export type ReportSourceType = "documents" | "collection" | "mixed";
 
@@ -331,6 +337,7 @@ export interface Report {
   collection_id: string | null;
 
   generated_document_id: string | null;
+  current_version_id: string | null;
 
   model: string | null;
   error_message: string | null;

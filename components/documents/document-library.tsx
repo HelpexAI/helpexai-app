@@ -2,7 +2,6 @@
 
 import { PlanLimitModal } from "@/components/dashboard/plan-limit-modal";
 import { DeleteDocumentModal } from "@/components/documents/delete-document-modal";
-import { ResolveDocumentLimitModal } from "@/components/documents/resolve-document-limit-modal";
 import { useDocumentsWorkspace } from "@/components/documents/documents-workspace-shell";
 import {
   fetchJson,
@@ -62,12 +61,18 @@ function documentTags(document: DocumentRecord) {
   );
 }
 
+function documentTypeLabel(document: DocumentRecord) {
+  return documentTags(document).some((tag) => tag.name === "Report")
+    ? "Report"
+    : document.file_type;
+}
+
 export function DocumentLibrary() {
   const {
     documents: initialDocuments,
     activeCollection,
-    maxDocuments,
-    requiresResolution,
+    storageUsed,
+    storageLimit,
   } = useDocumentsWorkspace();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -84,7 +89,7 @@ export function DocumentLibrary() {
       ),
     [activeCollection.id, documents],
   );
-  const limitReached = documents.length >= maxDocuments;
+  const limitReached = storageUsed >= storageLimit;
 
   useEffect(() => setDocuments(initialDocuments), [initialDocuments]);
 
@@ -182,7 +187,7 @@ export function DocumentLibrary() {
                       {document.name}
                     </Link>
                     <p className="mt-1 text-xs uppercase text-zinc-500">
-                      {document.file_type} ·{" "}
+                      {documentTypeLabel(document)} ·{" "}
                       {formatFileSize(document.file_size)} ·{" "}
                       {formatDate(document.created_at)}
                     </p>
@@ -250,12 +255,9 @@ export function DocumentLibrary() {
       <PlanLimitModal
         open={planModalOpen}
         onClose={() => setPlanModalOpen(false)}
-        used={documents.length}
-        limit={maxDocuments}
+        used={storageUsed}
+        limit={storageLimit}
       />
-      {requiresResolution && (
-        <ResolveDocumentLimitModal documents={documents} limit={maxDocuments} />
-      )}
     </div>
   );
 }

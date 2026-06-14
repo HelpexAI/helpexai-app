@@ -19,7 +19,8 @@ export type DocumentsResponse = {
   documents: Document[];
   category: CategorySlug;
   productName: string;
-  maxDocuments: number;
+  storageUsed: number;
+  storageLimit: number;
   requiresResolution: boolean;
   collections: DocumentCollection[];
   tags: DocumentTag[];

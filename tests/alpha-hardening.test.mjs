@@ -75,6 +75,10 @@ const reportsMigration = await readFile(new URL("../supabase/migrations/014_repo
 const reportGenerateRoute = await readFile(new URL("../app/api/reports/generate/route.ts", import.meta.url), "utf8");
 const reportSaveRoute = await readFile(new URL("../app/api/reports/save/route.ts", import.meta.url), "utf8");
 const reportDownloadRoute = await readFile(new URL("../app/api/reports/[id]/download/route.ts", import.meta.url), "utf8");
+const reportRevisionMigration = await readFile(new URL("../supabase/migrations/015_report_revision_mode.sql", import.meta.url), "utf8");
+const reportRevisionRoute = await readFile(new URL("../app/api/reports/[id]/revise/route.ts", import.meta.url), "utf8");
+const reportFinalizeRoute = await readFile(new URL("../app/api/reports/[id]/finalize/route.ts", import.meta.url), "utf8");
+const reportRevisionPreview = await readFile(new URL("../components/reports/report-revision-preview.tsx", import.meta.url), "utf8");
 
 test("account protected writes are revoked from authenticated clients", () => {
   assert.match(migration, /DROP POLICY IF EXISTS "Users can update own accounts"/);
@@ -100,8 +104,8 @@ test("successful query usage is reserved atomically", () => {
 test("three-tier pricing is consistent in code and migration", () => {
   assert.match(pricingMigration, /'Premium', 'premium', 'legal', 4900, NULL, 100, 100/);
   assert.match(pricingMigration, /'Pro', 'pro', 'business', 2900, NULL, 30, 30/);
-  assert.match(plans, /max_documents: 3/);
-  assert.match(plans, /max_queries_day: 100/);
+  assert.match(plans, /max_storage_bytes: 30 \* 1024 \* 1024/);
+  assert.match(plans, /max_queries_day: -1/);
 });
 
 test("public tool enforces one email trial and five atomic answers", () => {
@@ -407,4 +411,45 @@ test("report PDF export preserves WinAnsi text and degrades unsupported scripts 
   assert.match(reportDownloadRoute, /\\xA0-\\xFF/);
   assert.match(reportDownloadRoute, /EUR /);
   assert.match(reportDownloadRoute, /\.replace\(\/\[\^\\x09\\x0A\\x0D\\x20-\\x7E\\xA0-\\xFF\]\/g, "\?"\)/);
+});
+
+test("report revision mode stores clean version history and blocks finalized edits", () => {
+  assert.match(reportRevisionMigration, /CREATE TABLE IF NOT EXISTS report_versions/);
+  assert.match(reportRevisionMigration, /current_version_id/);
+  assert.match(reportRevisionMigration, /status IN \('draft', 'generating', 'completed', 'finalized', 'failed'\)/);
+  assert.match(reportRevisionRoute, /\.eq\("report_id", report\.id\)/);
+  assert.match(reportRevisionRoute, /Finalized reports cannot be revised/);
+  assert.match(reportRevisionRoute, /Do not return HTML, diff symbols, highlights, editing notes, or AI disclaimers/);
+  assert.match(reportFinalizeRoute, /status: "finalized"/);
+  assert.match(reportFinalizeRoute, /ingestTextDocument/);
+});
+
+test("dedicated report preview supports selection, revisions, diff review, and clean finalization", () => {
+  assert.match(reportRevisionPreview, /Improve Report/);
+  assert.match(reportRevisionPreview, /captureSelection/);
+  assert.match(reportRevisionPreview, /Add to improvement/);
+  assert.match(reportRevisionPreview, /Show changes/);
+  assert.match(reportRevisionPreview, /Save & Finalize/);
+  assert.match(reportRevisionPreview, /View previous/);
+  assert.match(reportRevisionPreview, /Improve again/);
+});
+
+test("report drafts stay out of Documents until optional knowledge-base publishing", () => {
+  assert.match(reportSaveRoute, /generated_document_id: null/);
+  assert.doesNotMatch(reportSaveRoute, /reserve_document_uploads/);
+  assert.doesNotMatch(reportSaveRoute, /ingestTextDocument/);
+  assert.match(reportFinalizeRoute, /publishToKnowledgeBase/);
+  assert.match(reportFinalizeRoute, /reserve_document_uploads/);
+  assert.match(reportFinalizeRoute, /ingestTextDocument/);
+  assert.match(reportRevisionPreview, /Keep only as report/);
+  assert.match(reportRevisionPreview, /Add to Documents and knowledge base/);
+});
+
+test("published report documents hide storage extensions and render Markdown", () => {
+  assert.match(reportFinalizeRoute, /name: finalTitle/);
+  assert.match(reportFinalizeRoute, /safeStorageFilename\(`\$\{finalTitle\}\.md`\)/);
+  assert.match(documentViewer, /isReportDocument/);
+  assert.match(documentViewer, /ReportDocumentMarkdown/);
+  assert.match(documentViewer, /ReactMarkdown/);
+  assert.match(documentLibrary, /documentTypeLabel/);
 });

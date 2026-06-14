@@ -10,7 +10,7 @@ export async function getProductPlan(
   const { data } = await client
     .from("plans")
     .select(
-      "id, name, slug, category_slug, price_monthly, creem_prod_id, max_documents, max_queries_day",
+      "id, name, slug, category_slug, price_monthly, creem_prod_id, max_storage_bytes, max_queries_day, max_reports_month",
     )
     .eq("category_slug", category)
     .eq("slug", plan)
@@ -35,7 +35,7 @@ export async function getProductPlans(
   const { data } = await client
     .from("plans")
     .select(
-      "id, name, slug, category_slug, price_monthly, creem_prod_id, max_documents, max_queries_day",
+      "id, name, slug, category_slug, price_monthly, creem_prod_id, max_storage_bytes, max_queries_day, max_reports_month",
     )
     .eq("category_slug", category)
     .order("price_monthly", { ascending: true });
