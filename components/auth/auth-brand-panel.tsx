@@ -1,12 +1,9 @@
 import Link from "next/link";
 import {
-  CheckCircle2,
   Database,
   FileText,
   LayoutDashboard,
   MessageSquareText,
-  ShieldCheck,
-  Sparkles,
 } from "lucide-react";
 
 const benefits = [

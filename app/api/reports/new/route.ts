@@ -140,9 +140,9 @@ export async function GET(request: Request) {
     );
   }
 
-  const template = isCustomTemplate
+  const template = (isCustomTemplate
     ? CUSTOM_REPORT_TEMPLATE
-    : templateResult.data;
+    : templateResult.data) as unknown as typeof CUSTOM_REPORT_TEMPLATE | null;
 
   if (!template) {
     return NextResponse.json(
@@ -162,7 +162,7 @@ export async function GET(request: Request) {
   }
 
   const documents =
-    documentsResult.data?.map((document) => ({
+    (documentsResult.data as unknown as Array<{ id: string; name: string; file_type: string; created_at: string; collection_id: string | null }> | null)?.map((document) => ({
       id: document.id,
       name: document.name,
       summary: null,

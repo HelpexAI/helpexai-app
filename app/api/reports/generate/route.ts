@@ -6,12 +6,15 @@ import { reportError, logEvent } from "@/lib/monitoring";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { sanitizeTextForStorage } from "@/lib/text/sanitize";
 import { NextResponse } from "next/server";
+import type { PlanSlug } from "@/types";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 const MAX_DOCUMENTS_FALLBACK = 10;
 const MAX_CONTEXT_CHARACTERS = 45_000;
 const MAX_DOCUMENT_CHARACTERS = 9_000;
+const MAX_CUSTOM_INSTRUCTION_CHARACTERS = 8_000;
+const PLAN_RANK: Record<PlanSlug, number> = { free: 0, pro: 1, premium: 2 };
 type SourceType = "documents" | "collection";
 type GenerateReportRequest = {
   template_id?: string;
@@ -155,23 +158,6 @@ function buildReportTitle(templateName: string) {
   }).format(new Date());
   return `${templateName} - ${date}`;
 }
-function replaceTemplateVariables({
-  template,
-  customInstructions,
-  contextBlock,
-}: {
-  template: ReportTemplateRecord;
-  customInstructions: string;
-  contextBlock: string;
-}) {
-  const fallbackPrompt = `Create a professional report using the document context below. User instruction: {{custom_prompt}} Document context: {{context}}`;
-  return (template.user_prompt_template || fallbackPrompt)
-    .replaceAll(
-      "{{custom_prompt}}",
-      customInstructions || "No extra instructions.",
-    )
-    .replaceAll("{{context}}", contextBlock);
-}
 function buildContextBlock(
   documents: Array<{
     id: string;
@@ -182,8 +168,9 @@ function buildContextBlock(
     tagContext?: string;
     text: string;
   }>,
+  characterLimit = MAX_CONTEXT_CHARACTERS,
 ) {
-  let remaining = MAX_CONTEXT_CHARACTERS;
+  let remaining = Math.min(MAX_CONTEXT_CHARACTERS, characterLimit);
   const sections: string[] = [];
   for (const document of documents) {
     if (remaining <= 0) break;
@@ -268,7 +255,7 @@ async function loadSourceDocuments({
     .eq("user_id", context.user.id)
     .eq("category_slug", context.category)
     .eq("status", "ready")
-    .limit(maxDocuments);
+    .limit(maxDocuments + 1);
   if (sourceType === "collection") {
     if (!collectionId) {
       throw new Error("Collection is required.");
@@ -282,9 +269,12 @@ async function loadSourceDocuments({
   }
   const { data, error } = await query;
   if (error) throw error;
-  const documents = (data ?? []) as SourceDocumentRecord[];
+  const documents = (data ?? []) as unknown as SourceDocumentRecord[];
   if (!documents.length) {
     throw new Error("No ready source documents were found.");
+  }
+  if (documents.length > maxDocuments) {
+    throw new Error(`This report template supports up to ${maxDocuments} source documents. Reduce your selection and try again.`);
   }
   return documents;
 }
@@ -322,7 +312,7 @@ export async function POST(request: Request) {
   const collectionId = cleanString(body.collection_id) || null;
   const customInstructions = sanitizeTextForStorage(
     cleanString(body.custom_instructions),
-  );
+  ).slice(0, MAX_CUSTOM_INSTRUCTION_CHARACTERS);
   if (!templateId) {
     return NextResponse.json(
       { error: "Report template is required." },
@@ -368,7 +358,15 @@ export async function POST(request: Request) {
         { status: 404 },
       );
     }
-    const typedTemplate = template as ReportTemplateRecord;
+    const typedTemplate = template as unknown as ReportTemplateRecord;
+    const currentPlan = context.plan === "pro" || context.plan === "premium" ? context.plan : "free";
+    const requiredPlan = typedTemplate.min_plan === "pro" || typedTemplate.min_plan === "premium" ? typedTemplate.min_plan : "free";
+    if (PLAN_RANK[currentPlan] < PLAN_RANK[requiredPlan]) {
+      return NextResponse.json(
+        { error: `This report template requires the ${requiredPlan} plan.`, code: "REPORT_PLAN_REQUIRED" },
+        { status: 403 },
+      );
+    }
     const maxDocuments =
       typedTemplate.max_documents && typedTemplate.max_documents > 0
         ? Math.min(typedTemplate.max_documents, MAX_DOCUMENTS_FALLBACK)
@@ -389,25 +387,29 @@ export async function POST(request: Request) {
       sourceType,
       sourceDocumentCount: sourceDocuments.length,
     });
-    const documentsWithText = [];
-    for (const document of sourceDocuments) {
-      const collection = normalizeCollection(document.collection);
-      const tags = normalizeTags(document.document_tag_assignments);
-      const text = await loadDocumentText({ context, document });
-      if (!text.trim()) continue;
-      documentsWithText.push({
-        id: document.id,
-        name: document.name,
-        collectionName: collection.name,
-        collectionContext: collection.aiContext,
-        tags: tags.map((tag) => tag.name),
-        tagContext: tags
-          .map((tag) => tag.aiContext)
-          .filter(Boolean)
-          .join(" "),
-        text,
-      });
-    }
+    const loadedDocuments = await Promise.all(
+      sourceDocuments.map(async (document) => {
+        const collection = normalizeCollection(document.collection);
+        const tags = normalizeTags(document.document_tag_assignments);
+        const text = await loadDocumentText({ context, document });
+        if (!text.trim()) return null;
+        return {
+          id: document.id,
+          name: document.name,
+          collectionName: collection.name,
+          collectionContext: collection.aiContext,
+          tags: tags.map((tag) => tag.name),
+          tagContext: tags
+            .map((tag) => tag.aiContext)
+            .filter(Boolean)
+            .join(" "),
+          text,
+        };
+      }),
+    );
+    const documentsWithText = loadedDocuments.filter(
+      (document): document is NonNullable<typeof document> => document !== null,
+    );
     if (!documentsWithText.length) {
       return NextResponse.json(
         {
@@ -417,12 +419,10 @@ export async function POST(request: Request) {
         { status: 422 },
       );
     }
-    const contextBlock = buildContextBlock(documentsWithText);
-    const userPrompt = replaceTemplateVariables({
-      template: typedTemplate,
-      customInstructions,
-      contextBlock,
-    });
+    const contextCharacterLimit = typedTemplate.max_context_chunks && typedTemplate.max_context_chunks > 0
+      ? typedTemplate.max_context_chunks * 1_500
+      : MAX_CONTEXT_CHARACTERS;
+    const contextBlock = buildContextBlock(documentsWithText, contextCharacterLimit);
 
     const sourceSummary = buildSourceSummary(sourceDocuments);
 
@@ -433,6 +433,10 @@ export async function POST(request: Request) {
       : "Use the best structure for the user's request.";
 
     const renderedTemplatePrompt = typedTemplate.user_prompt_template
+      .replaceAll(
+        "{{custom_prompt}}",
+        customInstructions.trim() || "No extra instructions provided.",
+      )
       .replaceAll(
         "{{custom_instructions}}",
         customInstructions.trim() || "No extra instructions provided.",
@@ -445,6 +449,15 @@ export async function POST(request: Request) {
         "The full source context is appended below.",
       )
       .replaceAll("{{context}}", "The full source context is appended below.");
+
+    const outputInstructions = [
+      "- Return only the final report.",
+      "- Use markdown formatting.",
+      `- Required sections:\n${requiredSections}`,
+      `- Writing style configuration: ${JSON.stringify(typedTemplate.writing_style ?? {})}`,
+      "- Do not say that no source context was provided if the context above contains document text.",
+      "- If some information is missing from the selected documents, mention only that specific gap.",
+    ].join("\n");
 
     const finalPrompt = [
       renderedTemplatePrompt,
@@ -459,10 +472,7 @@ export async function POST(request: Request) {
       "FINAL OUTPUT INSTRUCTIONS",
       "==============================",
       "",
-      "- Return only the final report.",
-      "- Use markdown formatting.",
-      "- Do not say that no source context was provided if the context above contains document text.",
-      "- If some information is missing from the selected documents, mention only that specific gap.",
+      outputInstructions,
     ].join("\n");
 
     const llm = getLLMProvider();
@@ -495,7 +505,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       title,
       content,
-      prompt: finalPrompt,
+      // Persist only the instructions and source names. Full source text stays server-side.
+      prompt: `${renderedTemplatePrompt}\n\nFINAL OUTPUT INSTRUCTIONS\n${outputInstructions}`,
       template: {
         id: typedTemplate.id,
         slug: typedTemplate.slug,

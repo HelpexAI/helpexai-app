@@ -54,14 +54,11 @@ const marketingHeader = await readFile(new URL("../components/marketing-header.t
 const authShell = await readFile(new URL("../components/auth/auth-shell.tsx", import.meta.url), "utf8");
 const loginForm = await readFile(new URL("../components/auth/login-form.tsx", import.meta.url), "utf8");
 const signupForm = await readFile(new URL("../components/auth/signup-form.tsx", import.meta.url), "utf8");
-const legalLanding = await readFile(new URL("../app/legal/page.tsx", import.meta.url), "utf8");
-const businessLanding = await readFile(new URL("../app/business/page.tsx", import.meta.url), "utf8");
 const productLanding = await readFile(new URL("../components/marketing/product-landing-page.tsx", import.meta.url), "utf8");
 const robotsRoute = await readFile(new URL("../app/robots.ts", import.meta.url), "utf8");
 const sitemapRoute = await readFile(new URL("../app/sitemap.ts", import.meta.url), "utf8");
 const marketingContent = await readFile(new URL("../lib/marketing/content.ts", import.meta.url), "utf8");
 const articleRoute = await readFile(new URL("../app/blog/[slug]/page.tsx", import.meta.url), "utf8");
-const legalUseCaseRoute = await readFile(new URL("../app/legal/[slug]/page.tsx", import.meta.url), "utf8");
 const businessUseCaseRoute = await readFile(new URL("../app/business/[slug]/page.tsx", import.meta.url), "utf8");
 const articlePage = await readFile(new URL("../components/marketing/article-page.tsx", import.meta.url), "utf8");
 const useCasePage = await readFile(new URL("../components/marketing/use-case-page.tsx", import.meta.url), "utf8");
@@ -74,6 +71,10 @@ const dynamicProductsMigration = await readFile(new URL("../supabase/migrations/
 const productCatalog = await readFile(new URL("../lib/products/catalog.ts", import.meta.url), "utf8");
 const documentTaxonomyMigration = await readFile(new URL("../supabase/migrations/010_document_collections_and_tags.sql", import.meta.url), "utf8");
 const documentUploader = await readFile(new URL("../components/documents/document-uploader.tsx", import.meta.url), "utf8");
+const reportsMigration = await readFile(new URL("../supabase/migrations/014_reports_hardening.sql", import.meta.url), "utf8");
+const reportGenerateRoute = await readFile(new URL("../app/api/reports/generate/route.ts", import.meta.url), "utf8");
+const reportSaveRoute = await readFile(new URL("../app/api/reports/save/route.ts", import.meta.url), "utf8");
+const reportDownloadRoute = await readFile(new URL("../app/api/reports/[id]/download/route.ts", import.meta.url), "utf8");
 
 test("account protected writes are revoked from authenticated clients", () => {
   assert.match(migration, /DROP POLICY IF EXISTS "Users can update own accounts"/);
@@ -146,9 +147,9 @@ test("Vercel traces the PDF.js worker for every PDF extraction route", () => {
 
 test("Qdrant ingestion uses valid UUID point IDs and correct docId filters", () => {
   assert.match(ingestion, /id: crypto\.randomUUID\(\)/);
-  assert.match(ingestion, /key: 'docId'/);
-  assert.match(queryPipeline, /key: 'docId'/);
-  assert.doesNotMatch(queryPipeline, /key: 'payload\.docId'/);
+  assert.match(ingestion, /key: ["']docId["']/);
+  assert.match(queryPipeline, /key: ["']docId["']/);
+  assert.doesNotMatch(queryPipeline, /key: ["']payload\.docId["']/);
   assert.match(ingestion, /unexpected vector count or dimension/);
   assert.match(openAIEmbeddings, /OPENAI_API_KEY is required/);
   assert.match(qdrantProvider, /QDRANT_URL, QDRANT_API_KEY, and QDRANT_COLLECTION_NAME are required/);
@@ -225,7 +226,7 @@ test("external research bypasses category rejection and unnecessary raw PDF fall
 
 test("external research is opt-in and persisted per conversation", () => {
   assert.match(externalResearchMigration, /external_research_enabled BOOLEAN NOT NULL DEFAULT false/);
-  assert.match(queryPipeline, /externalResearchEnabled \? await searchWeb/);
+  assert.match(queryPipeline, /const webResults = externalResearchEnabled\s*\?\s*await searchWeb/);
   assert.match(queryPipeline, /suggest turning on \*\*External Research\*\*/);
   assert.match(conversationMessagesRoute, /external_research_enabled/);
   assert.match(conversationHub, /external_research_enabled: externalResearchEnabled/);
@@ -260,19 +261,19 @@ test("outdated document locks and Ask AI document actions are removed", () => {
 test("public navigation is session-aware while Get Started remains signup", () => {
   assert.match(marketingHeader, /supabase\.auth\.getSession/);
   assert.match(marketingHeader, /Open Dashboard/);
-  assert.match(marketingHeader, /authenticated \? "\/dashboard" : "\/login"/);
-  assert.match(marketingHeader, /authCategory \? `\/signup\?category=\$\{authCategory\}` : "\/signup"/);
+  assert.match(marketingHeader, /const signInHref = authCategory/);
+  assert.match(marketingHeader, /authenticated\s*\?\s*"\/dashboard"/);
+  assert.match(marketingHeader, /const signupHref = authCategory/);
+  assert.match(marketingHeader, /`\/signup\?category=\$\{authCategory\}`/);
 });
 
 test("single-product marketing hides inactive products and keeps the active conversion path", () => {
   assert.doesNotMatch(marketingHeader, /Helpex Legal/);
   assert.doesNotMatch(marketingHeader, />Products</);
-  assert.match(legalLanding, /redirect\("\/business"\)/);
-  assert.match(businessLanding, /alternates: \{ canonical: "\/business" \}/);
-  assert.match(businessLanding, /getActiveProduct\("business"\)/);
+  assert.match(productLanding, /const product = \{/);
   assert.match(productLanding, /FAQPage/);
   assert.match(productLanding, /SoftwareApplication/);
-  assert.match(productLanding, /`\/signup\?category=\$\{category\}`/);
+  assert.match(productLanding, /const signupHref = `\/signup\?category=\$\{category\}`/);
   assert.match(robotsRoute, /sitemap/);
   assert.doesNotMatch(sitemapRoute, /absoluteUrl\("\/legal"\)/);
   assert.match(sitemapRoute, /absoluteUrl\("\/business"\)/);
@@ -280,33 +281,30 @@ test("single-product marketing hides inactive products and keeps the active conv
 
 test("product auth flows resolve active database products and preserve their theme", () => {
   assert.match(productLanding, /<MarketingHeader authCategory=\{category\} \/>/);
-  assert.match(marketingHeader, /authCategory \? `\/login\?category=\$\{authCategory\}`/);
+  assert.match(marketingHeader, /`\/login\?category=\$\{authCategory\}`/);
   assert.match(marketingHeader, /const showSignIn = Boolean\(authCategory\) \|\| authenticated !== null/);
   assert.match(authShell, /products\.find/);
   assert.match(authShell, /themeStyle\(product\?\.theme \?\? "main"\)/);
-  assert.match(loginForm, /`\/signup\$\{categoryQuery\}`/);
+  assert.match(loginForm, /href=\{`\/signup\$\{categoryQuery\}`\}/);
   assert.match(signupForm, /`\/login\?category=\$\{category\}`/);
   assert.match(middleware, /isProductAuthFlow/);
   assert.match(middleware, /user && !isProductAuthFlow/);
 });
 
 test("SEO content and high-intent use-case routes are static, structured, and internally linked", () => {
-  assert.match(marketingContent, /how-to-review-a-contract-with-ai/);
-  assert.match(marketingContent, /ai-document-analysis-for-lawyers/);
-  assert.match(marketingContent, /how-to-compare-invoices-with-contracts/);
-  assert.match(marketingContent, /best-ai-workflows-for-small-business-documents/);
-  assert.match(marketingContent, /slug: "contract-analysis"/);
-  assert.match(marketingContent, /slug: "nda-review"/);
-  assert.match(marketingContent, /slug: "invoice-analysis"/);
-  assert.match(marketingContent, /slug: "vendor-contract-review"/);
+  assert.match(marketingContent, /what-is-a-business-knowledge-workspace/);
+  assert.match(marketingContent, /how-to-build-an-ai-business-knowledge-base/);
+  assert.match(marketingContent, /how-to-generate-business-reports-with-ai/);
+  assert.match(marketingContent, /using-ai-for-business-decisions/);
+  assert.match(marketingContent, /slug: "business-knowledge-workspace"/);
+  assert.match(marketingContent, /slug: "ai-document-reports"/);
   assert.match(articleRoute, /generateStaticParams/);
-  assert.match(legalUseCaseRoute, /redirect\("\/business"\)/);
   assert.match(businessUseCaseRoute, /generateStaticParams/);
   assert.match(articlePage, /"@type": "Article"/);
   assert.match(articlePage, /"@type": "BreadcrumbList"/);
   assert.match(useCasePage, /"@type": "FAQPage"/);
-  assert.match(productLanding, /href: "\/legal\/contract-analysis"/);
-  assert.match(productLanding, /href: "\/business\/invoice-analysis"/);
+  assert.match(productLanding, /href: "\/business\/business-knowledge-workspace"/);
+  assert.match(productLanding, /href: "\/business\/ai-document-reports"/);
   assert.match(sitemapRoute, /articles\.filter/);
   assert.match(sitemapRoute, /useCases\.filter/);
 });
@@ -383,4 +381,30 @@ test("public tool communicates staged document upload progress", () => {
   assert.match(publicToolClient, /Preparing your question session/);
   assert.match(publicToolClient, /transition-\[width\]/);
   assert.match(publicToolClient, /aria-live="polite"/);
+});
+
+test("report generation enforces plans, source limits, and safe prompt persistence", () => {
+  assert.match(reportGenerateRoute, /PLAN_RANK/);
+  assert.match(reportGenerateRoute, /REPORT_PLAN_REQUIRED/);
+  assert.match(reportGenerateRoute, /\.limit\(maxDocuments \+ 1\)/);
+  assert.match(reportGenerateRoute, /\.replaceAll\(\s*"{{custom_prompt}}"/);
+  assert.match(reportGenerateRoute, /max_context_chunks \* 1_500/);
+  assert.match(reportGenerateRoute, /Promise\.all/);
+  assert.doesNotMatch(reportGenerateRoute, /prompt:\s*finalPrompt/);
+});
+
+test("reports and their sources are created atomically inside the active workspace", () => {
+  assert.match(reportSaveRoute, /create_report_with_sources/);
+  assert.match(reportSaveRoute, /validateSourceDocuments/);
+  assert.match(reportsMigration, /REVOKE INSERT, UPDATE, DELETE ON reports, report_sources, report_templates/);
+  assert.match(reportsMigration, /CREATE OR REPLACE FUNCTION create_report_with_sources/);
+  assert.match(reportsMigration, /Invalid report workspace/);
+  assert.match(reportsMigration, /Invalid report collection/);
+  assert.match(reportsMigration, /One or more report sources are invalid/);
+});
+
+test("report PDF export preserves WinAnsi text and degrades unsupported scripts safely", () => {
+  assert.match(reportDownloadRoute, /\\xA0-\\xFF/);
+  assert.match(reportDownloadRoute, /EUR /);
+  assert.match(reportDownloadRoute, /\.replace\(\/\[\^\\x09\\x0A\\x0D\\x20-\\x7E\\xA0-\\xFF\]\/g, "\?"\)/);
 });

@@ -12,6 +12,7 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+const MAX_REPORT_CONTENT_CHARACTERS = 250_000;
 type SourceType = "documents" | "collection" | "mixed";
 type SaveReportRequest = {
   title?: string;
@@ -138,18 +139,23 @@ async function getAccountId(
     .eq("category_slug", context.category)
     .maybeSingle();
   if (error) throw error;
-  return data?.id ?? null;
+  if (!data?.id) throw new Error("Active workspace account was not found.");
+  return data.id;
 }
 async function validateSourceDocuments({
   context,
   sourceDocumentIds,
+  sourceType,
+  collectionId,
 }: {
   context: NonNullable<Awaited<ReturnType<typeof getDocumentRequestContext>>>;
   sourceDocumentIds: string[];
+  sourceType: SourceType;
+  collectionId: string | null;
 }) {
   const { data, error } = await context.service
     .from("documents")
-    .select("id")
+    .select("id, collection_id")
     .eq("user_id", context.user.id)
     .eq("category_slug", context.category)
     .eq("status", "ready")
@@ -161,6 +167,11 @@ async function validateSourceDocuments({
     throw new Error(
       "One or more selected report source documents are invalid.",
     );
+  }
+  if (sourceType === "collection") {
+    if (!collectionId || (data ?? []).some((document) => document.collection_id !== collectionId)) {
+      throw new Error("Report source documents do not belong to the selected collection.");
+    }
   }
 }
 export async function POST(request: Request) {
@@ -191,8 +202,11 @@ export async function POST(request: Request) {
     );
   }
   const title = sanitizeTextForStorage(cleanString(body.title)).slice(0, 160);
-  const content = sanitizeTextForStorage(cleanString(body.content));
-  const prompt = sanitizeTextForStorage(cleanString(body.prompt));
+  const content = sanitizeTextForStorage(cleanString(body.content)).slice(
+    0,
+    MAX_REPORT_CONTENT_CHARACTERS,
+  );
+  const prompt = sanitizeTextForStorage(cleanString(body.prompt)).slice(0, 20_000);
   const templateId = cleanNullableString(body.template_id);
   const templateSlug = cleanNullableString(body.template_slug);
   const templateSnapshot =
@@ -231,7 +245,7 @@ export async function POST(request: Request) {
   let storagePath: string | null = null;
   let reportId: string | null = null;
   try {
-    await validateSourceDocuments({ context, sourceDocumentIds });
+    await validateSourceDocuments({ context, sourceDocumentIds, sourceType, collectionId });
     const [accountId, reportsCollection, reportTag] = await Promise.all([
       getAccountId(context),
       ensureReportsCollection(context),
@@ -308,13 +322,7 @@ export async function POST(request: Request) {
       .from("document_tag_assignments")
       .insert({ document_id: documentId, tag_id: reportTag.id });
     if (tagError) {
-      await reportError(tagError, {
-        area: "report-save-tag-assignment",
-        userId: context.user.id,
-        category: context.category,
-        documentId,
-        tagId: reportTag.id,
-      });
+      throw new Error(`Could not attach the Report knowledge tag: ${tagError.message}`);
     }
     let chunkCount = 0;
     let processingWarning: string | null = null;
@@ -359,62 +367,66 @@ export async function POST(request: Request) {
         .select("id, name, file_path, status, chunk_count, error_message")
         .single();
     if (documentUpdateError) throw documentUpdateError;
-    const { data: report, error: reportInsertError } = await context.service
-      .from("reports")
-      .insert({
-        user_id: context.user.id,
-        account_id: accountId,
-        category_slug: context.category,
-        title,
-        prompt,
-        template_id: templateId,
-        template_slug: templateSlug,
-        template_snapshot: templateSnapshot,
-        content,
-        content_format: "markdown",
-        status: "completed",
-        source_type: sourceType,
-        collection_id: collectionId,
-        generated_document_id: documentId,
-        model: null,
-        error_message: null,
-        metadata: {
-          tokens_used: tokensUsed,
-          generated_document_name: `${title}.txt`,
-          embedded: chunkCount > 0,
-          embedding_warning: processingWarning,
+    const generatedAt = new Date().toISOString();
+    const { data: createdReport, error: reportInsertError } = await context.service.rpc(
+      "create_report_with_sources",
+      {
+        p_report: {
+          user_id: context.user.id,
+          account_id: accountId,
+          category_slug: context.category,
+          title,
+          prompt,
+          template_id: templateId,
+          template_slug: templateSlug,
+          template_snapshot: templateSnapshot,
+          content,
+          content_format: "markdown",
+          status: "completed",
+          source_type: sourceType,
+          collection_id: collectionId,
+          generated_document_id: documentId,
+          model: null,
+          error_message: null,
+          metadata: {
+            tokens_used: tokensUsed,
+            generated_document_name: `${title}.txt`,
+            embedded: chunkCount > 0,
+            embedding_warning: processingWarning,
+          },
+          generated_at: generatedAt,
         },
-        generated_at: new Date().toISOString(),
-      })
-      .select(
-        "id, title, status, generated_document_id, generated_at, created_at, updated_at",
-      )
-      .single();
-    if (reportInsertError) throw reportInsertError;
-    reportId = report.id;
-    const { error: sourceInsertError } = await context.service
-      .from("report_sources")
-      .insert(
-        sourceDocumentIds.map((sourceDocumentId) => ({
-          report_id: report.id,
-          document_id: sourceDocumentId,
-        })),
-      );
-    if (sourceInsertError) {
-      await reportError(sourceInsertError, {
-        area: "report-save-source-links",
-        userId: context.user.id,
-        category: context.category,
-        reportId: report.id,
-        sourceDocumentIds,
-      });
+        p_source_document_ids: sourceDocumentIds,
+      },
+    );
+    if (reportInsertError || !createdReport) {
+      throw new Error(reportInsertError?.message ?? "Could not save report provenance. Apply migration 014.");
     }
-    await context.service.from("usage_logs").insert({
+    const report = createdReport as unknown as {
+      id: string;
+      title: string;
+      status: string;
+      generated_document_id: string | null;
+      generated_at: string | null;
+      created_at: string;
+      updated_at: string;
+    };
+    reportId = report.id;
+    const { error: usageLogError } = await context.service.from("usage_logs").insert({
       user_id: context.user.id,
       category_slug: context.category,
       action: "report_generate",
       tokens_used: tokensUsed,
     });
+    if (usageLogError) {
+      await reportError(usageLogError, {
+        area: "report-save-usage-log",
+        userId: context.user.id,
+        userEmail: context.user.email,
+        category: context.category,
+        reportId: report.id,
+      });
+    }
     await logEvent("report_save_completed", {
       userId: context.user.id,
       userEmail: context.user.email,

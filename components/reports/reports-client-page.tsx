@@ -7,7 +7,6 @@ import { formatDate } from "@/lib/utils";
 import type { CategorySlug, PlanSlug, ReportStatus } from "@/types";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ArrowRight,
   BarChart3,
   Calendar,
   FileText,
@@ -199,7 +198,7 @@ export function ReportsClientPage() {
 
           <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
             Generate professional reports from your uploaded documents. Saved
-            reports stay editable as markdown, appear in your knowledge base,
+            reports are stored as markdown, appear in your knowledge base,
             and can be downloaded as PDF.
           </p>
         </div>

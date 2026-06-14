@@ -5,7 +5,6 @@ import {
   Calendar,
   Download,
   FileText,
-  FolderOpen,
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
@@ -231,7 +230,7 @@ export default async function ReportViewPage({ params }: PageProps) {
     notFound();
   }
 
-  const typedReport = report as ReportRecord;
+  const typedReport = report as unknown as ReportRecord;
 
   const { data: sources } = await context.service
     .from("report_sources")
@@ -246,29 +245,7 @@ export default async function ReportViewPage({ params }: PageProps) {
     .eq("report_id", typedReport.id)
     .order("created_at", { ascending: true });
 
-  let generatedDocumentUrl: string | null = null;
-
-  if (typedReport.generated_document_id) {
-    const { data: generatedDocument } = await context.service
-      .from("documents")
-      .select("name, file_path")
-      .eq("id", typedReport.generated_document_id)
-      .eq("user_id", context.user.id)
-      .eq("category_slug", context.category)
-      .maybeSingle();
-
-    if (generatedDocument?.file_path) {
-      const { data: signed } = await context.service.storage
-        .from("documents")
-        .createSignedUrl(generatedDocument.file_path, 60 * 60, {
-          download: generatedDocument.name,
-        });
-
-      generatedDocumentUrl = signed?.signedUrl ?? null;
-    }
-  }
-
-  const reportSources = ((sources ?? []) as SourceRecord[])
+  const reportSources = ((sources ?? []) as unknown as SourceRecord[])
     .map(getSourceDocument)
     .filter(Boolean) as Array<{
     id: string;
@@ -323,18 +300,6 @@ export default async function ReportViewPage({ params }: PageProps) {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {/* {generatedDocumentUrl ? (
-            <a
-              href={generatedDocumentUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-950"
-            >
-              <FolderOpen className="size-4" />
-              Open source file
-            </a>
-          ) : null} */}
-
           <a
             href={`/api/reports/${typedReport.id}/download`}
             target="_blank"

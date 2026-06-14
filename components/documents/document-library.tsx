@@ -66,7 +66,6 @@ export function DocumentLibrary() {
   const {
     documents: initialDocuments,
     activeCollection,
-    productName,
     maxDocuments,
     requiresResolution,
   } = useDocumentsWorkspace();

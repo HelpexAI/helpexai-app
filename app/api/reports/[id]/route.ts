@@ -80,14 +80,17 @@ export async function GET(_request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: sourcesError.message }, { status: 500 });
   }
 
+  const typedReport = report as unknown as {
+    generated_document_id: string | null;
+  };
   let generatedDocument = null;
   let generatedDocumentUrl: string | null = null;
 
-  if (report.generated_document_id) {
+  if (typedReport.generated_document_id) {
     const { data: document } = await context.service
       .from("documents")
       .select("id, name, file_path, file_type, status, created_at")
-      .eq("id", report.generated_document_id)
+      .eq("id", typedReport.generated_document_id)
       .eq("user_id", context.user.id)
       .eq("category_slug", context.category)
       .maybeSingle();

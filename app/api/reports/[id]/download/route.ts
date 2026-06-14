@@ -51,15 +51,6 @@ function filenameSafe(value: string) {
     .slice(0, 80);
 }
 
-function normalizeTemplateName(slug: string | null) {
-  if (!slug) return "Custom report";
-
-  return slug
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
-
 function cleanPdfText(value: string) {
   return value
     .replaceAll("’", "'")
@@ -72,7 +63,11 @@ function cleanPdfText(value: string) {
     .replaceAll("→", "->")
     .replaceAll("₹", "Rs.")
     .replaceAll("₨", "Rs.")
-    .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, "")
+    .replaceAll("€", "EUR ")
+    .replaceAll("₹", "INR ")
+    .replaceAll("₨", "Rs. ")
+    // Preserve WinAnsi/Latin-1 names and currencies instead of deleting them.
+    .replace(/[^\x09\x0A\x0D\x20-\x7E\xA0-\xFF]/g, "?")
     .trimEnd();
 }
 
@@ -624,7 +619,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: "Report not found." }, { status: 404 });
   }
 
-  const typedReport = report as ReportRecord;
+  const typedReport = report as unknown as ReportRecord;
 
   if (!typedReport.content?.trim()) {
     return NextResponse.json(

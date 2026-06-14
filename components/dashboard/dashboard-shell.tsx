@@ -231,7 +231,7 @@ export function DashboardShell({
                 onMouseEnter={() => router.prefetch(href)}
                 onFocus={() => router.prefetch(href)}
                 onTouchStart={() => router.prefetch(href)}
-                onClick={(event) => {
+                onClick={() => {
                   if (!active) setPendingHref(href);
                 }}
                 className={`flex items-center rounded-lg py-2.5 text-sm transition-colors ${

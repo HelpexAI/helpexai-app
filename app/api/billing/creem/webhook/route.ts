@@ -12,7 +12,20 @@ type CreemEvent = {
   eventType?: string;
   type?: string;
   created_at?: number;
-  object?: Record<string, any>;
+  object?: CreemObject;
+};
+
+type CreemObject = {
+  object?: string;
+  id?: string;
+  request_id?: string;
+  metadata?: Record<string, string>;
+  subscription?: CreemObject | string;
+  customer?: { id?: string } | string;
+  product?: { id?: string } | string;
+  order?: { customer?: string; product?: string };
+  current_period_end_date?: string;
+  [key: string]: unknown;
 };
 
 function verifyCreemSignature({
@@ -99,11 +112,11 @@ function getCustomerId(event: CreemEvent) {
   const object = event.object;
   const subscription = getSubscription(event);
 
-  if (subscription?.customer?.id) return subscription.customer.id;
   if (typeof subscription?.customer === "string") return subscription.customer;
+  if (subscription?.customer?.id) return subscription.customer.id;
 
-  if (object?.customer?.id) return object.customer.id;
   if (typeof object?.customer === "string") return object.customer;
+  if (object?.customer?.id) return object.customer.id;
 
   if (object?.order?.customer) return object.order.customer;
 
@@ -127,11 +140,11 @@ function getProductId(event: CreemEvent) {
   const object = event.object;
   const subscription = getSubscription(event);
 
-  if (subscription?.product?.id) return subscription.product.id;
   if (typeof subscription?.product === "string") return subscription.product;
+  if (subscription?.product?.id) return subscription.product.id;
 
-  if (object?.product?.id) return object.product.id;
   if (typeof object?.product === "string") return object.product;
+  if (object?.product?.id) return object.product.id;
 
   if (object?.order?.product) return object.order.product;
 

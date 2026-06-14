@@ -10,7 +10,6 @@ import {
   FileText,
   FolderOpen,
   Loader2,
-  Sparkles,
   Wand2,
 } from "lucide-react";
 import Link from "next/link";
@@ -25,6 +24,8 @@ type ReportTemplateDetail = {
   name: string;
   description: string | null;
   goal: string;
+  system_prompt: string;
+  user_prompt_template: string;
   required_sections: string[] | null;
   writing_style: Record<string, unknown> | null;
   min_plan: PlanSlug;
@@ -396,7 +397,7 @@ function buildPromptPreview({
   selectedCollectionName,
   customInstructions,
 }: {
-  template: ReportTemplate;
+  template: ReportTemplateDetail;
   sourceMode: SourceMode;
   selectedDocumentNames: string[];
   selectedCollectionName: string | null;
