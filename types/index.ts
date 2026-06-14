@@ -175,7 +175,7 @@ export interface UsageLog {
   id: string;
   user_id: string;
   category_slug: CategorySlug;
-  action: "document_upload" | "query" | "document_delete";
+  action: "document_upload" | "query" | "document_delete" | "report_generate";
   tokens_used: number | null;
   created_at: string;
 }
@@ -253,3 +253,98 @@ export interface ApiError {
 }
 
 export type ApiResponse<T> = ApiSuccess<T> | ApiError;
+
+// ── Reports ───────────────────────────────────
+
+export type ReportStatus = "draft" | "generating" | "completed" | "failed";
+
+export type ReportSourceType = "documents" | "collection" | "mixed";
+
+export type ReportTemplateVisibility = "public" | "admin" | "private";
+
+export type ReportTemplateStatus = "draft" | "active" | "archived";
+
+export type ReportTemplateType =
+  | "business"
+  | "legal"
+  | "financial"
+  | "operations"
+  | "custom";
+
+export interface ReportTemplate {
+  id: string;
+  category_slug: CategorySlug;
+
+  slug: string;
+  name: string;
+  description: string | null;
+  icon: string | null;
+
+  type: ReportTemplateType;
+
+  goal: string;
+  system_prompt: string;
+  user_prompt_template: string;
+
+  required_sections: string[];
+  output_schema: Record<string, unknown>;
+  writing_style: Record<string, unknown>;
+
+  model: string | null;
+  temperature: number | null;
+  max_documents: number | null;
+  max_context_chunks: number | null;
+
+  visibility: ReportTemplateVisibility;
+  status: ReportTemplateStatus;
+  min_plan: PlanSlug;
+
+  sort_order: number;
+
+  created_by: string | null;
+  metadata: Record<string, unknown>;
+
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Report {
+  id: string;
+
+  user_id: string;
+  account_id: string | null;
+  category_slug: CategorySlug;
+
+  title: string;
+  prompt: string;
+
+  template_id: string | null;
+  template_slug: string | null;
+  template_snapshot: Record<string, unknown>;
+
+  content: string | null;
+  content_format: "markdown";
+
+  status: ReportStatus;
+
+  source_type: ReportSourceType;
+  collection_id: string | null;
+
+  generated_document_id: string | null;
+
+  model: string | null;
+  error_message: string | null;
+
+  metadata: Record<string, unknown>;
+
+  generated_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReportSource {
+  id: string;
+  report_id: string;
+  document_id: string;
+  created_at: string;
+}

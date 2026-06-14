@@ -1,0 +1,535 @@
+import { extractDocumentPages } from "@/lib/ai/pipeline/ingest";
+import { getLLMProvider } from "@/lib/ai/factory";
+import { stripAiDisclaimer } from "@/lib/ai/disclaimer";
+import { getDocumentRequestContext } from "@/lib/documents/server";
+import { reportError, logEvent } from "@/lib/monitoring";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
+import { sanitizeTextForStorage } from "@/lib/text/sanitize";
+import { NextResponse } from "next/server";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+const MAX_DOCUMENTS_FALLBACK = 10;
+const MAX_CONTEXT_CHARACTERS = 45_000;
+const MAX_DOCUMENT_CHARACTERS = 9_000;
+type SourceType = "documents" | "collection";
+type GenerateReportRequest = {
+  template_id?: string;
+  source_type?: SourceType;
+  document_ids?: string[];
+  collection_id?: string | null;
+  custom_instructions?: string;
+};
+type ReportTemplateRecord = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  goal: string;
+  system_prompt: string;
+  user_prompt_template: string;
+  required_sections: string[] | null;
+  writing_style: Record<string, unknown> | null;
+  min_plan: string;
+  max_documents: number | null;
+  max_context_chunks: number | null;
+};
+type SourceDocumentRecord = {
+  id: string;
+  name: string;
+  file_path: string;
+  file_type: "pdf" | "docx" | "txt";
+  collection_id: string | null;
+  collection:
+    | { name: string | null; ai_context: string | null }
+    | { name: string | null; ai_context: string | null }[]
+    | null;
+  document_tag_assignments:
+    | {
+        tag:
+          | { name: string | null; ai_context: string | null }
+          | { name: string | null; ai_context: string | null }[]
+          | null;
+      }[]
+    | null;
+};
+
+const CUSTOM_TEMPLATE_ID = "custom";
+
+const CUSTOM_REPORT_TEMPLATE = {
+  id: CUSTOM_TEMPLATE_ID,
+  slug: "custom",
+  name: "Custom report",
+  description: "Create a report using your own prompt and instructions.",
+  goal: "Generate a custom business report from the selected knowledge-base sources.",
+  system_prompt:
+    "You are HelpexAI, a professional business report assistant. Use the provided source context for facts about the selected documents. For general how-to steps, recommendations, structure, or best practices requested by the user, you may use professional general knowledge, but do not invent personal facts that are not present in the source context.",
+  user_prompt_template: [
+    "Create a custom report based on the selected documents or collection.",
+    "",
+    "User instructions:",
+    "{{custom_instructions}}",
+    "",
+    "Selected sources:",
+    "{{source_summary}}",
+    "",
+    "Important rules:",
+    "- Use source context for facts about the user, company, documents, projects, numbers, names, and dates.",
+    "- If the user asks for steps, strategy, recommendations, or structure, provide practical professional guidance.",
+    "- If a required personal or document-specific fact is missing, say it is not available in the selected sources.",
+    "- Return the final answer as a professional markdown report.",
+  ].join("\n"),
+  required_sections: [],
+  writing_style: {
+    tone: "professional",
+    format: "markdown",
+    clarity: "high",
+  },
+  min_plan: "free",
+  max_documents: null,
+  max_context_chunks: null,
+};
+
+function parseBody(value: unknown): GenerateReportRequest | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return value as GenerateReportRequest;
+}
+function cleanString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+function buildSourceSummary(documents: SourceDocumentRecord[]) {
+  return documents.map((document) => `- ${document.name}`).join("\n");
+}
+function cleanStringArray(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+function normalizeSourceType(value: unknown): SourceType {
+  return value === "collection" ? "collection" : "documents";
+}
+function normalizeCollection(collection: SourceDocumentRecord["collection"]): {
+  name?: string;
+  aiContext?: string;
+} {
+  const item = Array.isArray(collection) ? collection[0] : collection;
+  return {
+    name: item?.name ?? undefined,
+    aiContext: item?.ai_context ?? undefined,
+  };
+}
+function normalizeTags(
+  assignments: SourceDocumentRecord["document_tag_assignments"],
+) {
+  return (assignments ?? [])
+    .flatMap((assignment) => {
+      if (!assignment.tag) return [];
+      return Array.isArray(assignment.tag) ? assignment.tag : [assignment.tag];
+    })
+    .filter(Boolean)
+    .map((tag) => ({ name: tag.name ?? "", aiContext: tag.ai_context ?? "" }))
+    .filter((tag) => tag.name);
+}
+function buildTemplateSnapshot(template: ReportTemplateRecord) {
+  return {
+    id: template.id,
+    slug: template.slug,
+    name: template.name,
+    goal: template.goal,
+    system_prompt: template.system_prompt,
+    user_prompt_template: template.user_prompt_template,
+    required_sections: template.required_sections ?? [],
+    writing_style: template.writing_style ?? {},
+    min_plan: template.min_plan,
+  };
+}
+function buildReportTitle(templateName: string) {
+  const date = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date());
+  return `${templateName} - ${date}`;
+}
+function replaceTemplateVariables({
+  template,
+  customInstructions,
+  contextBlock,
+}: {
+  template: ReportTemplateRecord;
+  customInstructions: string;
+  contextBlock: string;
+}) {
+  const fallbackPrompt = `Create a professional report using the document context below. User instruction: {{custom_prompt}} Document context: {{context}}`;
+  return (template.user_prompt_template || fallbackPrompt)
+    .replaceAll(
+      "{{custom_prompt}}",
+      customInstructions || "No extra instructions.",
+    )
+    .replaceAll("{{context}}", contextBlock);
+}
+function buildContextBlock(
+  documents: Array<{
+    id: string;
+    name: string;
+    collectionName?: string;
+    collectionContext?: string;
+    tags: string[];
+    tagContext?: string;
+    text: string;
+  }>,
+) {
+  let remaining = MAX_CONTEXT_CHARACTERS;
+  const sections: string[] = [];
+  for (const document of documents) {
+    if (remaining <= 0) break;
+    const text = document.text
+      .trim()
+      .slice(0, Math.min(MAX_DOCUMENT_CHARACTERS, remaining));
+    if (!text) continue;
+    remaining -= text.length;
+    sections.push(
+      [
+        `Document ID: ${document.id}`,
+        `Document Name: ${document.name}`,
+        `Collection: ${document.collectionName ?? "Uncategorized"}`,
+        document.tags.length ? `Tags: ${document.tags.join(", ")}` : null,
+        document.collectionContext
+          ? `Collection Context: ${document.collectionContext}`
+          : null,
+        document.tagContext ? `Tag Context: ${document.tagContext}` : null,
+        "",
+        text,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
+  }
+  return sections
+    .map((section, index) => `--- SOURCE DOCUMENT ${index + 1} ---\n${section}`)
+    .join("\n\n");
+}
+async function loadDocumentText({
+  context,
+  document,
+}: {
+  context: NonNullable<Awaited<ReturnType<typeof getDocumentRequestContext>>>;
+  document: SourceDocumentRecord;
+}) {
+  const { data: file, error: downloadError } = await context.service.storage
+    .from("documents")
+    .download(document.file_path);
+  if (downloadError || !file) {
+    throw new Error(`Could not download ${document.name}.`);
+  }
+  const pages = await extractDocumentPages(
+    Buffer.from(await file.arrayBuffer()),
+    document.file_type,
+  );
+  const text = sanitizeTextForStorage(
+    pages
+      .map((page) =>
+        page.pageNumber ? `[Page ${page.pageNumber}]\n${page.text}` : page.text,
+      )
+      .join("\n\n"),
+  );
+  return text;
+}
+async function loadSourceDocuments({
+  context,
+  sourceType,
+  documentIds,
+  collectionId,
+  maxDocuments,
+}: {
+  context: NonNullable<Awaited<ReturnType<typeof getDocumentRequestContext>>>;
+  sourceType: SourceType;
+  documentIds: string[];
+  collectionId: string | null;
+  maxDocuments: number;
+}) {
+  let query = context.service
+    .from("documents")
+    .select(
+      [
+        "id",
+        "name",
+        "file_path",
+        "file_type",
+        "collection_id",
+        "collection:collections(name, ai_context)",
+        "document_tag_assignments(tag:tags(name, ai_context))",
+      ].join(", "),
+    )
+    .eq("user_id", context.user.id)
+    .eq("category_slug", context.category)
+    .eq("status", "ready")
+    .limit(maxDocuments);
+  if (sourceType === "collection") {
+    if (!collectionId) {
+      throw new Error("Collection is required.");
+    }
+    query = query.eq("collection_id", collectionId);
+  } else {
+    if (!documentIds.length) {
+      throw new Error("Select at least one document.");
+    }
+    query = query.in("id", documentIds);
+  }
+  const { data, error } = await query;
+  if (error) throw error;
+  const documents = (data ?? []) as SourceDocumentRecord[];
+  if (!documents.length) {
+    throw new Error("No ready source documents were found.");
+  }
+  return documents;
+}
+export async function POST(request: Request) {
+  const context = await getDocumentRequestContext();
+  if (!context) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const limited = await enforceRateLimit(
+    `report-generate:${context.user.id}:${context.category}`,
+    6,
+    60,
+  );
+  if (limited) return limited;
+  if (context.documentLimit.requiresResolution) {
+    return NextResponse.json(
+      {
+        error: "Choose which documents to keep before generating reports.",
+        code: "DOCUMENT_LIMIT_RESOLUTION_REQUIRED",
+      },
+      { status: 403 },
+    );
+  }
+  const body = parseBody(await request.json().catch(() => null));
+  if (!body) {
+    return NextResponse.json(
+      { error: "Invalid request body." },
+      { status: 400 },
+    );
+  }
+  const templateId = cleanString(body.template_id);
+  const isCustomTemplate = templateId === CUSTOM_TEMPLATE_ID;
+  const sourceType = normalizeSourceType(body.source_type);
+  const documentIds = cleanStringArray(body.document_ids);
+  const collectionId = cleanString(body.collection_id) || null;
+  const customInstructions = sanitizeTextForStorage(
+    cleanString(body.custom_instructions),
+  );
+  if (!templateId) {
+    return NextResponse.json(
+      { error: "Report template is required." },
+      { status: 400 },
+    );
+  }
+  if (isCustomTemplate && customInstructions.length < 10) {
+    return NextResponse.json(
+      { error: "Please write a custom prompt or instruction for this report." },
+      { status: 400 },
+    );
+  }
+  try {
+    const { data: template, error: templateError } = isCustomTemplate
+      ? { data: CUSTOM_REPORT_TEMPLATE, error: null }
+      : await context.service
+          .from("report_templates")
+          .select(
+            [
+              "id",
+              "slug",
+              "name",
+              "description",
+              "goal",
+              "system_prompt",
+              "user_prompt_template",
+              "required_sections",
+              "writing_style",
+              "min_plan",
+              "max_documents",
+              "max_context_chunks",
+            ].join(", "),
+          )
+          .eq("id", templateId)
+          .eq("category_slug", context.category)
+          .eq("status", "active")
+          .eq("visibility", "public")
+          .maybeSingle();
+    if (templateError) throw templateError;
+    if (!template) {
+      return NextResponse.json(
+        { error: "Report template was not found." },
+        { status: 404 },
+      );
+    }
+    const typedTemplate = template as ReportTemplateRecord;
+    const maxDocuments =
+      typedTemplate.max_documents && typedTemplate.max_documents > 0
+        ? Math.min(typedTemplate.max_documents, MAX_DOCUMENTS_FALLBACK)
+        : MAX_DOCUMENTS_FALLBACK;
+    const sourceDocuments = await loadSourceDocuments({
+      context,
+      sourceType,
+      documentIds,
+      collectionId,
+      maxDocuments,
+    });
+    await logEvent("report_generation_started", {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      category: context.category,
+      templateId: typedTemplate.id,
+      templateSlug: typedTemplate.slug,
+      sourceType,
+      sourceDocumentCount: sourceDocuments.length,
+    });
+    const documentsWithText = [];
+    for (const document of sourceDocuments) {
+      const collection = normalizeCollection(document.collection);
+      const tags = normalizeTags(document.document_tag_assignments);
+      const text = await loadDocumentText({ context, document });
+      if (!text.trim()) continue;
+      documentsWithText.push({
+        id: document.id,
+        name: document.name,
+        collectionName: collection.name,
+        collectionContext: collection.aiContext,
+        tags: tags.map((tag) => tag.name),
+        tagContext: tags
+          .map((tag) => tag.aiContext)
+          .filter(Boolean)
+          .join(" "),
+        text,
+      });
+    }
+    if (!documentsWithText.length) {
+      return NextResponse.json(
+        {
+          error:
+            "No readable text was found in the selected documents. Scanned PDFs are not supported yet.",
+        },
+        { status: 422 },
+      );
+    }
+    const contextBlock = buildContextBlock(documentsWithText);
+    const userPrompt = replaceTemplateVariables({
+      template: typedTemplate,
+      customInstructions,
+      contextBlock,
+    });
+
+    const sourceSummary = buildSourceSummary(sourceDocuments);
+
+    const requiredSections = typedTemplate.required_sections?.length
+      ? typedTemplate.required_sections
+          .map((section) => `- ${section}`)
+          .join("\n")
+      : "Use the best structure for the user's request.";
+
+    const renderedTemplatePrompt = typedTemplate.user_prompt_template
+      .replaceAll(
+        "{{custom_instructions}}",
+        customInstructions.trim() || "No extra instructions provided.",
+      )
+      .replaceAll("{{source_summary}}", sourceSummary)
+      .replaceAll("{{required_sections}}", requiredSections)
+      .replaceAll("{{report_goal}}", typedTemplate.goal)
+      .replaceAll(
+        "{{source_context}}",
+        "The full source context is appended below.",
+      )
+      .replaceAll("{{context}}", "The full source context is appended below.");
+
+    const finalPrompt = [
+      renderedTemplatePrompt,
+      "",
+      "==============================",
+      "FULL SOURCE CONTEXT",
+      "==============================",
+      "",
+      contextBlock,
+      "",
+      "==============================",
+      "FINAL OUTPUT INSTRUCTIONS",
+      "==============================",
+      "",
+      "- Return only the final report.",
+      "- Use markdown formatting.",
+      "- Do not say that no source context was provided if the context above contains document text.",
+      "- If some information is missing from the selected documents, mention only that specific gap.",
+    ].join("\n");
+
+    const llm = getLLMProvider();
+    if (!contextBlock.trim()) {
+      return NextResponse.json(
+        {
+          error:
+            "No readable text was found in the selected source documents. Try selecting different documents or reprocessing them.",
+        },
+        { status: 400 },
+      );
+    }
+    const rawContent = await llm.complete(
+      finalPrompt,
+      typedTemplate.system_prompt,
+    );
+    const content = sanitizeTextForStorage(stripAiDisclaimer(rawContent));
+    const title = buildReportTitle(typedTemplate.name);
+    const tokensUsed = Math.ceil(content.length / 4);
+    await logEvent("report_generation_completed", {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      category: context.category,
+      templateId: typedTemplate.id,
+      templateSlug: typedTemplate.slug,
+      sourceType,
+      sourceDocumentCount: sourceDocuments.length,
+      tokensUsed,
+    });
+    return NextResponse.json({
+      title,
+      content,
+      prompt: finalPrompt,
+      template: {
+        id: typedTemplate.id,
+        slug: typedTemplate.slug,
+        name: typedTemplate.name,
+        description: typedTemplate.description,
+        goal: typedTemplate.goal,
+        required_sections: typedTemplate.required_sections ?? [],
+        writing_style: typedTemplate.writing_style ?? {},
+      },
+      template_snapshot: buildTemplateSnapshot(typedTemplate),
+      source_type: sourceType,
+      source_document_ids: sourceDocuments.map((document) => document.id),
+      collection_id: sourceType === "collection" ? collectionId : null,
+      tokensUsed,
+    });
+  } catch (error) {
+    await reportError(error, {
+      area: "report-generation",
+      userId: context.user.id,
+      userEmail: context.user.email,
+      category: context.category,
+      templateId,
+      sourceType,
+      selectedDocumentCount: documentIds.length,
+      collectionId,
+    });
+    const message =
+      error instanceof Error ? error.message : "Could not generate report.";
+    return NextResponse.json(
+      {
+        error: message || "Could not generate report.",
+        code: "REPORT_GENERATION_FAILED",
+      },
+      { status: 500 },
+    );
+  }
+}

@@ -18,6 +18,7 @@ import {
   Settings,
   User,
   Upload,
+  File,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -28,6 +29,7 @@ const navigation = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Documents", href: "/documents", icon: FileText },
   { label: "Conversations", href: "/conversations", icon: MessageSquare },
+  { label: "Reports", href: "/reports", icon: File },
   { label: "Billing", href: "/billing", icon: CreditCard },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
@@ -219,30 +221,26 @@ export function DashboardShell({
         >
           {navigation.map(({ label, href, icon: Icon }) => {
             const active = routeIsActive(pathname, href);
-            const conversationsLocked =
-              href === "/conversations" && workspace.documentsOverLimit;
             return (
               <Link
                 key={href}
                 href={href}
                 prefetch
                 title={collapsed ? label : undefined}
-                aria-disabled={conversationsLocked}
+                // aria-disabled={conversationsLocked}
                 onMouseEnter={() => router.prefetch(href)}
                 onFocus={() => router.prefetch(href)}
                 onTouchStart={() => router.prefetch(href)}
                 onClick={(event) => {
-                  if (conversationsLocked) event.preventDefault();
-                  else if (!active) setPendingHref(href);
+                  if (!active) setPendingHref(href);
                 }}
                 className={`flex items-center rounded-lg py-2.5 text-sm transition-colors ${
                   collapsed ? "justify-center px-2" : "gap-3 px-3"
                 } ${
                   active
                     ? "bg-theme-primary font-semibold text-white shadow-sm shadow-black/30"
-                    : conversationsLocked
-                      ? "cursor-not-allowed font-medium text-slate-500"
-                      : "font-medium text-slate-300 hover:bg-white/10 hover:text-white"
+                    : 
+                     "font-medium text-slate-300 hover:bg-white/10 hover:text-white"
                 }`}
               >
                 <Icon className="size-4" />

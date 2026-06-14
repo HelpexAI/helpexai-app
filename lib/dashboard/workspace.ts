@@ -4,7 +4,11 @@ import { getDocumentLimitState } from "@/lib/usage/limits";
 import type { CategorySlug, PlanSlug } from "@/types";
 import type { Product } from "@/types";
 import { normalizePlanSlug } from "@/lib/stripe/plans";
-import { getActiveProduct, getActiveProducts, getProductForAccount } from "@/lib/products/catalog";
+import {
+  getActiveProduct,
+  getActiveProducts,
+  getProductForAccount,
+} from "@/lib/products/catalog";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import type { User } from "@supabase/supabase-js";
@@ -37,52 +41,81 @@ function userPreferences(user: User) {
   };
 }
 
-export const getCurrentWorkspace = cache(async (): Promise<CurrentWorkspace> => {
-  const supabase = await createClient();
-  const [userResult, activeCategory] = await Promise.all([
-    supabase.auth.getUser(),
-    getActiveWorkspaceCategory(),
-  ]);
-  const user = userResult.data.user;
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  if (activeCategory && await getActiveProduct(activeCategory)) {
-    const [accountResult, documentLimit] = await Promise.all([
-      supabase
-        .from("accounts")
-        .select("category_slug, plan, deletion_requested_at")
-        .eq("user_id", user.id)
-        .eq("category_slug", activeCategory)
-        .maybeSingle(),
-      getDocumentLimitState(supabase, user.id, activeCategory, "free"),
+export const getCurrentWorkspace = cache(
+  async (): Promise<CurrentWorkspace> => {
+    const supabase = await createClient();
+    const [userResult, activeCategory] = await Promise.all([
+      supabase.auth.getUser(),
+      getActiveWorkspaceCategory(),
     ]);
-    const account = accountResult.data;
-    if (account) {
-      if (account.deletion_requested_at) redirect("/login?account=deletion-requested");
-      const plan = normalizePlanSlug(account.plan);
-      return buildWorkspace(user, await getProductForAccount(activeCategory), plan, documentLimit);
-    }
-  }
+    const user = userResult.data.user;
 
-  const { data: accounts } = await supabase
-    .from("accounts")
-    .select("category_slug, plan, deletion_requested_at")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: true });
-  const activeSlugs = new Set((await getActiveProducts()).map((product) => product.slug));
-  const activeAccounts = accounts?.filter((account) => activeSlugs.has(account.category_slug)) ?? [];
-  if (!activeAccounts.length) redirect("/login?error=no_accounts");
-  if (activeAccounts.some(account => account.deletion_requested_at)) redirect("/login?account=deletion-requested");
-  if (activeAccounts.length > 1) redirect("/select-workspace");
-  const account = activeAccounts[0];
-  const category = account.category_slug as CategorySlug;
-  const plan = normalizePlanSlug(account.plan);
-  const documentLimit = await getDocumentLimitState(supabase, user.id, category, plan);
-  return buildWorkspace(user, await getProductForAccount(category), plan, documentLimit);
-});
+    if (!user) {
+      redirect("/login");
+    }
+
+    if (activeCategory && (await getActiveProduct(activeCategory))) {
+      const [accountResult] = await Promise.all([
+        supabase
+          .from("accounts")
+          .select("category_slug, plan, deletion_requested_at")
+          .eq("user_id", user.id)
+          .eq("category_slug", activeCategory)
+          .maybeSingle(),
+      ]);
+      const documentLimit = await getDocumentLimitState(
+        supabase,
+        user.id,
+        activeCategory,
+        normalizePlanSlug(accountResult.data?.plan ?? "free"),
+      );
+
+      const account = accountResult.data;
+      if (account) {
+        if (account.deletion_requested_at)
+          redirect("/login?account=deletion-requested");
+        const plan = normalizePlanSlug(account.plan);
+        return buildWorkspace(
+          user,
+          await getProductForAccount(activeCategory),
+          plan,
+          documentLimit,
+        );
+      }
+    }
+
+    const { data: accounts } = await supabase
+      .from("accounts")
+      .select("category_slug, plan, deletion_requested_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true });
+    const activeSlugs = new Set(
+      (await getActiveProducts()).map((product) => product.slug),
+    );
+    const activeAccounts =
+      accounts?.filter((account) => activeSlugs.has(account.category_slug)) ??
+      [];
+    if (!activeAccounts.length) redirect("/login?error=no_accounts");
+    if (activeAccounts.some((account) => account.deletion_requested_at))
+      redirect("/login?account=deletion-requested");
+    if (activeAccounts.length > 1) redirect("/select-workspace");
+    const account = activeAccounts[0];
+    const category = account.category_slug as CategorySlug;
+    const plan = normalizePlanSlug(account.plan);
+    const documentLimit = await getDocumentLimitState(
+      supabase,
+      user.id,
+      category,
+      plan,
+    );
+    return buildWorkspace(
+      user,
+      await getProductForAccount(category),
+      plan,
+      documentLimit,
+    );
+  },
+);
 
 function buildWorkspace(
   user: User,

@@ -15,7 +15,6 @@ export async function getProductPlan(
     .eq("category_slug", category)
     .eq("slug", plan)
     .maybeSingle();
-
   return (
     data ?? {
       id: `${category}_${plan}`,

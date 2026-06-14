@@ -25,7 +25,7 @@ export function getLLMProvider(): LLMProvider {
 export function getEmbeddingProvider(): EmbeddingProvider {
   if (embeddingInstance) return embeddingInstance;
 
-  // Both dev and prod use OpenAI embeddings (Xenova unreliable in serverless)
+  // Both dev and prod use OpenAI embeddings
   embeddingInstance = new OpenAIEmbeddingProvider();
 
   return embeddingInstance!;
