@@ -27,7 +27,7 @@ export async function GET() {
     context.service
       .from("plans")
       .select(
-        "id, name, slug, category_slug, price_monthly, creem_prod_id, max_storage_bytes, max_queries_day, max_reports_month",
+        "id, name, slug, category_slug, price_monthly, creem_product_id, max_storage_bytes, max_queries_day, max_reports_month",
       )
       .eq("category_slug", context.category)
       .order("price_monthly"),

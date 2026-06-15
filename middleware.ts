@@ -3,6 +3,10 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 const AUTH_ROUTES = ['/login', '/signup', '/verify-email']
 
+function safeInternalPath(value: string | null) {
+  return value?.startsWith('/') && !value.startsWith('//') ? value : null
+}
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const isAuthRoute = AUTH_ROUTES.some(r => pathname.startsWith(r))
@@ -39,9 +43,8 @@ export async function middleware(request: NextRequest) {
 
   // Redirect authenticated users away from auth routes
   if (isAuthRoute && user && !isProductAuthFlow) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
+    const next = safeInternalPath(request.nextUrl.searchParams.get('next'))
+    return NextResponse.redirect(new URL(next ?? '/dashboard', request.url))
   }
 
   return supabaseResponse

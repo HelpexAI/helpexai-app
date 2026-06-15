@@ -15,6 +15,11 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedCategory = searchParams.get("category");
+  const requestedNext = searchParams.get("next");
+  const safeNext =
+    requestedNext?.startsWith("/") && !requestedNext.startsWith("//")
+      ? requestedNext
+      : null;
   const categoryQuery = requestedCategory ? `?category=${encodeURIComponent(requestedCategory)}` : "";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -43,7 +48,7 @@ export function LoginForm() {
     const { error: authError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?mode=login`,
+        redirectTo: `${window.location.origin}/auth/callback?mode=login${safeNext ? `&next=${encodeURIComponent(safeNext)}` : ""}`,
         queryParams: { prompt: "select_account" },
       },
     });
@@ -78,6 +83,12 @@ export function LoginForm() {
     }
 
     if (data.user) {
+      if (safeNext) {
+        router.push(safeNext);
+        router.refresh();
+        return;
+      }
+
       const workspaceResponse = await fetch("/api/workspace/resolve", {
         method: "POST",
       });

@@ -151,3 +151,19 @@ understands `docId` and `docName`. For a completely clean generic index, delete
 the existing Qdrant collection once, recreate it with the same vector size, and
 reprocess or re-upload the documents you want indexed. This also removes stale
 vectors created by the previous report-as-document workflow.
+# Internal Admin Dashboard
+
+Apply `supabase/migrations/018_admin_dashboard.sql`, then bootstrap the first
+platform owner from the Supabase SQL editor:
+
+```sql
+INSERT INTO platform_admins(user_id, role)
+SELECT id, 'super_admin'
+FROM auth.users
+WHERE email = 'your-admin-email@example.com'
+ON CONFLICT (user_id) DO UPDATE SET role = EXCLUDED.role;
+```
+
+The protected dashboard is available at `/admin`. Customer users are redirected
+to `/dashboard`; taxonomy writes use admin-only server actions and archive
+categories/tags instead of deleting records.

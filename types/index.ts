@@ -175,7 +175,7 @@ export interface Plan {
   max_storage_bytes: number;
   max_queries_day: number;
   max_reports_month: number;
-  creem_prod_id: string | null;
+  creem_product_id: string | null;
 }
 
 export interface UsageLog {
