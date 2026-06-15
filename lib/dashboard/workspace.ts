@@ -9,9 +9,18 @@ import {
   getActiveProducts,
   getProductForAccount,
 } from "@/lib/products/catalog";
+import { getThemeById } from "@/lib/themes/catalog";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import type { User } from "@supabase/supabase-js";
+
+type WorkspaceAccountRow = {
+  id: string;
+  category_slug: CategorySlug;
+  plan: string;
+  deletion_requested_at: string | null;
+  dashboard_theme_id: string | null;
+};
 
 export interface CurrentWorkspace {
   userId: string;
@@ -21,6 +30,8 @@ export interface CurrentWorkspace {
   category: CategorySlug;
   product: Product;
   plan: PlanSlug;
+  accountId: string;
+  selectedThemeId: string | null;
   documentsOverLimit: boolean;
   documentsUsed: number;
   documentsLimit: number;
@@ -58,7 +69,7 @@ export const getCurrentWorkspace = cache(
       const [accountResult] = await Promise.all([
         supabase
           .from("accounts")
-          .select("category_slug, plan, deletion_requested_at")
+          .select("id, category_slug, plan, deletion_requested_at, dashboard_theme_id")
           .eq("user_id", user.id)
           .eq("category_slug", activeCategory)
           .maybeSingle(),
@@ -70,16 +81,25 @@ export const getCurrentWorkspace = cache(
         normalizePlanSlug(accountResult.data?.plan ?? "free"),
       );
 
-      const account = accountResult.data;
+      const account = accountResult.data as WorkspaceAccountRow | null;
       if (account) {
         if (account.deletion_requested_at)
           redirect("/login?account=deletion-requested");
         const plan = normalizePlanSlug(account.plan);
+        const selectedTheme =
+          (await getThemeById(account.dashboard_theme_id)) ?? null;
+        const product = await getProductForAccount(activeCategory);
+        const themedProduct = {
+          ...product,
+          theme: selectedTheme?.primary ? selectedTheme : product.theme,
+        };
         return buildWorkspace(
           user,
-          await getProductForAccount(activeCategory),
+          themedProduct,
           plan,
           documentLimit,
+          account.id,
+          account.dashboard_theme_id ?? null,
         );
       }
     }
@@ -99,20 +119,27 @@ export const getCurrentWorkspace = cache(
     if (activeAccounts.some((account) => account.deletion_requested_at))
       redirect("/login?account=deletion-requested");
     if (activeAccounts.length > 1) redirect("/select-workspace");
-    const account = activeAccounts[0];
+    const account = activeAccounts[0] as WorkspaceAccountRow;
     const category = account.category_slug as CategorySlug;
     const plan = normalizePlanSlug(account.plan);
+    const selectedTheme = (await getThemeById(account.dashboard_theme_id)) ?? null;
     const documentLimit = await getDocumentLimitState(
       supabase,
       user.id,
       category,
       plan,
     );
+    const product = await getProductForAccount(category);
     return buildWorkspace(
       user,
-      await getProductForAccount(category),
+      {
+        ...product,
+        theme: selectedTheme?.primary ? selectedTheme : product.theme,
+      },
       plan,
       documentLimit,
+      account.id,
+      account.dashboard_theme_id ?? null,
     );
   },
 );
@@ -122,6 +149,8 @@ function buildWorkspace(
   product: Product,
   plan: PlanSlug,
   documentLimit: Awaited<ReturnType<typeof getDocumentLimitState>>,
+  accountId: string,
+  selectedThemeId: string | null,
 ): CurrentWorkspace {
   const metadataName =
     user.user_metadata.full_name ??
@@ -148,6 +177,8 @@ function buildWorkspace(
     category: product.slug,
     product,
     plan,
+    accountId,
+    selectedThemeId,
     documentsOverLimit: documentLimit.requiresResolution,
     documentsUsed: documentLimit.used,
     documentsLimit: documentLimit.limit,

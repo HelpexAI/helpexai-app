@@ -55,6 +55,23 @@ const planSchema = z.object({
   max_reports_month: z.coerce.number().int().min(0).max(1000000),
 });
 
+const themeSchema = z.object({
+  id: z.string().uuid().optional(),
+  slug: z.string().trim().min(2).max(60).regex(/^[a-z0-9][a-z0-9-]*$/),
+  name: z.string().trim().min(2).max(80),
+  description: z.string().trim().max(500),
+  primary_color: z.string().trim().regex(/^\d{1,3}\s\d{1,3}\s\d{1,3}$/),
+  primary_hover_color: z.string().trim().regex(/^\d{1,3}\s\d{1,3}\s\d{1,3}$/),
+  primary_foreground_color: z.string().trim().regex(/^\d{1,3}\s\d{1,3}\s\d{1,3}$/),
+  soft_color: z.string().trim().regex(/^\d{1,3}\s\d{1,3}\s\d{1,3}$/),
+  soft_dark_color: z.string().trim().regex(/^\d{1,3}\s\d{1,3}\s\d{1,3}$/),
+  soft_foreground_color: z.string().trim().regex(/^\d{1,3}\s\d{1,3}\s\d{1,3}$/),
+  soft_foreground_dark_color: z.string().trim().regex(/^\d{1,3}\s\d{1,3}\s\d{1,3}$/),
+  border_color: z.string().trim().regex(/^\d{1,3}\s\d{1,3}\s\d{1,3}$/),
+  border_dark_color: z.string().trim().regex(/^\d{1,3}\s\d{1,3}\s\d{1,3}$/),
+  sort_order: z.coerce.number().int().min(0).max(1000),
+});
+
 function value(formData: FormData, key: string) {
   return String(formData.get(key) ?? "");
 }
@@ -191,6 +208,47 @@ export async function archivePlan(formData: FormData) {
     .from("plans")
     .update({ creem_product_id: null })
     .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/settings");
+}
+
+export async function saveTheme(formData: FormData) {
+  const { service } = await requireAdminAction();
+  const parsed = themeSchema.parse({
+    id: value(formData, "id") || undefined,
+    slug: value(formData, "slug"),
+    name: value(formData, "name"),
+    description: value(formData, "description"),
+    primary_color: value(formData, "primary_color"),
+    primary_hover_color: value(formData, "primary_hover_color"),
+    primary_foreground_color: value(formData, "primary_foreground_color"),
+    soft_color: value(formData, "soft_color"),
+    soft_dark_color: value(formData, "soft_dark_color"),
+    soft_foreground_color: value(formData, "soft_foreground_color"),
+    soft_foreground_dark_color: value(formData, "soft_foreground_dark_color"),
+    border_color: value(formData, "border_color"),
+    border_dark_color: value(formData, "border_dark_color"),
+    sort_order: value(formData, "sort_order"),
+  });
+
+  const payload = { ...parsed, id: undefined, is_active: true };
+  const query = parsed.id
+    ? service.from("themes").update(payload).eq("id", parsed.id)
+    : service.from("themes").insert(payload);
+  const { error } = await query;
+  if (error)
+    throw new Error(
+      error.code === "23505"
+        ? "A theme with this slug already exists."
+        : error.message,
+    );
+  revalidatePath("/admin/settings");
+}
+
+export async function archiveTheme(formData: FormData) {
+  const { service } = await requireAdminAction();
+  const id = z.string().uuid().parse(value(formData, "id"));
+  const { error } = await service.from("themes").update({ is_active: false }).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/settings");
 }

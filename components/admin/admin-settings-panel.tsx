@@ -2,11 +2,13 @@
 
 import {
   archivePlan,
+  archiveTheme,
   archiveReportTemplate,
   archiveTaxonomy,
   saveCollection,
   savePlan,
   saveReportTemplate,
+  saveTheme,
   saveTag,
 } from "@/app/admin/settings/actions";
 import { ResponsiveModal } from "@/components/dashboard/responsive-modal";
@@ -17,11 +19,12 @@ import {
   Pencil,
   PencilLine,
   Plus,
+  Palette,
   Settings2,
   Tag,
   Trash2,
 } from "lucide-react";
-import { useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { useMemo, useState, type CSSProperties, type ComponentType, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 type Product = { slug: string; name: string };
@@ -74,8 +77,25 @@ type Plan = {
   max_queries_day: number;
   max_reports_month: number;
 };
+type ThemeOption = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  primary_color: string;
+  primary_hover_color: string;
+  primary_foreground_color: string;
+  soft_color: string;
+  soft_dark_color: string;
+  soft_foreground_color: string;
+  soft_foreground_dark_color: string;
+  border_color: string;
+  border_dark_color: string;
+  is_active: boolean;
+  sort_order: number;
+};
 
-type Tab = "categories" | "tags" | "templates" | "plans";
+type Tab = "categories" | "tags" | "templates" | "plans" | "themes";
 type EditorMode = "create" | "edit";
 
 type EditorState =
@@ -83,6 +103,7 @@ type EditorState =
   | { tab: "tags"; mode: EditorMode; item?: TagRecord }
   | { tab: "templates"; mode: EditorMode; item?: ReportTemplate }
   | { tab: "plans"; mode: EditorMode; item?: Plan }
+  | { tab: "themes"; mode: EditorMode; item?: ThemeOption }
   | null;
 
 type ArchiveState =
@@ -90,6 +111,7 @@ type ArchiveState =
   | { tab: "tags"; item: TagRecord }
   | { tab: "templates"; item: ReportTemplate }
   | { tab: "plans"; item: Plan }
+  | { tab: "themes"; item: ThemeOption }
   | null;
 
 function Field({
@@ -211,17 +233,24 @@ function RowCard({
   title,
   subtitle,
   status,
+  children,
+  style,
   onEdit,
   onDelete,
 }: {
   title: string;
   subtitle: string;
   status?: string;
+  children?: ReactNode;
+  style?: CSSProperties;
   onEdit: () => void;
   onDelete: () => void;
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-theme-border hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900">
+    <div
+      className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-theme-border hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900"
+      style={style}
+    >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="truncate font-semibold text-zinc-950 dark:text-white">
@@ -252,6 +281,7 @@ function RowCard({
           </button>
         </div>
       </div>
+      {children && <div className="mt-4">{children}</div>}
     </div>
   );
 }
@@ -284,7 +314,16 @@ function TabButton({
 }
 
 function editorTitle(tab: Tab, mode: EditorMode) {
-  const item = tab === "categories" ? "category" : tab === "tags" ? "tag" : tab === "templates" ? "report template" : "plan";
+  const item =
+    tab === "categories"
+      ? "category"
+      : tab === "tags"
+        ? "tag"
+        : tab === "templates"
+          ? "report template"
+          : tab === "plans"
+            ? "plan"
+            : "theme";
   return `${mode === "edit" ? "Edit" : "Create"} ${item}`;
 }
 
@@ -295,7 +334,9 @@ function archiveTitle(tab: Tab) {
       ? "Archive report template?"
       : tab === "tags"
         ? "Archive tag?"
-        : "Archive category?";
+        : tab === "themes"
+          ? "Archive theme?"
+          : "Archive category?";
 }
 
 export function AdminSettingsPanel({
@@ -304,12 +345,14 @@ export function AdminSettingsPanel({
   tags,
   reportTemplates,
   plans,
+  themes,
 }: {
   products: Product[];
   collections: Collection[];
   tags: TagRecord[];
   reportTemplates: ReportTemplate[];
   plans: Plan[];
+  themes: ThemeOption[];
 }) {
   const router = useRouter();
   const tabs = useMemo(
@@ -318,6 +361,7 @@ export function AdminSettingsPanel({
       { id: "tags" as Tab, label: "Tags", icon: Tag },
       { id: "templates" as Tab, label: "Report templates", icon: LayoutList },
       { id: "plans" as Tab, label: "Plans", icon: PencilLine },
+      { id: "themes" as Tab, label: "Themes", icon: Palette },
     ],
     [],
   );
@@ -337,11 +381,17 @@ export function AdminSettingsPanel({
     setEditor({ tab: nextTab, mode: "create" });
   }
 
-  function openEdit(nextTab: Tab, item: Collection | TagRecord | ReportTemplate | Plan) {
+  function openEdit(
+    nextTab: Tab,
+    item: Collection | TagRecord | ReportTemplate | Plan | ThemeOption,
+  ) {
     setEditor({ tab: nextTab, mode: "edit", item: item as never });
   }
 
-  function openDelete(nextTab: Tab, item: Collection | TagRecord | ReportTemplate | Plan) {
+  function openDelete(
+    nextTab: Tab,
+    item: Collection | TagRecord | ReportTemplate | Plan | ThemeOption,
+  ) {
     setArchived({ tab: nextTab, item: item as never });
   }
 
@@ -502,6 +552,61 @@ export function AdminSettingsPanel({
                 {!plans.length && (
                   <p className="rounded-xl border border-dashed border-zinc-300 px-4 py-10 text-center text-sm text-zinc-500 dark:border-zinc-700">
                     No plans found.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {tab === "themes" && (
+            <div className="space-y-4">
+              <SectionHeader
+                title="Themes"
+                description="Professional dashboard palettes available to workspace users."
+                onCreate={() => openCreate("themes")}
+              />
+              <div className="grid gap-3">
+                {themes
+                  .filter((item) => item.is_active)
+                  .map((item) => (
+                    <RowCard
+                      key={item.id}
+                      title={item.name}
+                      subtitle={item.description}
+                      status={item.is_active ? "active" : "inactive"}
+                      onEdit={() => openEdit("themes", item)}
+                      onDelete={() => openDelete("themes", item)}
+                      style={
+                        {
+                          "--theme-primary": item.primary_color,
+                          "--theme-primary-hover": item.primary_hover_color,
+                          "--theme-primary-foreground":
+                            item.primary_foreground_color,
+                          "--theme-soft": item.soft_color,
+                          "--theme-soft-dark": item.soft_dark_color,
+                          "--theme-soft-foreground":
+                            item.soft_foreground_color,
+                          "--theme-soft-foreground-dark":
+                            item.soft_foreground_dark_color,
+                          "--theme-border": item.border_color,
+                          "--theme-border-dark": item.border_dark_color,
+                        } as CSSProperties
+                      }
+                    >
+                      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-theme-primary">
+                        {item.slug}
+                      </p>
+                      <div className="grid grid-cols-4 overflow-hidden rounded-xl border border-theme-border dark:border-theme-border-dark">
+                        <span className="h-10 bg-theme-primary" />
+                        <span className="h-10 bg-theme-soft" />
+                        <span className="h-10 bg-white dark:bg-zinc-950" />
+                        <span className="h-10 bg-zinc-100 dark:bg-zinc-800" />
+                      </div>
+                    </RowCard>
+                  ))}
+                {!themes.filter((item) => item.is_active).length && (
+                  <p className="rounded-xl border border-dashed border-zinc-300 px-4 py-10 text-center text-sm text-zinc-500 dark:border-zinc-700">
+                    No active themes yet.
                   </p>
                 )}
               </div>
@@ -851,6 +956,125 @@ export function AdminSettingsPanel({
             </div>
           </form>
         )}
+
+        {editor?.tab === "themes" && (
+          <form
+            action={async (formData) => {
+              await saveTheme(formData);
+              setEditor(null);
+              router.refresh();
+            }}
+            className="space-y-5"
+          >
+            <div>
+              <h2 className="text-xl font-bold text-zinc-950 dark:text-white">
+                {editorTitle("themes", editor.mode)}
+              </h2>
+              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                Manage dashboard palettes shown to workspace users.
+              </p>
+            </div>
+            <input type="hidden" name="id" value={editor.item?.id ?? ""} />
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Field
+                name="slug"
+                defaultValue={editor.item?.slug}
+                placeholder="Theme slug"
+                required
+              />
+              <Field
+                name="name"
+                defaultValue={editor.item?.name}
+                placeholder="Theme name"
+                required
+              />
+              <Field
+                name="sort_order"
+                defaultValue={editor.item?.sort_order}
+                placeholder="Sort order"
+                type="number"
+                required
+              />
+            </div>
+            <Textarea
+              name="description"
+              defaultValue={editor.item?.description}
+              placeholder="Description"
+              rows={2}
+            />
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Field
+                name="primary_color"
+                defaultValue={editor.item?.primary_color}
+                placeholder="Primary color (e.g. 16 185 129)"
+                required
+              />
+              <Field
+                name="primary_hover_color"
+                defaultValue={editor.item?.primary_hover_color}
+                placeholder="Primary hover color"
+                required
+              />
+              <Field
+                name="primary_foreground_color"
+                defaultValue={editor.item?.primary_foreground_color}
+                placeholder="Primary foreground color"
+                required
+              />
+              <Field
+                name="soft_color"
+                defaultValue={editor.item?.soft_color}
+                placeholder="Soft color"
+                required
+              />
+              <Field
+                name="soft_dark_color"
+                defaultValue={editor.item?.soft_dark_color}
+                placeholder="Soft dark color"
+                required
+              />
+              <Field
+                name="soft_foreground_color"
+                defaultValue={editor.item?.soft_foreground_color}
+                placeholder="Soft foreground color"
+                required
+              />
+              <Field
+                name="soft_foreground_dark_color"
+                defaultValue={editor.item?.soft_foreground_dark_color}
+                placeholder="Soft foreground dark color"
+                required
+              />
+              <Field
+                name="border_color"
+                defaultValue={editor.item?.border_color}
+                placeholder="Border color"
+                required
+              />
+              <Field
+                name="border_dark_color"
+                defaultValue={editor.item?.border_dark_color}
+                placeholder="Border dark color"
+                required
+              />
+            </div>
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-xs leading-5 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950/50 dark:text-zinc-400">
+              Colors use RGB triplets like <span className="font-semibold">16 185 129</span>.
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setEditor(null)}
+                className="h-10 rounded-lg border border-zinc-200 px-4 text-sm font-semibold dark:border-zinc-800"
+              >
+                Cancel
+              </button>
+              <button className="h-10 rounded-lg bg-theme-primary px-4 text-sm font-semibold text-white">
+                Save theme
+              </button>
+            </div>
+          </form>
+        )}
       </ResponsiveModal>
 
       <ResponsiveModal
@@ -872,7 +1096,9 @@ export function AdminSettingsPanel({
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-950/50">
               <p className="font-semibold">{archived.item.name}</p>
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                {archived.item.category_slug}
+                {archived.tab === "themes"
+                  ? archived.item.slug
+                  : archived.item.category_slug}
               </p>
             </div>
             <div className="flex justify-end gap-2">
@@ -889,6 +1115,8 @@ export function AdminSettingsPanel({
                     await archiveTaxonomy(formData);
                   } else if (archived.tab === "templates") {
                     await archiveReportTemplate(formData);
+                  } else if (archived.tab === "themes") {
+                    await archiveTheme(formData);
                   } else {
                     await archivePlan(formData);
                   }
@@ -903,7 +1131,7 @@ export function AdminSettingsPanel({
                   value={archived.tab === "categories" ? "collection" : archived.tab === "tags" ? "tag" : ""}
                 />
                 <button className="h-10 rounded-lg bg-red-600 px-4 text-sm font-semibold text-white">
-                  {archived.tab === "plans" ? "Remove link" : "Archive"}
+                  {archived.tab === "plans" ? "Remove link" : archived.tab === "themes" ? "Archive theme" : "Archive"}
                 </button>
               </form>
             </div>

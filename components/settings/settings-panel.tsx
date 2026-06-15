@@ -12,13 +12,16 @@ import {
   Lock,
   LogOut,
   Menu,
+  Palette,
   Save,
   User,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { themeStyle } from "@/lib/theme";
+import type { ThemeOption } from "@/types";
 
-type Tab = "profile" | "password" | "notifications" | "delete";
+type Tab = "profile" | "password" | "notifications" | "theme" | "delete";
 type Preferences = {
   showCitations: boolean;
   documentReady: boolean;
@@ -119,9 +122,11 @@ function PasswordInput({
 export function SettingsPanel({
   workspace,
   preferences: initialPreferences,
+  themes,
 }: {
   workspace: CurrentWorkspace;
   preferences: Preferences;
+  themes: ThemeOption[];
 }) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -129,6 +134,9 @@ export function SettingsPanel({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [name, setName] = useState(workspace.name);
   const [preferences, setPreferences] = useState(initialPreferences);
+  const [selectedThemeId, setSelectedThemeId] = useState<string | null>(
+    workspace.selectedThemeId,
+  );
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -147,6 +155,9 @@ export function SettingsPanel({
       /[^A-Za-z0-9]/.test(newPassword),
     ].filter(Boolean).length,
   );
+  const selectedTheme =
+    themes.find((theme) => theme.id === selectedThemeId) ?? null;
+  const previewTheme = selectedTheme ?? workspace.product.theme;
 
   async function saveMetadata() {
     setLoading(true);
@@ -168,6 +179,30 @@ export function SettingsPanel({
     if (updateError) return setError(updateError.message);
 
     setMessage("Settings saved.");
+    router.refresh();
+  }
+
+  async function saveTheme() {
+    setLoading(true);
+    setError("");
+    setMessage("");
+
+    const response = await fetch("/api/workspace/theme", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        themeId: selectedThemeId,
+      }),
+    });
+
+    const body = await response.json().catch(() => null);
+    setLoading(false);
+
+    if (!response.ok) {
+      return setError(body?.error ?? "Could not save theme.");
+    }
+
+    setMessage("Dashboard theme saved.");
     router.refresh();
   }
 
@@ -250,6 +285,7 @@ export function SettingsPanel({
     { id: "profile" as const, label: "Profile", icon: User },
     { id: "password" as const, label: "Password", icon: Lock },
     { id: "notifications" as const, label: "Notifications", icon: Bell },
+    { id: "theme" as const, label: "Theme", icon: Palette },
     {
       id: "delete" as const,
       label: "Delete Account",
@@ -261,7 +297,10 @@ export function SettingsPanel({
   const activeTab = tabs.find((item) => item.id === tab);
 
   return (
-    <div className="relative flex h-[calc(100dvh-4rem)] min-h-0 overflow-hidden bg-slate-50 dark:bg-zinc-950">
+    <div
+      className="relative flex h-[calc(100dvh-4rem)] min-h-0 overflow-hidden bg-slate-50 dark:bg-zinc-950"
+      style={themeStyle(previewTheme)}
+    >
       {mobileOpen && (
         <button
           type="button"
@@ -502,6 +541,133 @@ export function SettingsPanel({
                 )}
                 Save Notifications
               </button>
+            </div>
+          )}
+
+          {tab === "theme" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-lg font-bold">Dashboard Theme</h2>
+                <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                  Choose a dashboard look for this workspace. Preview changes
+                  instantly here. Save to keep them, or leave without saving to
+                  return to the current workspace default.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-theme-border bg-theme-soft p-4 text-sm text-theme-soft-foreground dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark">
+                <div className="flex items-start gap-3">
+                  <Palette className="mt-0.5 size-5 shrink-0 text-theme-primary" />
+                  <div>
+                    <p className="font-semibold text-theme-primary">
+                      Theme preview is live
+                    </p>
+                    <p className="mt-1 text-zinc-600 dark:text-zinc-300">
+                      Select a card below to preview it on this settings page.
+                      Nothing is saved until you click Save Theme.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedThemeId(null)}
+                  className={`overflow-hidden rounded-2xl border-2 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
+                    selectedThemeId === null
+                      ? "border-theme-primary shadow-md"
+                      : "border-zinc-200 dark:border-zinc-800"
+                  }`}
+                  style={themeStyle(workspace.product.theme)}
+                >
+                  <div className="flex h-24 items-center justify-between px-4 py-3">
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-theme-primary">
+                        Default
+                      </p>
+                      <h3 className="text-lg font-bold text-zinc-950 dark:text-white">
+                        Workspace theme
+                      </h3>
+                      <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                        Reuse the product default.
+                      </p>
+                    </div>
+                    <div className="flex size-11 items-center justify-center rounded-2xl bg-theme-primary text-white">
+                      {selectedThemeId === null ? <Check className="size-5" /> : <Palette className="size-5" />}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 gap-0 border-t border-theme-border/70 dark:border-theme-border-dark/70">
+                    <span className="h-12 bg-theme-primary" />
+                    <span className="h-12 bg-theme-soft" />
+                    <span className="h-12 bg-white dark:bg-zinc-950" />
+                    <span className="h-12 bg-zinc-100 dark:bg-zinc-800" />
+                  </div>
+                </button>
+
+                {themes.map((theme) => {
+                  const selected = selectedThemeId === theme.id;
+                  return (
+                    <button
+                      type="button"
+                      key={theme.id}
+                      onClick={() => setSelectedThemeId(theme.id)}
+                      className={`overflow-hidden rounded-2xl border-2 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
+                        selected
+                          ? "border-theme-primary shadow-md"
+                          : "border-zinc-200 dark:border-zinc-800"
+                      }`}
+                      style={themeStyle(theme)}
+                    >
+                      <div className="flex h-24 items-center justify-between px-4 py-3">
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-theme-primary">
+                            Theme
+                          </p>
+                          <h3 className="text-lg font-bold text-zinc-950 dark:text-white">
+                            {theme.name}
+                          </h3>
+                          <p className="line-clamp-2 text-sm text-zinc-500 dark:text-zinc-400">
+                            {theme.description}
+                          </p>
+                        </div>
+                        <div className="flex size-11 items-center justify-center rounded-2xl bg-theme-primary text-white">
+                          {selected ? <Check className="size-5" /> : <Palette className="size-5" />}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-4 gap-0 border-t border-theme-border/70 dark:border-theme-border-dark/70">
+                        <span className="h-12 bg-theme-primary" />
+                        <span className="h-12 bg-theme-soft" />
+                        <span className="h-12 bg-white dark:bg-zinc-950" />
+                        <span className="h-12 bg-zinc-100 dark:bg-zinc-800" />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setSelectedThemeId(workspace.selectedThemeId)}
+                  disabled={loading}
+                  className="flex h-11 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
+                >
+                  Revert preview
+                </button>
+                <button
+                  onClick={() => void saveTheme()}
+                  disabled={loading || selectedThemeId === workspace.selectedThemeId}
+                  className="flex h-11 items-center justify-center gap-2 rounded-lg bg-theme-primary px-4 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {loading ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Save className="size-4" />
+                  )}
+                  Save Theme
+                </button>
+              </div>
             </div>
           )}
 

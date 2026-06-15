@@ -16,6 +16,15 @@ export interface ProductTheme {
   borderDark: string;
 }
 
+export interface ThemeOption extends ProductTheme {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  is_active: boolean;
+  sort_order: number;
+}
+
 export interface Product {
   slug: CategorySlug;
   name: string;
@@ -62,6 +71,7 @@ export interface Account {
   user_id: string;
   category_slug: CategorySlug;
   plan: PlanSlug;
+  dashboard_theme_id: string | null;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   subscription_status: SubscriptionStatus | null;
