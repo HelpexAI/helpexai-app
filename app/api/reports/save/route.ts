@@ -164,7 +164,7 @@ export async function POST(request: Request) {
           generated_document_id: null,
           model: null,
           error_message: null,
-          metadata: { tokens_used: tokensUsed, published_to_knowledge_base: false },
+          metadata: { tokens_used: tokensUsed, knowledge_status: "draft" },
           generated_at: generatedAt,
         },
         p_source_document_ids: sourceDocumentIds,

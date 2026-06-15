@@ -43,8 +43,8 @@ export function DeleteReportModal({
           </div>
 
           <p className="max-w-sm text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-            This will permanently remove the report, its generated
-            knowledge-base document, storage file, and AI vector data. This
+            This will permanently remove the report, its knowledge item, and
+            AI vector data. Original source documents are not affected. This
             cannot be undone.
           </p>
         </div>

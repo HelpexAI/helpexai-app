@@ -84,6 +84,8 @@ export interface Document {
   status: DocumentStatus;
   chunk_count: number | null;
   error_message: string | null;
+  knowledge_source_id: string | null;
+  knowledge_item_id: string | null;
   created_at: string;
   updated_at: string;
   collection?: DocumentCollection | null;
@@ -135,6 +137,10 @@ export interface Conversation {
 export interface MessageSource {
   docId: string;
   docName: string;
+  sourceType?: string;
+  sourceId?: string;
+  itemId?: string;
+  itemTitle?: string;
   chunkIndex: number;
   pageNumber: number | null;
   excerpt: string;
@@ -206,16 +212,106 @@ export interface VectorSearchResult {
   id: string;
   score: number;
   payload: {
-    docId: string;
+    sourceType?: string;
+    sourceId?: string;
+    itemId?: string;
+    itemTitle?: string;
+    docId?: string;
     chunkIndex: number;
     pageNumber: number | null;
     text: string;
-    docName: string;
+    docName?: string;
     collectionName?: string;
     collectionContext?: string;
     tags?: string[];
     tagContext?: string;
   };
+}
+
+export interface KnowledgeEntity {
+  accountId: string;
+  sourceId: string;
+  itemId: string;
+}
+
+export type KnowledgeSourceType =
+  | "document"
+  | "report"
+  | "database"
+  | "google_drive"
+  | "slack"
+  | "email"
+  | "crm";
+
+export type KnowledgeItemType =
+  | "document"
+  | "report"
+  | "database_record"
+  | "drive_file"
+  | "slack_thread"
+  | "email_thread"
+  | "crm_record";
+
+export type KnowledgeStatus =
+  | "pending"
+  | "processing"
+  | "ready"
+  | "failed"
+  | "archived";
+
+export interface KnowledgeSource {
+  id: string;
+  account_id: string;
+  user_id: string;
+  category_slug: CategorySlug;
+  type: KnowledgeSourceType;
+  origin_ref: string;
+  name: string;
+  status: KnowledgeStatus;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KnowledgeItem {
+  id: string;
+  account_id: string;
+  user_id: string;
+  category_slug: CategorySlug;
+  source_id: string;
+  type: KnowledgeItemType;
+  origin_ref: string;
+  title: string;
+  status: KnowledgeStatus;
+  content_preview: string;
+  collection_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KnowledgeChunk {
+  id: string;
+  account_id: string;
+  user_id: string;
+  category_slug: CategorySlug;
+  source_id: string;
+  item_id: string;
+  content: string;
+  chunk_index: number;
+  token_count: number;
+  metadata: Record<string, unknown>;
+  embedding_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KnowledgeChunkInput {
+  content: string;
+  chunkIndex: number;
+  tokenCount: number;
+  metadata: Record<string, unknown>;
+  embeddingId: string;
 }
 
 export interface VectorDBProvider {
@@ -337,6 +433,8 @@ export interface Report {
   collection_id: string | null;
 
   generated_document_id: string | null;
+  knowledge_source_id: string | null;
+  knowledge_item_id: string | null;
   current_version_id: string | null;
 
   model: string | null;

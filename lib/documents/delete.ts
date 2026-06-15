@@ -1,4 +1,5 @@
 import { deleteDocumentVectors } from "@/lib/ai/pipeline/ingest";
+import { deleteKnowledgeEntity } from "@/lib/knowledge/service";
 import type { CategorySlug } from "@/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -26,6 +27,13 @@ export async function deleteOwnedDocument(
     .eq("user_id", userId)
     .eq("category_slug", category);
   if (deleteError) throw deleteError;
+
+  await deleteKnowledgeEntity(service, {
+    userId,
+    categorySlug: category,
+    sourceType: "document",
+    originId: document.id,
+  });
 
   await service.from("usage_logs").insert({
     user_id: userId,

@@ -4,6 +4,7 @@ import { generateNamespace } from "@/lib/utils";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { sanitizeTextForStorage } from "@/lib/text/sanitize";
+import type { KnowledgeChunkInput } from "@/types";
 
 const CHUNK_SIZE = 1000;
 const CHUNK_OVERLAP = 200;
@@ -17,6 +18,10 @@ export interface IngestOptions {
   fileType: "pdf" | "docx" | "txt";
   collection?: { name: string; ai_context: string };
   tags?: Array<{ name: string; ai_context: string }>;
+  sourceType?: string;
+  sourceId?: string;
+  itemId?: string;
+  itemTitle?: string;
 }
 
 export interface IngestTextOptions {
@@ -33,9 +38,14 @@ export interface IngestTextOptions {
     name: string;
     ai_context: string;
   }>;
+  sourceType?: string;
+  sourceId?: string;
+  itemId?: string;
+  itemTitle?: string;
 }
 export interface IngestResult {
   chunkCount: number;
+  chunks: KnowledgeChunkInput[];
 }
 
 export interface ExtractedDocumentPage {
@@ -127,6 +137,10 @@ export async function ingestDocument(
     fileType,
     collection,
     tags = [],
+    sourceType = "document",
+    sourceId = docId,
+    itemId = docId,
+    itemTitle = docName,
   } = options;
 
   // 1. Extract text
@@ -190,6 +204,13 @@ export async function ingestDocument(
     id: crypto.randomUUID(),
     vector: vectors[index],
     payload: {
+      // Documents are the first source type. Generic fields allow future
+      // Slack, CRM, email, Drive, database, and report knowledge items.
+      sourceType,
+      sourceId,
+      itemId,
+      itemTitle,
+      // Keep document fields for existing filters and citation UI.
       docId,
       docName,
       chunkIndex: index,
@@ -215,7 +236,16 @@ export async function ingestDocument(
   });
   await vectorDB.upsert(namespace, points);
 
-  return { chunkCount: chunks.length };
+  return {
+    chunkCount: chunks.length,
+    chunks: points.map((point, index) => ({
+      content: chunks[index].text,
+      chunkIndex: index,
+      tokenCount: Math.ceil(chunks[index].text.length / 4),
+      metadata: point.payload,
+      embeddingId: point.id,
+    })),
+  };
 }
 
 export async function deleteDocumentVectors(
@@ -231,6 +261,18 @@ export async function deleteDocumentVectors(
   });
 }
 
+export async function deleteKnowledgeItemVectors(
+  userId: string,
+  categorySlug: string,
+  itemId: string,
+): Promise<void> {
+  const namespace = generateNamespace(userId, categorySlug);
+  await getVectorDBProvider().deleteByFilter(namespace, {
+    key: "itemId",
+    match: { value: itemId },
+  });
+}
+
 export async function ingestTextDocument(
   options: IngestTextOptions,
 ): Promise<IngestResult> {
@@ -242,6 +284,10 @@ export async function ingestTextDocument(
     text,
     collection,
     tags = [],
+    sourceType = "document",
+    sourceId = docId,
+    itemId = docId,
+    itemTitle = docName,
   } = options;
   const cleanedText = sanitizeTextForStorage(text);
   if (!cleanedText.trim()) {
@@ -284,6 +330,10 @@ export async function ingestTextDocument(
     id: crypto.randomUUID(),
     vector: vectors[index],
     payload: {
+      sourceType,
+      sourceId,
+      itemId,
+      itemTitle,
       docId,
       docName,
       chunkIndex: chunk.chunkIndex,
@@ -296,7 +346,7 @@ export async function ingestTextDocument(
         .map((tag) => tag.ai_context)
         .filter(Boolean)
         .join(" "),
-      generatedFrom: "report",
+      generatedFrom: sourceType === "report" ? "report" : undefined,
     },
   }));
   const namespace = generateNamespace(userId, categorySlug);
@@ -306,5 +356,14 @@ export async function ingestTextDocument(
     match: { value: docId },
   });
   await vectorDB.upsert(namespace, points);
-  return { chunkCount: chunks.length };
+  return {
+    chunkCount: chunks.length,
+    chunks: points.map((point, index) => ({
+      content: chunks[index].text,
+      chunkIndex: chunks[index].chunkIndex,
+      tokenCount: Math.ceil(chunks[index].text.length / 4),
+      metadata: point.payload,
+      embeddingId: point.id,
+    })),
+  };
 }

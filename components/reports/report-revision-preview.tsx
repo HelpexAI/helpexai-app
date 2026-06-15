@@ -1,7 +1,6 @@
 "use client";
 
 import { ClientPageError } from "@/components/dashboard/client-page-error";
-import { ResponsiveModal } from "@/components/dashboard/responsive-modal";
 import { fetchJson, queryKeys } from "@/lib/client/query";
 import type { ReportDiffLine } from "@/lib/reports/diff";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -9,8 +8,6 @@ import {
   ArrowLeft,
   CheckCircle2,
   ChevronRight,
-  Database,
-  FileText,
   MousePointer2,
   Loader2,
   RotateCcw,
@@ -200,12 +197,11 @@ async function finalizeReport(
   reportId: string,
   versionId: string,
   title: string,
-  publishToKnowledgeBase: boolean,
 ) {
   const response = await fetch(`/api/reports/${reportId}/finalize`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ versionId, title, publishToKnowledgeBase }),
+    body: JSON.stringify({ versionId, title }),
   });
   const result = (await response.json().catch(() => null)) as { error?: string };
   if (!response.ok) throw new Error(result?.error ?? "Could not finalize report.");
@@ -224,8 +220,6 @@ export function ReportRevisionPreview({ reportId }: { reportId: string }) {
   const [tone, setTone] = useState<"simple" | "professional" | "formal">("professional");
   const [length, setLength] = useState<"short" | "standard" | "detailed">("standard");
   const [showChanges, setShowChanges] = useState(true);
-  const [finalizeOpen, setFinalizeOpen] = useState(false);
-  const [publishToKnowledgeBase, setPublishToKnowledgeBase] = useState(false);
 
   const query = useQuery({
     queryKey: [...queryKeys.report(reportId), "preview"],
@@ -269,7 +263,6 @@ export function ReportRevisionPreview({ reportId }: { reportId: string }) {
         reportId,
         selectedVersion?.id ?? "",
         title.trim(),
-        publishToKnowledgeBase,
       ),
     onSuccess: async () => {
       await Promise.all([
@@ -352,7 +345,7 @@ export function ReportRevisionPreview({ reportId }: { reportId: string }) {
               )}
               <button
                 disabled={finalize.isPending || finalized}
-                onClick={() => setFinalizeOpen(true)}
+                onClick={() => finalize.mutate()}
                 className="inline-flex h-10 items-center gap-2 rounded-lg bg-theme-primary px-4 text-sm font-semibold text-white disabled:opacity-60"
               >
                 {finalize.isPending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
@@ -479,98 +472,6 @@ export function ReportRevisionPreview({ reportId }: { reportId: string }) {
         </div>
       </div>
 
-      <ResponsiveModal
-        open={finalizeOpen}
-        onClose={() => {
-          if (!finalize.isPending) setFinalizeOpen(false);
-        }}
-        ariaLabel="Save and finalize report"
-      >
-        <div className="space-y-5">
-          <div>
-            <h2 className="text-xl font-bold text-zinc-950 dark:text-white">
-              Save and finalize report
-            </h2>
-            <p className="mt-1 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-              Choose whether this report remains only in Reports or also
-              becomes a searchable document in your knowledge base.
-            </p>
-          </div>
-
-          <div className="grid gap-3">
-            <button
-              type="button"
-              onClick={() => setPublishToKnowledgeBase(false)}
-              className={`flex items-start gap-3 rounded-xl border p-4 text-left transition ${
-                !publishToKnowledgeBase
-                  ? "border-theme-border bg-theme-soft dark:bg-theme-soft-dark"
-                  : "border-zinc-200 dark:border-zinc-700"
-              }`}
-            >
-              <FileText className="mt-0.5 size-5 shrink-0 text-theme-primary" />
-              <span>
-                <strong className="block text-sm text-zinc-950 dark:text-white">
-                  Keep only as report
-                </strong>
-                <span className="mt-1 block text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                  No document storage, document quota, or embeddings are used.
-                </span>
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setPublishToKnowledgeBase(true)}
-              className={`flex items-start gap-3 rounded-xl border p-4 text-left transition ${
-                publishToKnowledgeBase
-                  ? "border-theme-border bg-theme-soft dark:bg-theme-soft-dark"
-                  : "border-zinc-200 dark:border-zinc-700"
-              }`}
-            >
-              <Database className="mt-0.5 size-5 shrink-0 text-theme-primary" />
-              <span>
-                <strong className="block text-sm text-zinc-950 dark:text-white">
-                  Add to Documents and knowledge base
-                </strong>
-                <span className="mt-1 block text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                  Publish under Reports &amp; Proposals and make it searchable
-                  in future conversations.
-                </span>
-              </span>
-            </button>
-          </div>
-
-          {finalize.error instanceof Error && (
-            <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">
-              {finalize.error.message}
-            </p>
-          )}
-
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              disabled={finalize.isPending}
-              onClick={() => setFinalizeOpen(false)}
-              className="h-10 rounded-lg border border-zinc-200 px-4 text-sm font-semibold text-zinc-700 dark:border-zinc-700 dark:text-zinc-200"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={finalize.isPending}
-              onClick={() => finalize.mutate()}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-theme-primary px-4 text-sm font-semibold text-white disabled:opacity-60"
-            >
-              {finalize.isPending && <Loader2 className="size-4 animate-spin" />}
-              {finalize.isPending
-                ? "Finalizing..."
-                : publishToKnowledgeBase
-                  ? "Finalize and publish"
-                  : "Finalize report"}
-            </button>
-          </div>
-        </div>
-      </ResponsiveModal>
     </div>
   );
 }

@@ -23,12 +23,25 @@ const MARKDOWN_RESPONSE_INSTRUCTION = `Format the answer as clean Markdown:
 - Use tables only when they make comparisons clearer.
 - Use bold text sparingly for important facts.
 - Do not wrap the entire answer in a code block.`;
+const RETRIEVAL_METADATA_INSTRUCTION = `Use internal metadata such as category, collection, tags, and source type only to understand context and improve relevance.
+Do not mention category, collection, tags, source type, source numbers, chunk numbers, vector scores, IDs, payload fields, or retrieval metadata in the final answer.
+Cite document evidence using only the document name and page number when available.
+Mention category, collection, or tags only if the user directly asks about document organization, classification, category, or tags.
+Never say "Chunk 0", "Chunk 1", "Source 1", or similar internal references.
+Give a natural user-facing answer.`;
+
+function configuredScore(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
 
 export interface QueryOptions {
   userId: string;
   categorySlug: CategorySlug;
   question: string;
   selectedDocumentIds: string[];
+  selectedKnowledgeItemIds?: string[];
+  sourceTypes?: string[];
   externalResearchEnabled?: boolean;
 }
 
@@ -98,17 +111,39 @@ function buildPromptWithContext(
 
     ${externalResearchEnabled ? `Use reliable general knowledge to answer. ${webContext ? `Use the live web research below when relevant and cite it with Markdown links.\n\nLIVE WEB RESEARCH:\n${webContext}` : "Clearly label estimates, benchmarks, and assumptions."}` : "Do not answer using outside knowledge or invent an estimate."}
 
+    ${RETRIEVAL_METADATA_INSTRUCTION}
+
     ${MARKDOWN_RESPONSE_INSTRUCTION}
 
     User Question: ${question}`;
   }
 
   const contextBlock = chunks
-    .map(
-      (chunk, i) =>
-        `[Source ${i + 1}] Document: "${chunk.payload.docName}" | Collection: ${chunk.payload.collectionName ?? "Uncategorized"}${chunk.payload.tags?.length ? ` | Tags: ${chunk.payload.tags.join(", ")}` : ""} | Chunk ${chunk.payload.chunkIndex}${chunk.payload.pageNumber ? ` | Page ${chunk.payload.pageNumber}` : ""}\n${chunk.payload.text}`,
-    )
-    .join("\n\n---\n\n");
+    .map((chunk) => {
+      const title =
+        chunk.payload.itemTitle ?? chunk.payload.docName ?? "Knowledge Item";
+      const sourceType = chunk.payload.sourceType ?? "document";
+      return `<context_item>
+<internal_metadata>
+category: ${categorySlug}
+source_type: ${sourceType}
+collection: ${chunk.payload.collectionName ?? "Uncategorized"}
+collection_context: ${chunk.payload.collectionContext ?? "Not provided"}
+tags: ${chunk.payload.tags?.length ? chunk.payload.tags.join(", ") : "None"}
+tag_context: ${chunk.payload.tagContext ?? "Not provided"}
+</internal_metadata>
+
+<citable_source>
+document_name: ${title}
+page: ${chunk.payload.pageNumber ?? "Not available"}
+</citable_source>
+
+<content>
+${chunk.payload.text}
+</content>
+</context_item>`;
+    })
+    .join("\n\n");
 
   return `DOCUMENT CONTEXT:
     ${contextBlock}
@@ -128,6 +163,8 @@ function buildPromptWithContext(
 
     Cite document names/pages for document evidence. Cite live web sources using Markdown links. Clearly label estimates and uncertainty.
 
+    ${RETRIEVAL_METADATA_INSTRUCTION}
+
     ${MARKDOWN_RESPONSE_INSTRUCTION}`;
 }
 
@@ -139,6 +176,8 @@ export async function queryDocuments(
     categorySlug,
     question,
     selectedDocumentIds,
+    selectedKnowledgeItemIds = [],
+    sourceTypes = [],
     externalResearchEnabled = false,
   } = options;
   const product = await getProductForAccount(categorySlug);
@@ -161,10 +200,13 @@ export async function queryDocuments(
     const queryVector = await embeddingProvider.embedText(question);
     const namespace = generateNamespace(userId, categorySlug);
     const vectorDB = getVectorDBProvider();
-    const filter =
-      selectedDocumentIds.length > 0
-        ? { key: "docId", match: { any: selectedDocumentIds } }
-        : undefined;
+    const filter = selectedDocumentIds.length
+      ? { key: "docId", match: { any: selectedDocumentIds } }
+      : selectedKnowledgeItemIds.length
+        ? { key: "itemId", match: { any: selectedKnowledgeItemIds } }
+        : sourceTypes.length
+          ? { key: "sourceType", match: { any: sourceTypes } }
+          : undefined;
     results = await vectorDB.search(namespace, queryVector, TOP_K, filter);
   } catch (error) {
     if (!externalResearchEnabled) throw error;
@@ -174,7 +216,49 @@ export async function queryDocuments(
     );
   }
 
-  const hasContext = results.length > 0 && results[0].score > 0.5;
+  const selectedContextThreshold = configuredScore(
+    process.env.VECTOR_SELECTED_DOC_MIN_SCORE,
+    0.3,
+  );
+
+  const globalContextThreshold = configuredScore(
+    process.env.VECTOR_GLOBAL_MIN_SCORE,
+    0.45,
+  );
+
+  const minScore =
+    selectedDocumentIds.length > 0
+      ? selectedContextThreshold
+      : globalContextThreshold;
+
+  const hasContext = results.length > 0 && results[0].score >= minScore;
+  console.debug(
+    JSON.stringify({
+      level: "debug",
+      message: "semantic_search_evaluated",
+      resultCount: results.length,
+      topScore: results[0]?.score ?? null,
+      minScore,
+      hasContext,
+      selectedDocumentIds,
+      selectedKnowledgeItemIds,
+      sourceTypes,
+    }),
+  );
+
+  if (
+    results.length > 0 &&
+    !hasContext &&
+    selectedDocumentIds.length > 0 &&
+    !externalResearchEnabled
+  ) {
+    return {
+      answer: "",
+      sources: [],
+      answerType: "general_knowledge",
+      tokensUsed: 0,
+    };
+  }
 
   // 4. Build prompt
   const webResults = externalResearchEnabled
@@ -200,8 +284,14 @@ export async function queryDocuments(
   // 6. Build sources array
   const sources: MessageSource[] = hasContext
     ? results.map((r) => ({
-        docId: r.payload.docId,
-        docName: r.payload.docName,
+        // Current UI still consumes docId/docName. Prefer generic payloads,
+        // while old document vectors remain fully compatible.
+        docId: r.payload.docId ?? r.payload.itemId ?? r.payload.sourceId ?? "",
+        docName: r.payload.docName ?? r.payload.itemTitle ?? "Knowledge Item",
+        sourceType: r.payload.sourceType ?? "document",
+        sourceId: r.payload.sourceId ?? r.payload.docId,
+        itemId: r.payload.itemId ?? r.payload.docId,
+        itemTitle: r.payload.itemTitle ?? r.payload.docName ?? "Knowledge Item",
         chunkIndex: r.payload.chunkIndex,
         pageNumber: r.payload.pageNumber,
         excerpt: r.payload.text.slice(0, 300),
@@ -221,6 +311,28 @@ export function isEmbeddingUnavailable(error: unknown): boolean {
     error instanceof Error ? `${error.name} ${error.message}` : String(error);
   return /insufficientquota|insufficient_quota|quota|429|rate.?limit/i.test(
     message,
+  );
+}
+
+export function isSemanticSearchUnavailable(error: unknown): boolean {
+  if (isEmbeddingUnavailable(error)) return true;
+
+  const values: string[] = [];
+  let current: unknown = error;
+  const seen = new Set<unknown>();
+  while (current && !seen.has(current)) {
+    seen.add(current);
+    if (current instanceof Error) {
+      values.push(current.name, current.message);
+      current = current.cause;
+    } else {
+      values.push(String(current));
+      break;
+    }
+  }
+
+  return /eai_again|fetch failed|failed to fetch|network|econn|enotfound|etimedout|timeout|socket|tls|certificate|qdrant|collection.*not found|404|401|403/i.test(
+    values.join(" "),
   );
 }
 
@@ -273,10 +385,27 @@ export async function queryDocumentsFromRawText(
 
   const context = pages
     .map(
-      (page, index) =>
-        `[Source ${index + 1}] Document: "${page.docName}" | Collection: ${page.collectionName ?? "Uncategorized"}${page.tags?.length ? ` | Tags: ${page.tags.join(", ")}` : ""}${page.pageNumber ? ` | Page ${page.pageNumber}` : ""}\n${[page.collectionContext, page.tagContext, page.text].filter(Boolean).join("\n")}`,
+      (page) => `<context_item>
+<internal_metadata>
+category: ${categorySlug}
+source_type: document
+collection: ${page.collectionName ?? "Uncategorized"}
+collection_context: ${page.collectionContext ?? "Not provided"}
+tags: ${page.tags?.length ? page.tags.join(", ") : "None"}
+tag_context: ${page.tagContext ?? "Not provided"}
+</internal_metadata>
+
+<citable_source>
+document_name: ${page.docName}
+page: ${page.pageNumber ?? "Not available"}
+</citable_source>
+
+<content>
+${page.text}
+</content>
+</context_item>`,
     )
-    .join("\n\n---\n\n");
+    .join("\n\n");
   const webResults = externalResearchEnabled
     ? await searchWeb(question).catch(() => [])
     : [];
@@ -291,6 +420,8 @@ ${webContext ? `---\n\nLIVE WEB RESEARCH:\n${webContext}` : ""}
 User Question: ${question}
 
 Use document context as the source of truth for document facts. ${externalResearchEnabled ? "You may use reliable general knowledge and live web research for benchmarks, estimates, and practical context. Separate document evidence from external context, cite document names/pages, link web sources, and clearly label assumptions." : "Answer only from the document context. If the documents cannot support the requested outside benchmark or estimate, suggest turning on **External Research** for this conversation."}
+
+${RETRIEVAL_METADATA_INSTRUCTION}
 
 ${MARKDOWN_RESPONSE_INSTRUCTION}`;
   const answer = stripAiDisclaimer(

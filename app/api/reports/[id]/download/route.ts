@@ -134,6 +134,15 @@ function wrapText({
   return lines.length ? lines : [""];
 }
 
+function parseTableRow(line: string) {
+  return stripMarkdownInline(line)
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim())
+    .filter((cell) => cell.length > 0);
+}
+
 function addPage(pdfDoc: PDFDocument) {
   return pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
 }
@@ -392,22 +401,138 @@ function createWriter({
   }
 
   function writeTableRow(line: string) {
-    const clean = stripMarkdownInline(line)
-      .replace(/^\|/, "")
-      .replace(/\|$/, "")
-      .split("|")
-      .map((cell) => cell.trim())
-      .filter(Boolean)
-      .join("   |   ");
+    const cells = parseTableRow(line);
+    if (!cells.length) return;
 
-    writeText({
-      text: clean,
-      font: regularFont,
-      size: 9.5,
-      color: gray,
-      lineHeight: 14,
-      gapAfter: 4,
+    const columnCount = cells.length;
+    const columnWidth = CONTENT_WIDTH / columnCount;
+    const cellPaddingX = 8;
+    const cellPaddingY = 8;
+    const bodyFontSize = 9;
+    const bodyLineHeight = 12;
+    const cellLines = cells.map((cell) =>
+      wrapText({
+        text: cell,
+        font: regularFont,
+        fontSize: bodyFontSize,
+        maxWidth: columnWidth - cellPaddingX * 2,
+      }),
+    );
+    const rowHeight =
+      Math.max(
+        ...cellLines.map((lines) => lines.length * bodyLineHeight),
+        bodyLineHeight,
+      ) + cellPaddingY * 2;
+
+    ensureSpace(rowHeight + 4);
+
+    const rowTop = y;
+    const rowBottom = y - rowHeight;
+
+    for (let column = 0; column < columnCount; column += 1) {
+      const x = MARGIN_X + column * columnWidth;
+      const isHeader = rowTop === y && column === 0 && /^(category|institution|role|field|duration|skills|relevance)$/i.test(cells[0] ?? "");
+      page.drawRectangle({
+        x,
+        y: rowBottom,
+        width: columnWidth,
+        height: rowHeight,
+        borderColor: border,
+        borderWidth: 0.8,
+        color: isHeader ? lightBg : undefined,
+      });
+
+      const lines = cellLines[column];
+      let textY = rowTop - cellPaddingY - 8;
+      for (const textLine of lines) {
+        page.drawText(textLine, {
+          x: x + cellPaddingX,
+          y: textY,
+          size: bodyFontSize,
+          font: isHeader ? boldFont : regularFont,
+          color: isHeader ? black : gray,
+        });
+        textY -= bodyLineHeight;
+      }
+    }
+
+    y -= rowHeight + 4;
+  }
+
+  function writeTable(lines: string[]) {
+    const rows = lines.map(parseTableRow).filter((row) => row.length > 0);
+    if (!rows.length) return;
+
+    const tableWidth = CONTENT_WIDTH;
+    const columnCount = Math.max(...rows.map((row) => row.length));
+    const columnWidth = tableWidth / columnCount;
+    const cellPaddingX = 8;
+    const cellPaddingY = 8;
+    const fontSize = 9;
+    const lineHeight = 12;
+
+    const rowHeights = rows.map((row) => {
+      const wrapped = row.map((cell) =>
+        wrapText({
+          text: cell,
+          font: regularFont,
+          fontSize,
+          maxWidth: columnWidth - cellPaddingX * 2,
+        }),
+      );
+      return (
+        Math.max(...wrapped.map((cellLines) => cellLines.length * lineHeight), lineHeight) +
+        cellPaddingY * 2
+      );
     });
+
+    const totalHeight = rowHeights.reduce((sum, value) => sum + value, 0);
+    ensureSpace(totalHeight + 6);
+
+    let currentTop = y;
+
+    rows.forEach((row, rowIndex) => {
+      const rowHeight = rowHeights[rowIndex];
+      const isHeaderRow = rowIndex === 0;
+      const wrapped = row.map((cell) =>
+        wrapText({
+          text: cell,
+          font: regularFont,
+          fontSize,
+          maxWidth: columnWidth - cellPaddingX * 2,
+        }),
+      );
+
+      for (let column = 0; column < columnCount; column += 1) {
+        const x = MARGIN_X + column * columnWidth;
+        page.drawRectangle({
+          x,
+          y: currentTop - rowHeight,
+          width: columnWidth,
+          height: rowHeight,
+          borderColor: border,
+          borderWidth: 0.8,
+          color: isHeaderRow ? lightBg : undefined,
+        });
+
+        const linesForCell = wrapped[column] ?? [""];
+        let textY = currentTop - cellPaddingY - 8;
+        for (const textLine of linesForCell) {
+          page.drawText(textLine, {
+            x: x + cellPaddingX,
+            y: textY,
+            size: fontSize,
+            font: isHeaderRow ? boldFont : regularFont,
+            color: isHeaderRow ? black : gray,
+          });
+          textY -= lineHeight;
+        }
+      }
+
+      currentTop -= rowHeight;
+    });
+
+    y = currentTop - 6;
   }
 
   function finish() {
@@ -427,6 +552,7 @@ function createWriter({
     writeNumbered,
     writeQuote,
     writeTableRow,
+    writeTable,
     finish,
     colors: {
       black,
@@ -515,7 +641,7 @@ async function createReportPdf(report: ReportRecord) {
   const content = cleanPdfText(report.content ?? "");
 
   const lines = content.split(/\r?\n/);
-  let insideTable = false;
+  let tableBuffer: string[] = [];
 
   for (const rawLine of lines) {
     const line = rawLine.trim();
@@ -530,16 +656,14 @@ async function createReportPdf(report: ReportRecord) {
     }
 
     if (line.startsWith("|") && line.includes("|")) {
-      if (!insideTable) {
-        writer.setY(writer.y() - 4);
-        insideTable = true;
-      }
-
-      writer.writeTableRow(line);
+      tableBuffer.push(line);
       continue;
     }
 
-    insideTable = false;
+    if (tableBuffer.length) {
+      writer.writeTable(tableBuffer);
+      tableBuffer = [];
+    }
 
     const headingMatch = line.match(/^\s{0,3}(#{1,6})\s*(.+)$/);
 
@@ -574,6 +698,10 @@ async function createReportPdf(report: ReportRecord) {
       lineHeight: 16,
       gapAfter: 8,
     });
+  }
+
+  if (tableBuffer.length) {
+    writer.writeTable(tableBuffer);
   }
 
   writer.finish();

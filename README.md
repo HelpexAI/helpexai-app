@@ -134,3 +134,20 @@ BETTERSTACK_INGESTING_HOST=
 Logs include user ID/email, workspace category, document/conversation IDs,
 processing stages, and errors. Raw document text and message content are not
 sent to Better Stack.
+
+## Generic Knowledge Foundation
+
+Apply `supabase/migrations/017_generic_knowledge_foundation.sql` before
+deploying the generic knowledge-source code. It creates workspace-isolated
+knowledge sources, items, chunks, and reusable tag assignments while preserving
+the existing Documents and Reports APIs.
+
+Documents remain uploaded files. Finalized reports remain in Reports and are
+indexed as separate `report` knowledge items; they are never copied into
+Documents.
+
+Existing document vectors remain backward compatible because retrieval still
+understands `docId` and `docName`. For a completely clean generic index, delete
+the existing Qdrant collection once, recreate it with the same vector size, and
+reprocess or re-upload the documents you want indexed. This also removes stale
+vectors created by the previous report-as-document workflow.

@@ -1,10 +1,15 @@
 import { ingestDocument } from "@/lib/ai/pipeline/ingest";
-import { isEmbeddingUnavailable } from "@/lib/ai/pipeline/query";
+import { isSemanticSearchUnavailable } from "@/lib/ai/pipeline/query";
 import { getDocumentRequestContext } from "@/lib/documents/server";
 import { NextResponse } from "next/server";
 import { logEvent, reportError } from "@/lib/monitoring";
 import { revalidateWorkspacePaths } from "@/lib/cache/revalidate";
 import { DocumentReadabilityError } from "@/lib/documents/readability";
+import {
+  ensureKnowledgeEntity,
+  replaceKnowledgeChunks,
+  updateKnowledgeStatus,
+} from "@/lib/knowledge/service";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -21,7 +26,7 @@ export async function POST(
 
   const { data: document } = await context.service
     .from("documents")
-    .select("*, collection:collections(name, ai_context), document_tag_assignments(tag:tags(name, ai_context))")
+    .select("*, collection:collections(id, name, ai_context), document_tag_assignments(tag:tags(id, name, ai_context))")
     .eq("id", id)
     .eq("user_id", context.user.id)
     .eq("category_slug", context.category)
@@ -34,9 +39,25 @@ export async function POST(
   let chunkCount = 0;
   let processingWarning: string | null = null;
   const collection = Array.isArray(document.collection) ? document.collection[0] : document.collection;
-  const assignedTags = (document.document_tag_assignments ?? []).flatMap((assignment: { tag: Array<{ name: string; ai_context: string }> | { name: string; ai_context: string } }) =>
+  const assignedTags = (document.document_tag_assignments ?? []).flatMap((assignment: { tag: Array<{ id: string; name: string; ai_context: string }> | { id: string; name: string; ai_context: string } }) =>
     Array.isArray(assignment.tag) ? assignment.tag : [assignment.tag],
   ).filter(Boolean);
+  const knowledge = await ensureKnowledgeEntity(context.service, {
+    userId: context.user.id,
+    categorySlug: context.category,
+    sourceType: "document",
+    itemType: "document",
+    originId: document.id,
+    title: document.name,
+    status: "processing",
+    collectionId: collection?.id ?? document.collection_id,
+    tagIds: assignedTags.map((tag: { id: string }) => tag.id),
+    metadata: {
+      documentId: document.id,
+      fileType: document.file_type,
+      filePath: document.file_path,
+    },
+  });
 
   try {
     await logEvent("document_embedding_started", {
@@ -61,8 +82,23 @@ export async function POST(
       fileType: document.file_type,
       collection: collection ?? undefined,
       tags: assignedTags,
+      sourceType: "document",
+      sourceId: knowledge.sourceId,
+      itemId: knowledge.itemId,
+      itemTitle: document.name,
     });
     chunkCount = result.chunkCount;
+    await replaceKnowledgeChunks(
+      context.service,
+      knowledge,
+      { userId: context.user.id, categorySlug: context.category },
+      result.chunks,
+    );
+    await updateKnowledgeStatus(context.service, knowledge, "ready", {
+      documentId: document.id,
+      fileType: document.file_type,
+      chunkCount,
+    });
     await logEvent("document_embedding_completed", {
       userId: context.user.id,
       userEmail: context.user.email,
@@ -82,14 +118,24 @@ export async function POST(
     });
     processingWarning = error instanceof DocumentReadabilityError
       ? error.message
-      : isEmbeddingUnavailable(error)
-      ? "Semantic indexing is waiting for available OpenAI embedding quota. Document chat will use the text fallback."
+      : isSemanticSearchUnavailable(error)
+      ? "Semantic indexing is temporarily unavailable. Document chat will use the text fallback."
       : "Semantic indexing failed. Verify the OpenAI and Qdrant configuration, then retry processing.";
+    await updateKnowledgeStatus(context.service, knowledge, "failed", {
+      documentId: document.id,
+      error: processingWarning,
+    }).catch(() => undefined);
   }
 
   const { data: updated, error: updateError } = await context.service
     .from("documents")
-    .update({ status: "ready", chunk_count: chunkCount, error_message: processingWarning })
+    .update({
+      status: "ready",
+      chunk_count: chunkCount,
+      error_message: processingWarning,
+      knowledge_source_id: knowledge.sourceId,
+      knowledge_item_id: knowledge.itemId,
+    })
     .eq("id", document.id)
     .select()
     .single();

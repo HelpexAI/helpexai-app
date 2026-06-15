@@ -88,6 +88,10 @@ const workspaceReferenceClient = await readFile(new URL("../lib/client/workspace
 const documentsSkeleton = await readFile(new URL("../components/documents/documents-skeleton.tsx", import.meta.url), "utf8");
 const documentsRoute = await readFile(new URL("../app/api/documents/route.ts", import.meta.url), "utf8");
 const conversationUploadModal = await readFile(new URL("../components/conversations/conversation-upload-modal.tsx", import.meta.url), "utf8");
+const knowledgeMigration = await readFile(new URL("../supabase/migrations/017_generic_knowledge_foundation.sql", import.meta.url), "utf8");
+const knowledgeService = await readFile(new URL("../lib/knowledge/service.ts", import.meta.url), "utf8");
+const documentProcessRoute = await readFile(new URL("../app/api/documents/[id]/process/route.ts", import.meta.url), "utf8");
+const reportViewPage = await readFile(new URL("../app/(dashboard)/reports/[id]/page.tsx", import.meta.url), "utf8");
 
 test("account protected writes are revoked from authenticated clients", () => {
   assert.match(migration, /DROP POLICY IF EXISTS "Users can update own accounts"/);
@@ -167,7 +171,25 @@ test("Qdrant ingestion uses valid UUID point IDs and correct docId filters", () 
   assert.match(openAIEmbeddings, /OPENAI_API_KEY is required/);
   assert.match(qdrantProvider, /QDRANT_URL, QDRANT_API_KEY, and QDRANT_COLLECTION_NAME are required/);
   assert.match(qdrantProvider, /ensurePayloadIndexes/);
-  assert.match(qdrantProvider, /\['namespace', 'docId'\]/);
+  for (const field of ["namespace", "docId", "sourceType", "sourceId", "itemId"]) {
+    assert.match(qdrantProvider, new RegExp(`["']${field}["']`));
+  }
+  assert.match(qdrantProvider, /Qdrant \$\{operation\} failed/);
+  assert.match(qdrantProvider, /checkCompatibility: false/);
+  assert.match(qdrantProvider, /QDRANT_TIMEOUT_MS \?\? 4_000/);
+  assert.match(qdrantProvider, /eai_again\|fetch failed/);
+  const qdrantSearchMethod = qdrantProvider.match(/async search[\s\S]*?\n  async delete/)?.[0] ?? "";
+  assert.doesNotMatch(qdrantSearchMethod, /ensurePayloadIndexes/);
+  assert.match(queryPipeline, /isSemanticSearchUnavailable/);
+  assert.match(queryPipeline, /VECTOR_SELECTED_DOC_MIN_SCORE/);
+  assert.match(queryPipeline, /VECTOR_GLOBAL_MIN_SCORE/);
+  assert.match(queryPipeline, /semantic_search_evaluated/);
+  assert.match(queryPipeline, /<internal_metadata>/);
+  assert.match(queryPipeline, /<citable_source>/);
+  assert.doesNotMatch(queryPipeline, /\[Source \$\{i \+ 1\}\]/);
+  assert.match(queryPipeline, /Never say "Chunk 0", "Chunk 1", "Source 1"/);
+  assert.match(queryPipeline, /results\.length > 0[\s\S]*!hasContext[\s\S]*tokensUsed: 0/);
+  assert.match(conversationMessagesRoute, /direct selected-document context/);
 });
 
 test("conversation citations open a page-aware highlighted preview", () => {
@@ -232,7 +254,7 @@ test("document chat can use optional live web research without overriding docume
 test("external research bypasses category rejection and unnecessary raw PDF fallback", () => {
   assert.match(queryPipeline, /!\s*externalResearchEnabled && isOffTopic/);
   assert.match(queryPipeline, /\^\(hi\|hello\|hey\|what's up\|how are you\)\\b/);
-  assert.match(conversationMessagesRoute, /\|\| externalResearchEnabled/);
+  assert.match(conversationMessagesRoute, /\|\|\s*externalResearchEnabled/);
   assert.match(ingestion, /standardFontDataUrl/);
   assert.match(queryPipeline, /Do not respond with the category's off-topic refusal/);
 });
@@ -343,7 +365,7 @@ test("documents require dynamic collections and tags that enrich AI context", ()
   assert.match(documentUploader, /formData\.append\("tag_ids"/);
   assert.match(ingestion, /collectionContext/);
   assert.match(ingestion, /tagContext/);
-  assert.match(queryPipeline, /Collection:/);
+  assert.match(queryPipeline, /collection:/);
   assert.doesNotMatch(documentLibrary, /Total Documents/);
 });
 
@@ -420,6 +442,11 @@ test("report PDF export preserves WinAnsi text and degrades unsupported scripts 
   assert.match(reportDownloadRoute, /\\xA0-\\xFF/);
   assert.match(reportDownloadRoute, /EUR /);
   assert.match(reportDownloadRoute, /\.replace\(\/\[\^\\x09\\x0A\\x0D\\x20-\\x7E\\xA0-\\xFF\]\/g, "\?"\)/);
+  assert.match(reportDownloadRoute, /function writeTable\(lines: string\[\]\)/);
+  assert.match(reportDownloadRoute, /writeTableRow,\s*writeTable,\s*finish/);
+  assert.match(reportDownloadRoute, /writer\.writeTable\(tableBuffer\)[\s\S]*writer\.finish\(\)/);
+  const reportDownloadHandler = reportDownloadRoute.split("export async function GET")[1] ?? "";
+  assert.doesNotMatch(reportDownloadHandler, /tableBuffer|writer\.writeTable/);
 });
 
 test("report revision mode stores clean version history and blocks finalized edits", () => {
@@ -443,24 +470,35 @@ test("dedicated report preview supports selection, revisions, diff review, and c
   assert.match(reportRevisionPreview, /Improve again/);
 });
 
-test("report drafts stay out of Documents until optional knowledge-base publishing", () => {
+test("report drafts stay out of knowledge while finalized reports become separate knowledge items", () => {
   assert.match(reportSaveRoute, /generated_document_id: null/);
   assert.doesNotMatch(reportSaveRoute, /reserve_document_uploads/);
   assert.doesNotMatch(reportSaveRoute, /ingestTextDocument/);
-  assert.match(reportFinalizeRoute, /publishToKnowledgeBase/);
-  assert.match(reportFinalizeRoute, /reserve_document_uploads/);
+  assert.match(reportFinalizeRoute, /sourceType: "report"/);
+  assert.match(reportFinalizeRoute, /ensureKnowledgeEntity/);
   assert.match(reportFinalizeRoute, /ingestTextDocument/);
-  assert.match(reportRevisionPreview, /Keep only as report/);
-  assert.match(reportRevisionPreview, /Add to Documents and knowledge base/);
+  assert.doesNotMatch(reportFinalizeRoute, /reserve_document_uploads/);
+  assert.doesNotMatch(reportRevisionPreview, /Add to Documents and knowledge base/);
+  assert.match(reportViewPage, /knowledge_item_id/);
 });
 
-test("published report documents hide storage extensions and render Markdown", () => {
-  assert.match(reportFinalizeRoute, /name: finalTitle/);
-  assert.match(reportFinalizeRoute, /safeStorageFilename\(`\$\{finalTitle\}\.md`\)/);
-  assert.match(documentViewer, /isReportDocument/);
-  assert.match(documentViewer, /ReportDocumentMarkdown/);
-  assert.match(documentViewer, /ReactMarkdown/);
-  assert.match(documentLibrary, /documentTypeLabel/);
+test("generic knowledge foundation preserves document compatibility and workspace isolation", () => {
+  assert.match(knowledgeMigration, /CREATE TABLE IF NOT EXISTS knowledge_sources/);
+  assert.match(knowledgeMigration, /CREATE TABLE IF NOT EXISTS knowledge_items/);
+  assert.match(knowledgeMigration, /CREATE TABLE IF NOT EXISTS knowledge_chunks/);
+  assert.match(knowledgeMigration, /knowledge_item_tag_assignments/);
+  assert.match(knowledgeMigration, /Users can view workspace knowledge sources/);
+  assert.match(knowledgeMigration, /type = 'document'/);
+  assert.match(knowledgeMigration, /type = 'report'/);
+  assert.match(knowledgeService, /ensureKnowledgeEntity/);
+  assert.match(knowledgeService, /replaceKnowledgeChunks/);
+  assert.match(documentProcessRoute, /sourceType: "document"/);
+  assert.match(documentProcessRoute, /knowledge_source_id/);
+  assert.match(ingestion, /sourceType/);
+  assert.match(ingestion, /itemTitle/);
+  assert.match(ingestion, /docId/);
+  assert.match(queryPipeline, /itemTitle \?\? chunk\.payload\.docName/);
+  assert.match(citationPanel, /source\.sourceType === "report"/);
 });
 
 test("workspace usage stays consistent across enforcement, dashboard, billing, and deletions", () => {

@@ -199,9 +199,9 @@ export function ReportsClientPage() {
           </div>
 
           <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-            Generate professional reports from your uploaded documents. Saved
-            reports are stored as markdown, appear in your knowledge base,
-            and can be downloaded as PDF.
+            Generate professional reports from your uploaded documents.
+            Finalized reports remain separate from Documents, become reusable
+            knowledge sources, and can be downloaded as PDF.
           </p>
         </div>
 

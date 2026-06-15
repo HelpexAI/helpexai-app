@@ -3,6 +3,8 @@ import { deleteOwnedDocument } from "@/lib/documents/delete";
 import { getDocumentRequestContext } from "@/lib/documents/server";
 import { logEvent } from "@/lib/monitoring";
 import { sanitizeTextForStorage } from "@/lib/text/sanitize";
+import { deleteKnowledgeItemVectors } from "@/lib/ai/pipeline/ingest";
+import { deleteKnowledgeEntity } from "@/lib/knowledge/service";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -42,6 +44,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
         "source_type",
         "collection_id",
         "generated_document_id",
+        "knowledge_source_id",
+        "knowledge_item_id",
         "model",
         "error_message",
         "metadata",
@@ -128,7 +132,7 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
   try {
     const { data: report, error: reportErrorResult } = await context.service
       .from("reports")
-      .select("id, title, status, generated_document_id")
+      .select("id, title, status, generated_document_id, knowledge_item_id")
       .eq("id", id)
       .eq("user_id", context.user.id)
       .eq("category_slug", context.category)
@@ -169,6 +173,20 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
       }
     }
 
+    if (report.knowledge_item_id) {
+      await deleteKnowledgeItemVectors(
+        context.user.id,
+        context.category,
+        report.knowledge_item_id,
+      ).catch(() => undefined);
+    }
+    await deleteKnowledgeEntity(context.service, {
+      userId: context.user.id,
+      categorySlug: context.category,
+      sourceType: "report",
+      originId: report.id,
+    });
+
     const { error: deleteReportError } = await context.service
       .from("reports")
       .delete()
@@ -187,6 +205,7 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
       reportId: report.id,
       title: report.title,
       generatedDocumentId: report.generated_document_id,
+      knowledgeItemId: report.knowledge_item_id,
     });
 
     revalidateWorkspacePaths();

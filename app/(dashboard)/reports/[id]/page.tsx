@@ -25,6 +25,7 @@ type ReportRecord = {
   status: "draft" | "generating" | "completed" | "finalized" | "failed";
   template_slug: string | null;
   generated_document_id: string | null;
+  knowledge_item_id: string | null;
   generated_at: string | null;
   created_at: string;
   updated_at: string;
@@ -217,6 +218,7 @@ export default async function ReportViewPage({ params }: PageProps) {
         "status",
         "template_slug",
         "generated_document_id",
+        "knowledge_item_id",
         "generated_at",
         "created_at",
         "updated_at",
@@ -343,7 +345,7 @@ export default async function ReportViewPage({ params }: PageProps) {
             Knowledge base
           </div>
           <div className="mt-2 font-bold text-zinc-950 dark:text-white">
-            {typedReport.generated_document_id ? "Added" : "Not linked"}
+            {typedReport.knowledge_item_id ? "Indexed report source" : "Not indexed"}
           </div>
         </div>
       </section>
