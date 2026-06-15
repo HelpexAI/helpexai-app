@@ -12,7 +12,12 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-type Usage = { label: string; current: number; limit: number; format?: "bytes" };
+type Usage = {
+  label: string;
+  current: number;
+  limit: number;
+  format?: "bytes";
+};
 
 function formatUsage(value: number, format?: "bytes") {
   if (format !== "bytes") return value.toLocaleString();
@@ -58,9 +63,11 @@ function PlanFeature({
 
 function UsageRow({ label, current, limit, format }: Usage) {
   const unlimited = limit < 0;
-  const percent = unlimited ? 0 : limit
-    ? Math.min(100, Math.round((current / limit) * 100))
-    : 0;
+  const percent = unlimited
+    ? 0
+    : limit
+      ? Math.min(100, Math.round((current / limit) * 100))
+      : 0;
 
   const warning = percent >= 100;
 
@@ -90,7 +97,8 @@ function UsageRow({ label, current, limit, format }: Usage) {
         </div>
 
         <span className="w-12 text-right text-xs text-zinc-500 dark:text-zinc-400">
-          {formatUsage(current, format)}/{unlimited ? "∞" : formatUsage(limit, format)}
+          {formatUsage(current, format)}/
+          {unlimited ? "∞" : formatUsage(limit, format)}
         </span>
       </div>
     </div>
@@ -203,12 +211,15 @@ export function BillingOverview({
 
           <ul className="flex flex-1 flex-col gap-2 border-t border-zinc-200 pt-5 dark:border-zinc-800">
             <PlanFeature enabled>
-              {formatUsage(free?.max_storage_bytes ?? 30 * 1024 ** 2, "bytes")} storage
+              {formatUsage(free?.max_storage_bytes ?? 30 * 1024 ** 2, "bytes")}{" "}
+              storage
             </PlanFeature>
             <PlanFeature enabled>
-              {free?.max_queries_day ?? 100} questions/day
+              {free?.max_queries_day ?? 100} queries/day
             </PlanFeature>
-            <PlanFeature enabled>{free?.max_reports_month ?? 5} reports/month</PlanFeature>
+            <PlanFeature enabled>
+              {free?.max_reports_month ?? 5} reports/month
+            </PlanFeature>
             <PlanFeature enabled={false}>Priority processing</PlanFeature>
           </ul>
 
@@ -242,12 +253,15 @@ export function BillingOverview({
 
           <ul className="flex flex-1 flex-col gap-2 border-t border-white/20 pt-5 text-white [&_svg]:text-white">
             <PlanFeature enabled>
-              {formatUsage(pro?.max_storage_bytes ?? 500 * 1024 ** 2, "bytes")} storage
+              {formatUsage(pro?.max_storage_bytes ?? 500 * 1024 ** 2, "bytes")}{" "}
+              storage
             </PlanFeature>
             <PlanFeature enabled>
-              {pro?.max_queries_day ?? 500} questions/day
+              {pro?.max_queries_day ?? 500} queries/day
             </PlanFeature>
-            <PlanFeature enabled>{pro?.max_reports_month ?? 30} reports/month</PlanFeature>
+            <PlanFeature enabled>
+              {pro?.max_reports_month ?? 30} reports/month
+            </PlanFeature>
             <PlanFeature enabled>Advanced citations</PlanFeature>
             <PlanFeature enabled>Priority processing</PlanFeature>
             <PlanFeature enabled>Cancel anytime</PlanFeature>
@@ -306,12 +320,16 @@ export function BillingOverview({
 
           <ul className="flex flex-1 flex-col gap-2 border-t border-zinc-200 pt-5 dark:border-zinc-800">
             <PlanFeature enabled>
-              {formatUsage(premium?.max_storage_bytes ?? 2 * 1024 ** 3, "bytes")} storage
+              {formatUsage(
+                premium?.max_storage_bytes ?? 2 * 1024 ** 3,
+                "bytes",
+              )}{" "}
+              storage
             </PlanFeature>
+            <PlanFeature enabled>Unlimited queries/day</PlanFeature>
             <PlanFeature enabled>
-              Unlimited questions/day
+              {premium?.max_reports_month ?? 100} reports/month
             </PlanFeature>
-            <PlanFeature enabled>{premium?.max_reports_month ?? 100} reports/month</PlanFeature>
             <PlanFeature enabled>Advanced citations</PlanFeature>
             <PlanFeature enabled>Priority processing</PlanFeature>
             <PlanFeature enabled>Cancel anytime</PlanFeature>

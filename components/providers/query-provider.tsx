@@ -1,7 +1,13 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useWorkspaceReference } from "@/lib/client/workspace-reference";
 import { useState } from "react";
+
+function WorkspaceReferenceBootstrap() {
+  useWorkspaceReference();
+  return null;
+}
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -20,5 +26,10 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
     },
   }));
 
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <WorkspaceReferenceBootstrap />
+      {children}
+    </QueryClientProvider>
+  );
 }

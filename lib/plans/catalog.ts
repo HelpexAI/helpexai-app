@@ -21,7 +21,7 @@ export async function getProductPlan(
       name: plan.charAt(0).toUpperCase() + plan.slice(1),
       slug: plan,
       category_slug: category,
-      price_monthly: plan === "premium" ? 4900 : plan === "pro" ? 2900 : 0,
+      price_monthly: plan === "premium" ? 1999 : plan === "pro" ? 999 : 0,
       creem_prod_id: null,
       ...PLAN_LIMITS[plan],
     }

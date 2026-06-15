@@ -1,7 +1,7 @@
 import { getCurrentWorkspace } from "@/lib/dashboard/workspace";
-import { startOfTodayUtc } from "@/lib/usage/daily";
 import { createClient } from "@/lib/supabase/server";
 import { getProductPlan } from "@/lib/plans/catalog";
+import { getWorkspaceUsage } from "@/lib/usage/workspace";
 import {
   ArrowRight,
   Briefcase,
@@ -103,15 +103,8 @@ export default async function DashboardPage() {
   const workspace = await getCurrentWorkspace();
   const supabase = await createClient();
 
-  const monthStart = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString();
-  const [questionsResult, recentResult, storageResult, reportsResult, plan] = await Promise.all([
-    supabase
-      .from("usage_logs")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", workspace.userId)
-      .eq("category_slug", workspace.category)
-      .eq("action", "query")
-      .gte("created_at", startOfTodayUtc()),
+  const [usage, recentResult, plan] = await Promise.all([
+    getWorkspaceUsage(supabase, workspace.userId, workspace.category),
     supabase
       .from("conversations")
       .select("id, title, selected_document_ids, created_at", { count: "exact" })
@@ -119,14 +112,10 @@ export default async function DashboardPage() {
       .eq("category_slug", workspace.category)
       .order("created_at", { ascending: false })
       .limit(3),
-    supabase.from("documents").select("file_size").eq("user_id", workspace.userId).eq("category_slug", workspace.category),
-    supabase.from("usage_logs").select("*", { count: "exact", head: true }).eq("user_id", workspace.userId).eq("category_slug", workspace.category).eq("action", "report_generate").gte("created_at", monthStart),
     getProductPlan(supabase, workspace.category, workspace.plan),
   ]);
 
   const limits = plan;
-  const storageUsed = (storageResult.data ?? []).reduce((total, document) => total + document.file_size, 0);
-  const questionsCount = questionsResult.count ?? 0;
   const recentConversations = recentResult.data ?? [];
   const CategoryIcon = workspace.product.icon === "scale" ? Scale : Briefcase;
 
@@ -144,20 +133,20 @@ export default async function DashboardPage() {
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <UsageCard
           label="Storage Usage"
-          current={storageUsed}
+          current={usage.storageBytes}
           limit={limits.max_storage_bytes}
           icon={HardDrive}
-          warning={storageUsed >= limits.max_storage_bytes}
+          warning={usage.storageBytes >= limits.max_storage_bytes}
         />
         <UsageCard
           label="Chat Queries Today"
-          current={questionsCount}
+          current={usage.queriesToday}
           limit={limits.max_queries_day}
           icon={HelpCircle}
         />
         <UsageCard
           label="Reports This Month"
-          current={reportsResult.count ?? 0}
+          current={usage.reportsThisMonth}
           limit={limits.max_reports_month}
           icon={ChartNoAxesColumn}
         />

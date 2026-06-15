@@ -8,14 +8,18 @@ export async function getDocumentLimitState(
   category: CategorySlug,
   plan: PlanSlug,
 ) {
-  const { data } = await client
+  const { data, error } = await client
     .from("documents")
     .select("file_size")
     .eq("user_id", userId)
     .eq("category_slug", category);
+  if (error) throw error;
 
   const limit = (await getProductPlan(client, category, plan)).max_storage_bytes;
-  const used = (data ?? []).reduce((total, document) => total + document.file_size, 0);
+  const used = (data ?? []).reduce(
+    (total, document) => total + Number(document.file_size ?? 0),
+    0,
+  );
 
   return {
     used,

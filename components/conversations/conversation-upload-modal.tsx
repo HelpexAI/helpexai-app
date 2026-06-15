@@ -2,29 +2,29 @@
 
 import { ResponsiveModal } from "@/components/dashboard/responsive-modal";
 import { invalidateWorkspaceQueries } from "@/lib/client/query";
+import { useWorkspaceReference } from "@/lib/client/workspace-reference";
 import { MAX_FILE_SIZE } from "@/lib/validations/schemas";
-import type { DocumentCollection, DocumentTag } from "@/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Upload } from "lucide-react";
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 
 export function ConversationUploadModal({ open, onClose, onUploaded }: { open: boolean; onClose: () => void; onUploaded?: (ids: string[]) => void }) {
   const queryClient = useQueryClient();
+  const { data: referenceData } = useWorkspaceReference();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [collections, setCollections] = useState<DocumentCollection[]>([]);
-  const [tags, setTags] = useState<DocumentTag[]>([]);
   const [collectionId, setCollectionId] = useState("");
   const [tagIds, setTagIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!open || collections.length) return;
-    void fetch("/api/documents").then((response) => response.json()).then((body: { collections?: DocumentCollection[]; tags?: DocumentTag[] }) => {
-      const next = body.collections ?? [];
-      setCollections(next); setTags(body.tags ?? []); setCollectionId(next[0]?.id ?? "");
-    });
-  }, [collections.length, open]);
+    if (open && !collectionId && referenceData?.collections.length) {
+      setCollectionId(referenceData.collections[0].id);
+    }
+  }, [collectionId, open, referenceData?.collections]);
+
+  const collections = referenceData?.collections ?? [];
+  const tags = referenceData?.tags ?? [];
 
   async function upload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];

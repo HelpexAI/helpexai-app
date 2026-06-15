@@ -1,7 +1,9 @@
 "use client";
 
 import { ClientPageError } from "@/components/dashboard/client-page-error";
+import { DocumentsContentSkeleton } from "@/components/documents/documents-skeleton";
 import { fetchJson, queryKeys } from "@/lib/client/query";
+import { useWorkspaceReference } from "@/lib/client/workspace-reference";
 import type {
   CategorySlug,
   Document,
@@ -9,7 +11,7 @@ import type {
   DocumentTag,
 } from "@/types";
 import { useQuery } from "@tanstack/react-query";
-import { Folder, Folders, Loader2 } from "lucide-react";
+import { Folder, Folders } from "lucide-react";
 import * as Icons from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createContext, useContext, useMemo, useState } from "react";
@@ -18,16 +20,16 @@ export type DocumentsResponse = {
   error?: string;
   documents: Document[];
   category: CategorySlug;
-  productName: string;
   storageUsed: number;
   storageLimit: number;
   requiresResolution: boolean;
-  collections: DocumentCollection[];
-  tags: DocumentTag[];
 };
 
 type DocumentsWorkspaceValue = DocumentsResponse & {
   activeCollection: DocumentCollection;
+  productName: string;
+  collections: DocumentCollection[];
+  tags: DocumentTag[];
 };
 const DocumentsWorkspaceContext = createContext<DocumentsWorkspaceValue | null>(
   null,
@@ -51,10 +53,24 @@ export function DocumentsWorkspaceShell({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { data, error, refetch } = useQuery({
+  const { data: documentsData, error, refetch } = useQuery({
     queryKey: queryKeys.documents,
     queryFn: () => fetchJson<DocumentsResponse>("/api/documents"),
   });
+  const {
+    data: referenceData,
+    error: referenceError,
+    refetch: refetchReference,
+  } = useWorkspaceReference();
+  const data =
+    documentsData && referenceData
+      ? {
+          ...documentsData,
+          productName: referenceData.product.name,
+          collections: referenceData.collections,
+          tags: referenceData.tags,
+        }
+      : null;
   const requestedCollectionId = searchParams.get("collection");
   const viewerOpen = /^\/documents\/[^/]+$/.test(pathname);
   const activeCollection = useMemo(() => {
@@ -79,9 +95,15 @@ export function DocumentsWorkspaceShell({
     router.push(`/documents?collection=${collectionId}`);
   }
 
-  if (error)
+  if (error || referenceError)
     return (
-      <ClientPageError message={error.message} onRetry={() => void refetch()} />
+      <ClientPageError
+        message={(error ?? referenceError)?.message ?? "Could not load documents."}
+        onRetry={() => {
+          void refetch();
+          void refetchReference();
+        }}
+      />
     );
 
   return (
@@ -99,8 +121,10 @@ export function DocumentsWorkspaceShell({
       >
         <div className="theme-scrollbar min-h-0 flex-1 space-y-1 overflow-y-auto">
           {!data ? (
-            <div className="flex min-h-24 items-center justify-center">
-              <Loader2 className="size-5 animate-spin text-theme-primary" />
+            <div className="space-y-2">
+              {Array.from({ length: 5 }, (_, index) => (
+                <div key={index} className="h-10 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" />
+              ))}
             </div>
           ) : (
             data.collections.map((collection) => {
@@ -146,9 +170,7 @@ export function DocumentsWorkspaceShell({
           viewerOpen ? (
             children
           ) : (
-            <div className="flex h-full min-h-72 items-center justify-center">
-              <Loader2 className="size-6 animate-spin text-theme-primary" />
-            </div>
+            <DocumentsContentSkeleton />
           )
         ) : (
           <DocumentsWorkspaceContext.Provider

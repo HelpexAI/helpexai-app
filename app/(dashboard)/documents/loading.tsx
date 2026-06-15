@@ -1,5 +1,5 @@
-import { SectionLoading } from "@/components/dashboard/section-loading";
+import { DocumentsPageSkeleton } from "@/components/documents/documents-skeleton";
 
 export default function DocumentsLoading() {
-  return <SectionLoading label="Loading documents..." />;
+  return <DocumentsPageSkeleton />;
 }

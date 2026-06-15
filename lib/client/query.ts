@@ -2,6 +2,7 @@
 
 export const queryKeys = {
   dashboard: ["dashboard"] as const,
+  workspaceReference: ["workspace-reference"] as const,
 
   documents: ["documents"] as const,
   document: (id: string) => ["documents", id] as const,

@@ -2,7 +2,6 @@ import { getDocumentRequestContext, fileTypeFromFile, safeStorageFilename } from
 import { MAX_FILES_PER_UPLOAD, MAX_FILE_SIZE } from "@/lib/validations/schemas";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { NextResponse } from "next/server";
-import { getProductForAccount } from "@/lib/products/catalog";
 import { validateReadableDocument, DocumentReadabilityError } from "@/lib/documents/readability";
 import { logEvent, reportError } from "@/lib/monitoring";
 import { revalidateWorkspacePaths } from "@/lib/cache/revalidate";
@@ -14,25 +13,17 @@ export async function GET() {
   const context = await getDocumentRequestContext();
   if (!context) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const [{ data: documents, error }, { data: collections }, { data: tags }] = await Promise.all([
-    context.service
+  const { data: documents, error } = await context.service
     .from("documents")
     .select("*, collection:collections(id, name, description, ai_context, icon), document_tag_assignments(tag:tags(id, name, description, ai_context, color))")
     .eq("user_id", context.user.id)
     .eq("category_slug", context.category)
-    .order("created_at", { ascending: false }),
-    context.service.from("collections").select("*").eq("category_slug", context.category).eq("is_active", true).order("sort_order"),
-    context.service.from("tags").select("*").eq("category_slug", context.category).eq("is_active", true).order("sort_order"),
-  ]);
+    .order("created_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const product = await getProductForAccount(context.category);
   return NextResponse.json({
     documents: (documents ?? []).map(normalizeDocumentRelations),
-    collections: collections ?? [],
-    tags: tags ?? [],
     category: context.category,
-    productName: product.name,
     storageUsed: context.documentLimit.used,
     storageLimit: context.documentLimit.limit,
     requiresResolution: context.documentLimit.requiresResolution,

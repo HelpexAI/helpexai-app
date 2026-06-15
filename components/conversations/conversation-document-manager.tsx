@@ -2,12 +2,12 @@
 
 import { ResponsiveModal } from "@/components/dashboard/responsive-modal";
 import { invalidateWorkspaceQueries, queryKeys } from "@/lib/client/query";
+import { useWorkspaceReference } from "@/lib/client/workspace-reference";
 import { MAX_FILE_SIZE } from "@/lib/validations/schemas";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, FilePlus2, FileText, Loader2, Paperclip, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, useEffect, useRef, useState } from "react";
-import type { DocumentCollection, DocumentTag } from "@/types";
 
 type ManagedDocument = { id: string; name: string };
 
@@ -22,13 +22,12 @@ export function ConversationDocumentManager({
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { data: referenceData } = useWorkspaceReference();
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState(selectedDocuments.map((document) => document.id));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [collections, setCollections] = useState<DocumentCollection[]>([]);
-  const [tags, setTags] = useState<DocumentTag[]>([]);
   const [collectionId, setCollectionId] = useState("");
   const [tagIds, setTagIds] = useState<string[]>([]);
 
@@ -37,14 +36,13 @@ export function ConversationDocumentManager({
   }, [selectedDocuments]);
 
   useEffect(() => {
-    if (!open || collections.length) return;
-    void fetch("/api/documents").then((response) => response.json()).then((body: { collections?: DocumentCollection[]; tags?: DocumentTag[] }) => {
-      const nextCollections = body.collections ?? [];
-      setCollections(nextCollections);
-      setTags(body.tags ?? []);
-      setCollectionId(nextCollections[0]?.id ?? "");
-    });
-  }, [collections.length, open]);
+    if (open && !collectionId && referenceData?.collections.length) {
+      setCollectionId(referenceData.collections[0].id);
+    }
+  }, [collectionId, open, referenceData?.collections]);
+
+  const collections = referenceData?.collections ?? [];
+  const tags = referenceData?.tags ?? [];
 
   async function saveDocuments(documentIds = selected) {
     if (!documentIds.length) {

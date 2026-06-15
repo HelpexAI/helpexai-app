@@ -515,13 +515,18 @@ export async function POST(request: Request) {
           { status: 403 },
         );
       }
-      await context.service.from("usage_logs").insert({
-        user_id: context.user.id,
-        category_slug: context.category,
-        action: "report_generate",
-        tokens_used: 0,
-        request_id: usageRequestId,
-      });
+      const { error: fallbackUsageError } = await context.service
+        .from("usage_logs")
+        .insert({
+          user_id: context.user.id,
+          category_slug: context.category,
+          action: "report_generate",
+          tokens_used: 0,
+          request_id: usageRequestId,
+        });
+      if (fallbackUsageError) {
+        throw new Error(`Could not reserve report usage: ${fallbackUsageError.message}`);
+      }
     }
     const quota = reservation?.[0];
     if (reservation && !quota?.allowed) {

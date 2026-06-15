@@ -1,4 +1,7 @@
--- Replace document-count quotas with storage quotas and add monthly report quotas.
+-- Usage semantics:
+-- - Storage is current stored document bytes, so deleting a document frees space.
+-- - Queries count successful daily answers; failed reservations are released by the API.
+-- - Reports count successful monthly generations; deleting a report does not refund usage.
 
 ALTER TABLE plans ADD COLUMN IF NOT EXISTS max_storage_bytes BIGINT;
 ALTER TABLE plans ADD COLUMN IF NOT EXISTS max_reports_month INTEGER;
@@ -24,6 +27,10 @@ ALTER TABLE plans ALTER COLUMN max_storage_bytes SET NOT NULL;
 ALTER TABLE plans ALTER COLUMN max_reports_month SET NOT NULL;
 ALTER TABLE plans ALTER COLUMN max_storage_bytes SET DEFAULT 31457280;
 ALTER TABLE plans ALTER COLUMN max_reports_month SET DEFAULT 5;
+
+ALTER TABLE usage_logs DROP CONSTRAINT IF EXISTS usage_logs_action_check;
+ALTER TABLE usage_logs ADD CONSTRAINT usage_logs_action_check
+  CHECK (action IN ('document_upload', 'query', 'document_delete', 'report_generate'));
 
 CREATE OR REPLACE FUNCTION reserve_daily_query(p_user_id UUID, p_category_slug TEXT, p_request_id UUID)
 RETURNS TABLE(allowed BOOLEAN, used INTEGER, quota_limit INTEGER)

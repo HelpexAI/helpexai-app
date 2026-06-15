@@ -39,7 +39,7 @@ const plans = [
   {
     name: "Pro",
     slug: "pro",
-    price: "$29",
+    price: "$9.99",
     period: "/month",
     description: "For small businesses that need more document intelligence.",
     cta: "Start Pro",
@@ -59,7 +59,7 @@ const plans = [
   {
     name: "Premium",
     slug: "premium",
-    price: "$49",
+    price: "$19.99",
     period: "/month",
     description:
       "For growing teams using HelpexAI as a business knowledge workspace.",
@@ -86,8 +86,7 @@ const faqs = [
   },
   {
     question: "Can I cancel anytime?",
-    answer:
-      "Yes. Paid subscriptions can be cancelled anytime. Your access remains active until the end of the billing period.",
+    answer: "Yes. Paid subscriptions can be cancelled anytime.",
   },
   {
     question: "What is HelpexAI used for?",

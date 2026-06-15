@@ -79,6 +79,15 @@ const reportRevisionMigration = await readFile(new URL("../supabase/migrations/0
 const reportRevisionRoute = await readFile(new URL("../app/api/reports/[id]/revise/route.ts", import.meta.url), "utf8");
 const reportFinalizeRoute = await readFile(new URL("../app/api/reports/[id]/finalize/route.ts", import.meta.url), "utf8");
 const reportRevisionPreview = await readFile(new URL("../components/reports/report-revision-preview.tsx", import.meta.url), "utf8");
+const storageReportLimitsMigration = await readFile(new URL("../supabase/migrations/016_storage_and_report_limits.sql", import.meta.url), "utf8");
+const workspaceUsage = await readFile(new URL("../lib/usage/workspace.ts", import.meta.url), "utf8");
+const billingPage = await readFile(new URL("../app/(dashboard)/billing/page.tsx", import.meta.url), "utf8");
+const reportRoute = await readFile(new URL("../app/api/reports/[id]/route.ts", import.meta.url), "utf8");
+const workspaceReferenceRoute = await readFile(new URL("../app/api/workspace/reference/route.ts", import.meta.url), "utf8");
+const workspaceReferenceClient = await readFile(new URL("../lib/client/workspace-reference.ts", import.meta.url), "utf8");
+const documentsSkeleton = await readFile(new URL("../components/documents/documents-skeleton.tsx", import.meta.url), "utf8");
+const documentsRoute = await readFile(new URL("../app/api/documents/route.ts", import.meta.url), "utf8");
+const conversationUploadModal = await readFile(new URL("../components/conversations/conversation-upload-modal.tsx", import.meta.url), "utf8");
 
 test("account protected writes are revoked from authenticated clients", () => {
   assert.match(migration, /DROP POLICY IF EXISTS "Users can update own accounts"/);
@@ -452,4 +461,35 @@ test("published report documents hide storage extensions and render Markdown", (
   assert.match(documentViewer, /ReportDocumentMarkdown/);
   assert.match(documentViewer, /ReactMarkdown/);
   assert.match(documentLibrary, /documentTypeLabel/);
+});
+
+test("workspace usage stays consistent across enforcement, dashboard, billing, and deletions", () => {
+  assert.match(storageReportLimitsMigration, /SUM\(file_size\)/);
+  assert.match(storageReportLimitsMigration, /action = 'query'/);
+  assert.match(storageReportLimitsMigration, /action = 'report_generate'/);
+  assert.match(workspaceUsage, /\.from\("documents"\)/);
+  assert.match(workspaceUsage, /\.eq\("action", "query"\)/);
+  assert.match(workspaceUsage, /\.eq\("action", "report_generate"\)/);
+  assert.match(dashboardPage, /getWorkspaceUsage/);
+  assert.match(billingPage, /getWorkspaceUsage/);
+  assert.match(reportGenerateRoute, /reserve_monthly_report/);
+  assert.match(reportGenerateRoute, /\.delete\(\)\.eq\("request_id", usageRequestId\)/);
+  assert.doesNotMatch(reportRoute, /\.from\("usage_logs"\)\s*\.delete/);
+});
+
+test("stable workspace reference data is cached once and documents use a minimal skeleton", () => {
+  const documentsGetRoute = documentsRoute.split("export async function POST")[0];
+
+  assert.match(workspaceReferenceRoute, /\.from\("collections"\)/);
+  assert.match(workspaceReferenceRoute, /\.from\("tags"\)/);
+  assert.match(workspaceReferenceRoute, /\.from\("plans"\)/);
+  assert.match(workspaceReferenceRoute, /\.from\("report_templates"\)/);
+  assert.match(workspaceReferenceClient, /staleTime: Infinity/);
+  assert.match(workspaceReferenceClient, /gcTime: Infinity/);
+  assert.match(queryProvider, /WorkspaceReferenceBootstrap/);
+  assert.doesNotMatch(documentsGetRoute, /\.from\("collections"\)/);
+  assert.doesNotMatch(documentsGetRoute, /\.from\("tags"\)/);
+  assert.match(conversationUploadModal, /useWorkspaceReference/);
+  assert.match(documentsSkeleton, /DocumentsContentSkeleton/);
+  assert.match(documentsSkeleton, /animate-pulse/);
 });

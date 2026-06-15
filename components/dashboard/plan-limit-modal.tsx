@@ -5,9 +5,9 @@ import { Check, Lock, Zap } from "lucide-react";
 import Link from "next/link";
 
 const features = [
-  "30 documents",
-  "30 questions/day",
-  "Premium offers up to 100 documents and questions/day",
+  "2GB of storage",
+  "Unlimited queries/day",
+  "100 reports/month",
 ];
 
 export function PlanLimitModal({
@@ -24,7 +24,11 @@ export function PlanLimitModal({
   resource?: string;
 }) {
   return (
-    <ResponsiveModal open={open} onClose={onClose} ariaLabel="Plan limit reached">
+    <ResponsiveModal
+      open={open}
+      onClose={onClose}
+      ariaLabel="Plan limit reached"
+    >
       <div className="flex flex-col gap-6">
         <div className="flex flex-col items-center gap-4 text-center">
           <div className="flex size-20 items-center justify-center rounded-full bg-theme-soft dark:bg-theme-soft-dark">
@@ -49,11 +53,16 @@ export function PlanLimitModal({
           </p>
           <div className="space-y-1">
             {features.map((feature) => (
-              <div key={feature} className="flex items-center gap-3 rounded-lg px-2 py-1.5">
+              <div
+                key={feature}
+                className="flex items-center gap-3 rounded-lg px-2 py-1.5"
+              >
                 <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-theme-soft text-theme-primary dark:bg-theme-soft-dark dark:text-theme-soft-foreground-dark">
                   <Check className="size-3" />
                 </div>
-                <span className="text-sm text-zinc-800 dark:text-zinc-200">{feature}</span>
+                <span className="text-sm text-zinc-800 dark:text-zinc-200">
+                  {feature}
+                </span>
               </div>
             ))}
           </div>
@@ -61,8 +70,12 @@ export function PlanLimitModal({
 
         <div className="flex items-baseline gap-2">
           <span className="text-3xl font-bold text-theme-primary">$29</span>
-          <span className="font-semibold text-zinc-950 dark:text-zinc-100">/month and up</span>
-          <span className="text-sm text-zinc-500 dark:text-zinc-400">· cancel anytime</span>
+          <span className="font-semibold text-zinc-950 dark:text-zinc-100">
+            /month and up
+          </span>
+          <span className="text-sm text-zinc-500 dark:text-zinc-400">
+            · cancel anytime
+          </span>
         </div>
 
         <div className="flex flex-col gap-3">
