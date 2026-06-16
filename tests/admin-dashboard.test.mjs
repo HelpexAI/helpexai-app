@@ -8,6 +8,8 @@ const layout = await readFile(new URL("../app/admin/layout.tsx", import.meta.url
 const actions = await readFile(new URL("../app/admin/settings/actions.ts", import.meta.url), "utf8");
 const login = await readFile(new URL("../components/auth/login-form.tsx", import.meta.url), "utf8");
 const middleware = await readFile(new URL("../middleware.ts", import.meta.url), "utf8");
+const adminData = await readFile(new URL("../lib/admin/data.ts", import.meta.url), "utf8");
+const healthPage = await readFile(new URL("../app/admin/health/page.tsx", import.meta.url), "utf8");
 
 test("admin dashboard uses explicit server-side platform authorization", () => {
   assert.match(migration, /CREATE TABLE IF NOT EXISTS platform_admins/);
@@ -29,4 +31,15 @@ test("admin authentication preserves the admin destination without redirect loop
   assert.match(auth, /admin=setup-required/);
   assert.match(login, /router\.push\(safeNext\)/);
   assert.match(middleware, /safeInternalPath/);
+});
+
+test("admin health exposes production launch readiness checks", () => {
+  assert.match(healthPage, /Launch readiness/);
+  assert.match(adminData, /Core configuration/);
+  assert.match(adminData, /Authentication & admin access/);
+  assert.match(adminData, /Products, pricing, and limits/);
+  assert.match(adminData, /Knowledge & AI pipeline/);
+  assert.match(adminData, /Monitoring/);
+  assert.match(adminData, /Reliability & failures/);
+  assert.match(adminData, /Run account, upload, conversation, report, export, and billing smoke tests/);
 });

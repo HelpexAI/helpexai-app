@@ -3,6 +3,17 @@ import { createServiceClient } from "@/lib/supabase/server";
 const PAGE_SIZE = 25;
 type DbRow = Record<string, unknown>;
 type CountFilter = { column: string; value: string; operator?: "eq" | "gte" };
+type ReadinessStatus = "passed" | "warning" | "blocked";
+
+function requiredEnv(name: string) {
+  return Boolean(process.env[name]?.trim());
+}
+
+function readinessStatus(blocked: boolean, warning = false): ReadinessStatus {
+  if (blocked) return "blocked";
+  if (warning) return "warning";
+  return "passed";
+}
 
 export function pageRange(page = 1) {
   const safePage = Math.max(1, page);
@@ -139,11 +150,72 @@ export async function getHealthData() {
   const service = createServiceClient();
   const started = Date.now();
   const db = await service.from("plans").select("id").limit(1);
-  const [failedDocuments, failedReports, events] = await Promise.all([
+  const [failedDocuments, failedReports, events, plans, activeCategories, admins, recentQueries] = await Promise.all([
     service.from("documents").select("id,name,error_message,updated_at").eq("status", "failed").order("updated_at", { ascending: false }).limit(10),
     service.from("reports").select("id,title,error_message,updated_at").eq("status", "failed").order("updated_at", { ascending: false }).limit(10),
     service.from("system_events").select("id,type,severity,message,created_at").order("created_at", { ascending: false }).limit(10),
+    service.from("plans").select("slug,category_slug,creem_product_id,max_storage_bytes,max_queries_day,max_reports_month"),
+    service.from("categories").select("slug").eq("is_active", true),
+    service.from("platform_admins").select("user_id").limit(1),
+    service.from("usage_logs").select("id").eq("action", "query").order("created_at", { ascending: false }).limit(1),
   ]);
+  const planRows = plans.data ?? [];
+  const activeCategoryRows = activeCategories.data ?? [];
+  const missingPaidPlans = planRows.filter((plan) => plan.slug !== "free" && !plan.creem_product_id);
+  const hasCoreEnv = requiredEnv("NEXT_PUBLIC_SUPABASE_URL") &&
+    requiredEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY") &&
+    requiredEnv("SUPABASE_SERVICE_ROLE_KEY") &&
+    requiredEnv("NEXT_PUBLIC_APP_URL");
+  const hasAi = requiredEnv("GROQ_API_KEY") || requiredEnv("OPENAI_API_KEY");
+  const hasVector = requiredEnv("QDRANT_URL") && requiredEnv("QDRANT_API_KEY");
+  const hasMonitoring = requiredEnv("BETTERSTACK_SOURCE_TOKEN") && requiredEnv("BETTERSTACK_INGESTING_HOST");
+  const hasBilling = requiredEnv("CREEM_API_KEY") && requiredEnv("CREEM_WEBHOOK_SECRET") && missingPaidPlans.length === 0;
+  const failedCount = (failedDocuments.data?.length ?? 0) + (failedReports.data?.length ?? 0);
+  const severeEvents = (events.data ?? []).filter((event) => ["error", "critical"].includes(String(event.severity))).length;
+  const readiness = [
+    {
+      area: "Core configuration",
+      status: readinessStatus(!hasCoreEnv),
+      detail: hasCoreEnv ? "Supabase and app URL are configured." : "Set Supabase public URL/anon key, service role key, and NEXT_PUBLIC_APP_URL.",
+      action: hasCoreEnv ? "No action required." : "Complete production environment variables before launch.",
+    },
+    {
+      area: "Authentication & admin access",
+      status: readinessStatus(!admins.data?.length),
+      detail: admins.data?.length ? "At least one platform admin exists." : "No platform admin found.",
+      action: admins.data?.length ? "Keep admin access limited to trusted users." : "Bootstrap the first platform admin in Supabase.",
+    },
+    {
+      area: "Products, pricing, and limits",
+      status: readinessStatus(!activeCategoryRows.length || !planRows.length || !hasBilling, missingPaidPlans.length > 0),
+      detail: `${activeCategoryRows.length} active product(s), ${planRows.length} plan row(s).`,
+      action: hasBilling ? "Review pricing copy and plan limits before launch." : "Set Creem credentials and paid plan product IDs.",
+    },
+    {
+      area: "Knowledge & AI pipeline",
+      status: readinessStatus(!hasAi || !hasVector),
+      detail: hasAi && hasVector ? "AI and vector configuration are present." : "AI provider or Qdrant configuration is missing.",
+      action: hasAi && hasVector ? "Run a document upload and Q&A smoke test." : "Set AI and vector database credentials.",
+    },
+    {
+      area: "Monitoring",
+      status: readinessStatus(!hasMonitoring),
+      detail: hasMonitoring ? "Better Stack logging is configured." : "Better Stack logging is not fully configured.",
+      action: hasMonitoring ? "Verify logs arrive from production." : "Set Better Stack source token and ingesting host.",
+    },
+    {
+      area: "Reliability & failures",
+      status: readinessStatus(false, failedCount > 0 || severeEvents > 0),
+      detail: `${failedCount} recent failed processing/report records, ${severeEvents} severe system events shown below.`,
+      action: failedCount || severeEvents ? "Review failures before customer onboarding." : "Continue monitoring failed jobs and system events.",
+    },
+    {
+      area: "Usage activity",
+      status: readinessStatus(false, !recentQueries.data?.length),
+      detail: recentQueries.data?.length ? "Recent query usage exists." : "No recent query usage found.",
+      action: "Run account, upload, conversation, report, export, and billing smoke tests before launch.",
+    },
+  ];
   return {
     services: [
       { name: "App server", status: "healthy", detail: "Admin request completed" },
@@ -156,5 +228,6 @@ export async function getHealthData() {
     failures: [...(failedDocuments.data ?? []).map((row) => ({ ...row, type: "document_processing" })),
       ...(failedReports.data ?? []).map((row) => ({ ...row, name: row.title, type: "report_generation" }))],
     events: events.data ?? [],
+    readiness,
   };
 }

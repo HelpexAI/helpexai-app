@@ -260,20 +260,17 @@ export async function POST(
         conversation.selected_document_ids,
         conversation.external_research_enabled,
       );
-    const scopedResult =
-      conversation.conversation_scope === "workplace"
-        ? { ...result, sources: [] }
-        : result;
+    if (conversation.conversation_scope === "workplace") result.sources = [];
     const { data: assistantMessage, error: assistantError } =
       await context.service
         .from("messages")
         .insert({
           conversation_id: conversation.id,
           role: "assistant",
-          content: sanitizeTextForStorage(scopedResult.answer),
-          sources: sanitizeJsonForStorage(scopedResult.sources),
-          answer_type: scopedResult.answerType,
-          tokens_used: scopedResult.tokensUsed,
+          content: sanitizeTextForStorage(result.answer),
+          sources: sanitizeJsonForStorage(result.sources),
+          answer_type: result.answerType,
+          tokens_used: result.tokensUsed,
         })
         .select()
         .single();
@@ -309,16 +306,16 @@ export async function POST(
       userEmail: context.user.email,
       category: context.category,
       conversationId: conversation.id,
-      answerType: scopedResult.answerType,
-      sourceCount: scopedResult.sources.length,
-      tokensUsed: scopedResult.tokensUsed,
+      answerType: result.answerType,
+      sourceCount: result.sources.length,
+      tokensUsed: result.tokensUsed,
       fallbackUsed,
       fallbackReason,
     });
     revalidateWorkspacePaths();
     return NextResponse.json({
       userMessage,
-      assistantMessage: { ...assistantMessage, sources: scopedResult.sources },
+      assistantMessage,
       counted: true,
       warning: fallbackUsed
         ? fallbackReason === "weak_semantic_context"

@@ -16,9 +16,10 @@ export function MetricCard({ label, value, detail }: { label: string; value: Rea
 
 export function StatusBadge({ value }: { value?: string | null }) {
   const text = value || "unknown";
-  const good = ["ready", "active", "healthy", "completed", "finalized", "configured"].includes(text);
-  const bad = ["failed", "error", "past_due", "degraded", "not configured"].includes(text);
-  return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${good ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" : bad ? "bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300" : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"}`}>{text.replaceAll("_", " ")}</span>;
+  const good = ["ready", "active", "healthy", "completed", "finalized", "configured", "passed"].includes(text);
+  const warn = ["warning", "needs review", "partial"].includes(text);
+  const bad = ["failed", "error", "past_due", "degraded", "not configured", "blocked"].includes(text);
+  return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${good ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" : warn ? "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300" : bad ? "bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300" : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"}`}>{text.replaceAll("_", " ")}</span>;
 }
 
 export function AdminTable({ headers, rows }: { headers: string[]; rows: React.ReactNode[][] }) {
@@ -42,4 +43,3 @@ export function Pagination({ page, total, pageSize, basePath, query = "" }: { pa
 export function DateCell({ value }: { value?: string | null }) { return <span className="whitespace-nowrap text-zinc-500">{value ? formatDate(value) : "—"}</span>; }
 export function Bytes({ value }: { value: number }) { return <>{formatFileSize(value)}</>; }
 export function MoneyMicros({ value }: { value: number }) { return <>{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 4 }).format(value / 1_000_000)}</>; }
-
