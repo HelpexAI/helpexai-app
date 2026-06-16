@@ -14,7 +14,6 @@ import {
   List,
   Loader2,
   MessageSquarePlus,
-  Plus,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -35,6 +34,9 @@ export function ConversationHub({
   const router = useRouter();
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
+  const [conversationScope, setConversationScope] = useState<
+    "documents" | "workplace"
+  >("documents");
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -50,6 +52,7 @@ export function ConversationHub({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         category_slug: category,
+        conversation_scope: conversationScope,
         selected_document_ids: selected,
         external_research_enabled: externalResearchEnabled,
       }),
@@ -95,17 +98,37 @@ export function ConversationHub({
             </div>
             <h2 className="mt-5 text-2xl font-bold">Start New Conversation</h2>
             <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-              Choose the documents HelpexAI should use for this chat.
+              Choose whether HelpexAI should search your whole workplace or only
+              specific documents.
             </p>
-            {documents.length ? (
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button
-                onClick={() => setModalOpen(true)}
-                className="mt-7 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-theme-primary px-6 text-sm font-semibold text-white transition hover:bg-theme-primary-hover"
+                onClick={() => {
+                  setConversationScope("workplace");
+                  setSelected([]);
+                  setModalOpen(true);
+                }}
+                className={`flex-1 rounded-2xl border px-4 py-4 text-left transition ${conversationScope === "workplace" ? "border-theme-primary bg-theme-soft dark:bg-theme-soft-dark" : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900"}`}
               >
-                <Plus className="size-4" />
-                Select Documents
+                <div className="font-semibold">Workplace</div>
+                <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                  Search everything available in this workspace.
+                </p>
               </button>
-            ) : (
+              <button
+                onClick={() => {
+                  setConversationScope("documents");
+                  setModalOpen(true);
+                }}
+                className={`flex-1 rounded-2xl border px-4 py-4 text-left transition ${conversationScope === "documents" ? "border-theme-primary bg-theme-soft dark:bg-theme-soft-dark" : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900"}`}
+              >
+                <div className="font-semibold">Documents</div>
+                <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                  Choose specific files to ground this conversation.
+                </p>
+              </button>
+            </div>
+            {documents.length === 0 && (
               <button
                 onClick={() => setUploadOpen(true)}
                 className="mt-7 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-theme-primary px-6 text-sm font-semibold text-white"
@@ -124,49 +147,57 @@ export function ConversationHub({
       >
         <div className="space-y-5">
           <div>
-            <h2 className="text-xl font-bold">Select Documents</h2>
+            <h2 className="text-xl font-bold">
+              {conversationScope === "workplace"
+                ? "Workplace Conversation"
+                : "Select Documents"}
+            </h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Choose one or more documents for this conversation.
+              {conversationScope === "workplace"
+                ? "HelpexAI will use all available workspace knowledge. Citations are hidden in this mode."
+                : "Choose one or more documents for this conversation."}
             </p>
           </div>
-          <div className="max-h-80 space-y-2 overflow-y-auto">
-            {documents.map((document) => {
-              const checked = selected.includes(document.id);
-              return (
-                <button
-                  key={document.id}
-                  type="button"
-                  onClick={() =>
-                    setSelected((current) =>
-                      checked
-                        ? current.filter((id) => id !== document.id)
-                        : [...current, document.id],
-                    )
-                  }
-                  className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${checked ? "border-theme-primary bg-theme-soft dark:bg-theme-soft-dark" : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-700"}`}
-                >
-                  <span
-                    className={`flex size-5 shrink-0 items-center justify-center rounded border ${checked ? "border-theme-primary bg-theme-primary text-white" : "border-zinc-300 dark:border-zinc-600"}`}
+          {conversationScope === "documents" && (
+            <div className="max-h-80 space-y-2 overflow-y-auto">
+              {documents.map((document) => {
+                const checked = selected.includes(document.id);
+                return (
+                  <button
+                    key={document.id}
+                    type="button"
+                    onClick={() =>
+                      setSelected((current) =>
+                        checked
+                          ? current.filter((id) => id !== document.id)
+                          : [...current, document.id],
+                      )
+                    }
+                    className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${checked ? "border-theme-primary bg-theme-soft dark:bg-theme-soft-dark" : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-700"}`}
                   >
-                    {checked && <Check className="size-3" />}
-                  </span>
-                  <span
-                    className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${document.file_type === "pdf" ? "bg-red-50 text-red-500 dark:bg-red-950/40" : "bg-theme-soft text-theme-primary dark:bg-theme-soft-dark"}`}
-                  >
-                    <FileText className="size-4" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold">
-                      {document.name}
+                    <span
+                      className={`flex size-5 shrink-0 items-center justify-center rounded border ${checked ? "border-theme-primary bg-theme-primary text-white" : "border-zinc-300 dark:border-zinc-600"}`}
+                    >
+                      {checked && <Check className="size-3" />}
                     </span>
-                    <span className="text-xs text-zinc-400">
-                      {formatFileSize(document.file_size)}
+                    <span
+                      className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${document.file_type === "pdf" ? "bg-red-50 text-red-500 dark:bg-red-950/40" : "bg-theme-soft text-theme-primary dark:bg-theme-soft-dark"}`}
+                    >
+                      <FileText className="size-4" />
                     </span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">
+                        {document.name}
+                      </span>
+                      <span className="text-xs text-zinc-400">
+                        {formatFileSize(document.file_size)}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <ExternalResearchToggle
             enabled={externalResearchEnabled}
             onChange={setExternalResearchEnabled}
@@ -178,7 +209,9 @@ export function ConversationHub({
           )}
           <button
             onClick={() => void startConversation()}
-            disabled={!selected.length || loading}
+            disabled={
+              loading || (conversationScope === "documents" && !selected.length)
+            }
             className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-theme-primary font-semibold text-white disabled:opacity-50"
           >
             {loading ? (
@@ -195,6 +228,7 @@ export function ConversationHub({
         onClose={() => setUploadOpen(false)}
         onUploaded={(ids) => {
           setSelected(ids);
+          setConversationScope("documents");
           setModalOpen(true);
         }}
       />

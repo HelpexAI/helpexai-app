@@ -17,7 +17,7 @@ export async function GET() {
   }
 
   const [{ data: conversations, error: conversationsError }, { data: documents, error: documentsError }] = await Promise.all([
-    context.service.from("conversations").select("id, title, selected_document_ids, external_research_enabled, updated_at").eq("user_id", context.user.id).eq("category_slug", context.category).order("updated_at", { ascending: false }),
+    context.service.from("conversations").select("id, title, conversation_scope, selected_document_ids, external_research_enabled, updated_at").eq("user_id", context.user.id).eq("category_slug", context.category).order("updated_at", { ascending: false }),
     context.service.from("documents").select("id, name, file_size, file_type").eq("user_id", context.user.id).eq("category_slug", context.category).eq("status", "ready").order("created_at", { ascending: false }),
   ]);
   if (conversationsError || documentsError) {
@@ -53,6 +53,9 @@ export async function POST(request: Request) {
   }
 
   const documentIds = Array.from(new Set(parsed.data.selected_document_ids));
+  if (parsed.data.conversation_scope === "documents" && documentIds.length === 0) {
+    return NextResponse.json({ error: "Select at least one document." }, { status: 400 });
+  }
   const { data: documents } = await context.service
     .from("documents")
     .select("id")
@@ -70,11 +73,12 @@ export async function POST(request: Request) {
       user_id: context.user.id,
       category_slug: context.category,
       title: "New Conversation",
+      conversation_scope: parsed.data.conversation_scope,
       selected_document_ids: documentIds,
       external_research_enabled: parsed.data.external_research_enabled,
       is_locked: true,
     })
-    .select("id, title, selected_document_ids, external_research_enabled, created_at, updated_at")
+    .select("id, title, conversation_scope, selected_document_ids, external_research_enabled, created_at, updated_at")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

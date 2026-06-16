@@ -46,10 +46,17 @@ export const MAX_FILES_PER_UPLOAD = 5;
 export const CreateConversationSchema = z.object({
   category_slug: CategorySlugSchema,
   external_research_enabled: z.boolean().default(false),
-  selected_document_ids: z
-    .array(z.string().uuid())
-    .min(1, "Select at least one document"),
+  conversation_scope: z.enum(["documents", "workplace"]).default("documents"),
+  selected_document_ids: z.array(z.string().uuid()).default([]),
   title: z.string().optional(),
+}).superRefine((value, ctx) => {
+  if (value.conversation_scope === "documents" && value.selected_document_ids.length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["selected_document_ids"],
+      message: "Select at least one document.",
+    });
+  }
 });
 
 export const RenameConversationSchema = z.object({

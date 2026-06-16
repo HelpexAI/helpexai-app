@@ -26,6 +26,7 @@ import { useQueryClient } from "@tanstack/react-query";
 export type ConversationSummary = {
   id: string;
   title: string;
+  conversation_scope: "documents" | "workplace";
   selected_document_ids: string[];
   external_research_enabled: boolean;
   updated_at: string;
@@ -221,6 +222,10 @@ export function ConversationSidebar({
           {filtered.map((conversation) => {
             const active = conversation.id === activeId;
             const count = conversation.selected_document_ids.length;
+            const scopeLabel =
+              conversation.conversation_scope === "workplace"
+                ? "Workplace"
+                : `${count} doc${count === 1 ? "" : "s"}`;
             const destination = active
               ? "/conversations"
               : `/conversations/${conversation.id}`;
@@ -267,7 +272,7 @@ export function ConversationSidebar({
                     <span className="mt-1.5 flex items-center gap-2 text-[11px] text-zinc-400">
                       <span className="inline-flex items-center gap-1 rounded bg-zinc-100 px-1.5 py-0.5 dark:bg-zinc-800">
                         <FileText className="size-2.5" />
-                        {count} doc{count === 1 ? "" : "s"}
+                        {scopeLabel}
                       </span>
                       <span>{formatRelativeTime(conversation.updated_at)}</span>
                     </span>

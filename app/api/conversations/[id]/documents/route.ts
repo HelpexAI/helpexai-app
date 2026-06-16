@@ -30,7 +30,7 @@ export async function PUT(
   const [{ data: conversation }, { data: documents }] = await Promise.all([
     context.service
       .from("conversations")
-      .select("id")
+      .select("id, conversation_scope")
       .eq("id", id)
       .eq("user_id", context.user.id)
       .eq("category_slug", context.category)
@@ -44,6 +44,9 @@ export async function PUT(
       .in("id", documentIds),
   ]);
   if (!conversation) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
+  if (conversation.conversation_scope === "workplace") {
+    return NextResponse.json({ error: "Workplace conversations do not use attached documents." }, { status: 400 });
+  }
   if (documents?.length !== documentIds.length) {
     return NextResponse.json({ error: "Only ready documents from this workspace can be attached." }, { status: 400 });
   }

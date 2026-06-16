@@ -26,7 +26,7 @@ export async function PUT(
     .eq("id", id)
     .eq("user_id", context.user.id)
     .eq("category_slug", context.category)
-    .select("id, title, selected_document_ids, external_research_enabled, updated_at")
+    .select("id, title, conversation_scope, selected_document_ids, external_research_enabled, updated_at")
     .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

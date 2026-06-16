@@ -23,7 +23,7 @@ export async function GET(
   }
 
   const [{ data: conversations }, { data: messages }, { count: questionsUsed }, { data: availableDocuments }, plan, product] = await Promise.all([
-    context.service.from("conversations").select("id, title, selected_document_ids, external_research_enabled, updated_at").eq("user_id", context.user.id).eq("category_slug", context.category).order("updated_at", { ascending: false }),
+    context.service.from("conversations").select("id, title, conversation_scope, selected_document_ids, external_research_enabled, updated_at").eq("user_id", context.user.id).eq("category_slug", context.category).order("updated_at", { ascending: false }),
     context.service.from("messages").select("id, conversation_id, role, content, sources, answer_type, tokens_used, created_at").eq("conversation_id", id).order("created_at", { ascending: true }),
     context.service.from("usage_logs").select("*", { count: "exact", head: true }).eq("user_id", context.user.id).eq("category_slug", context.category).eq("action", "query").gte("created_at", startOfTodayUtc()),
     context.service.from("documents").select("id, name").eq("user_id", context.user.id).eq("category_slug", context.category).eq("status", "ready"),
@@ -38,8 +38,8 @@ export async function GET(
     locked: false,
     conversation,
     conversations: conversations ?? [],
-    documents: (availableDocuments ?? []).filter(document => selectedIds.has(document.id)),
-    availableDocuments: availableDocuments ?? [],
+    documents: conversation.conversation_scope === "workplace" ? [] : (availableDocuments ?? []).filter(document => selectedIds.has(document.id)),
+    availableDocuments: conversation.conversation_scope === "workplace" ? [] : (availableDocuments ?? []),
     messages: messages ?? [],
     category: context.category,
     questionsUsed: questionsUsed ?? 0,
@@ -67,7 +67,7 @@ export async function PATCH(
     .eq("id", id)
     .eq("user_id", context.user.id)
     .eq("category_slug", context.category)
-    .select("id, title, selected_document_ids, external_research_enabled, updated_at")
+    .select("id, title, conversation_scope, selected_document_ids, external_research_enabled, updated_at")
     .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

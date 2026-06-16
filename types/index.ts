@@ -138,6 +138,7 @@ export interface Conversation {
   user_id: string;
   category_slug: CategorySlug;
   title: string;
+  conversation_scope: "documents" | "workplace";
   selected_document_ids: string[];
   external_research_enabled: boolean;
   created_at: string;

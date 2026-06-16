@@ -320,7 +320,7 @@ export default async function ReportViewPage({ params }: PageProps) {
         </div>
       </div>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      {/* <section className="grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="text-xs font-bold uppercase tracking-wide text-zinc-400">
             Template
@@ -347,6 +347,24 @@ export default async function ReportViewPage({ params }: PageProps) {
           <div className="mt-2 font-bold text-zinc-950 dark:text-white">
             {typedReport.knowledge_item_id ? "Indexed report source" : "Not indexed"}
           </div>
+        </div>
+      </section> */}
+
+      <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="border-b border-zinc-200 px-5 py-4 dark:border-zinc-800">
+          <h2 className="font-bold text-zinc-950 dark:text-white">
+            Report preview
+          </h2>
+          {/* <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            Markdown is stored internally, but shown here as a professional
+            report preview.
+          </p> */}
+        </div>
+
+        <div className="bg-zinc-100 p-4 dark:bg-zinc-950 sm:p-8">
+          <article className="mx-auto max-w-4xl rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800 sm:p-10">
+            <ReportMarkdownPreview content={content} />
+          </article>
         </div>
       </section>
 
@@ -383,24 +401,6 @@ export default async function ReportViewPage({ params }: PageProps) {
           </div>
         </section>
       ) : null}
-
-      <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="border-b border-zinc-200 px-5 py-4 dark:border-zinc-800">
-          <h2 className="font-bold text-zinc-950 dark:text-white">
-            Report preview
-          </h2>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Markdown is stored internally, but shown here as a professional
-            report preview.
-          </p>
-        </div>
-
-        <div className="bg-zinc-100 p-4 dark:bg-zinc-950 sm:p-8">
-          <article className="mx-auto max-w-4xl rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800 sm:p-10">
-            <ReportMarkdownPreview content={content} />
-          </article>
-        </div>
-      </section>
     </div>
   );
 }

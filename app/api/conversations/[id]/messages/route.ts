@@ -166,7 +166,7 @@ export async function POST(
 
   const { data: conversation } = await context.service
     .from("conversations")
-    .select("id, title, selected_document_ids, external_research_enabled")
+    .select("id, title, conversation_scope, selected_document_ids, external_research_enabled")
     .eq("id", id)
     .eq("user_id", context.user.id)
     .eq("category_slug", context.category)
@@ -186,6 +186,7 @@ export async function POST(
     category: context.category,
     conversationId: conversation.id,
     selectedDocumentIds: conversation.selected_document_ids,
+    conversationScope: conversation.conversation_scope,
     externalResearchEnabled: conversation.external_research_enabled,
     messageLength: parsed.data.content.length,
   });
@@ -250,6 +251,7 @@ export async function POST(
       category: context.category,
       conversationId: conversation.id,
       selectedDocumentCount: conversation.selected_document_ids.length,
+      conversationScope: conversation.conversation_scope,
     });
     const { result, fallbackUsed, fallbackReason } =
       await queryWithSelectedDocumentFallback(
@@ -258,16 +260,20 @@ export async function POST(
         conversation.selected_document_ids,
         conversation.external_research_enabled,
       );
+    const scopedResult =
+      conversation.conversation_scope === "workplace"
+        ? { ...result, sources: [] }
+        : result;
     const { data: assistantMessage, error: assistantError } =
       await context.service
         .from("messages")
         .insert({
           conversation_id: conversation.id,
           role: "assistant",
-          content: sanitizeTextForStorage(result.answer),
-          sources: sanitizeJsonForStorage(result.sources),
-          answer_type: result.answerType,
-          tokens_used: result.tokensUsed,
+          content: sanitizeTextForStorage(scopedResult.answer),
+          sources: sanitizeJsonForStorage(scopedResult.sources),
+          answer_type: scopedResult.answerType,
+          tokens_used: scopedResult.tokensUsed,
         })
         .select()
         .single();
@@ -303,16 +309,16 @@ export async function POST(
       userEmail: context.user.email,
       category: context.category,
       conversationId: conversation.id,
-      answerType: result.answerType,
-      sourceCount: result.sources.length,
-      tokensUsed: result.tokensUsed,
+      answerType: scopedResult.answerType,
+      sourceCount: scopedResult.sources.length,
+      tokensUsed: scopedResult.tokensUsed,
       fallbackUsed,
       fallbackReason,
     });
     revalidateWorkspacePaths();
     return NextResponse.json({
       userMessage,
-      assistantMessage,
+      assistantMessage: { ...assistantMessage, sources: scopedResult.sources },
       counted: true,
       warning: fallbackUsed
         ? fallbackReason === "weak_semantic_context"
