@@ -13,6 +13,16 @@ import { themeStyle } from "@/lib/theme";
 const inputClass =
   "h-11 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/15 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500";
 
+function isExistingAccountError(message: string) {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("already registered") ||
+    normalized.includes("already exists") ||
+    normalized.includes("user already exists") ||
+    normalized.includes("email address is already registered")
+  );
+}
+
 export function SignupForm({ products }: { products: Product[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -85,7 +95,21 @@ export function SignupForm({ products }: { products: Product[] }) {
     });
 
     if (authError) {
-      setError(authError.message);
+      setError(
+        isExistingAccountError(authError.message)
+          ? "This email already has an account. Please sign in instead."
+          : authError.message,
+      );
+      setLoading(null);
+      return;
+    }
+
+    if (
+      data.user?.identities &&
+      Array.isArray(data.user.identities) &&
+      data.user.identities.length === 0
+    ) {
+      setError("This email already has an account. Please sign in instead.");
       setLoading(null);
       return;
     }

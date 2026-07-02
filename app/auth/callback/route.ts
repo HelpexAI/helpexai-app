@@ -9,13 +9,32 @@ export async function GET(request: Request) {
   const code = url.searchParams.get("code");
   const tokenHash = url.searchParams.get("token_hash");
   const emailType = url.searchParams.get("type");
+  const callbackError = url.searchParams.get("error_code") ?? url.searchParams.get("error");
   const requestedCategory = url.searchParams.get("category");
   const mode = url.searchParams.get("mode");
   const next = url.searchParams.get("next");
+  const isRecoveryCallback =
+    next === "/reset-password" || mode === "recovery" || emailType === "recovery";
   const supabase = await createClient();
 
+  if (callbackError) {
+    const redirectUrl = new URL(
+      isRecoveryCallback ? "/forgot-password" : "/login",
+      url.origin,
+    );
+    redirectUrl.searchParams.set("error", callbackError);
+    if (requestedCategory) redirectUrl.searchParams.set("category", requestedCategory);
+    return NextResponse.redirect(redirectUrl);
+  }
+
   if (!code && !tokenHash) {
-    return NextResponse.redirect(new URL("/login?error=missing_code", url.origin));
+    const redirectUrl = new URL(
+      isRecoveryCallback ? "/forgot-password" : "/login",
+      url.origin,
+    );
+    redirectUrl.searchParams.set("error", "missing_code");
+    if (requestedCategory) redirectUrl.searchParams.set("category", requestedCategory);
+    return NextResponse.redirect(redirectUrl);
   }
 
   const { data, error } = code
@@ -30,7 +49,22 @@ export async function GET(request: Request) {
   }
 
   if (error || !data.user) {
-    return NextResponse.redirect(new URL("/login?error=auth_callback", url.origin));
+    const redirectUrl = new URL(
+      isRecoveryCallback ? "/forgot-password" : "/login",
+      url.origin,
+    );
+    const errorCode =
+      error?.code === "pkce_code_verifier_not_found"
+        ? "pkce_code_verifier_not_found"
+        : error?.message.toLowerCase().includes("fetch failed") || error?.status === 0
+          ? "auth_fetch_failed"
+          : "auth_callback";
+    redirectUrl.searchParams.set(
+      "error",
+      errorCode,
+    );
+    if (requestedCategory) redirectUrl.searchParams.set("category", requestedCategory);
+    return NextResponse.redirect(redirectUrl);
   }
 
   const metadataCategory = data.user.user_metadata.category_slug;
@@ -40,6 +74,11 @@ export async function GET(request: Request) {
       : (await isActiveProductSlug(metadataCategory))
         ? metadataCategory
         : null;
+  const safeNext = next?.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+
+  if (safeNext === "/reset-password" || mode === "recovery" || emailType === "recovery") {
+    return NextResponse.redirect(new URL("/reset-password", url.origin));
+  }
 
   if (category && mode === "signup") {
     const { error: accountError } = await createServiceClient()
@@ -61,7 +100,6 @@ export async function GET(request: Request) {
     }
   }
 
-  const safeNext = next?.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
   if (category && mode === "signup") {
     const response = NextResponse.redirect(new URL(safeNext, url.origin));
     setActiveWorkspaceCookie(response, category);

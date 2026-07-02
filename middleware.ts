@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const AUTH_ROUTES = ['/login', '/signup', '/verify-email']
+const AUTH_ROUTES = ['/login', '/signup', '/verify-email', '/forgot-password']
 
 function safeInternalPath(value: string | null) {
   return value?.startsWith('/') && !value.startsWith('//') ? value : null

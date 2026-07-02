@@ -25,8 +25,22 @@ export function ResetPasswordForm() {
       setLoading(false);
       return;
     }
-    await supabase.auth.signOut();
-    router.replace("/login?password=updated");
+
+    const workspaceResponse = await fetch("/api/workspace/resolve", {
+      method: "POST",
+    });
+    const workspaceResult = (await workspaceResponse.json().catch(() => null)) as {
+      error?: string;
+      next?: string;
+    } | null;
+
+    if (!workspaceResponse.ok || !workspaceResult?.next) {
+      setError(workspaceResult?.error ?? "Password updated, but we could not open your account.");
+      setLoading(false);
+      return;
+    }
+
+    router.replace(workspaceResult.next);
     router.refresh();
   }
 

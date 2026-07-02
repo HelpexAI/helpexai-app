@@ -11,6 +11,25 @@ import { FormEvent, useState } from "react";
 const inputClass =
   "h-11 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/15 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500";
 
+function getLoginErrorMessage(error: string | null) {
+  switch (error) {
+    case "no_accounts":
+      return "No Helpex account exists for this email.";
+    case "auth_callback":
+      return "We could not complete sign in. Please try again.";
+    case "missing_code":
+      return "That sign-in link is missing required information. Please request a new link.";
+    case "otp_expired":
+      return "That email link is invalid or has expired. Please request a new link.";
+    case "pkce_code_verifier_not_found":
+      return "Open the email link in the same browser where you requested it, or request a new link.";
+    case "auth_fetch_failed":
+      return "We could not reach the auth service. Please check your connection and try again.";
+    default:
+      return "";
+  }
+}
+
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -24,21 +43,13 @@ export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState<"google" | "email" | "reset" | null>(
+  const [loading, setLoading] = useState<"google" | "email" | null>(
     null,
   );
   const [error, setError] = useState(() =>
-    searchParams.get("error") === "no_accounts"
-      ? "No Helpex account exists for this email."
-      : searchParams.get("error") === "auth_callback"
-        ? "We could not complete sign in. Please try again."
-        : "",
+    getLoginErrorMessage(searchParams.get("error")),
   );
-  const [notice, setNotice] = useState(() =>
-    searchParams.get("password") === "updated"
-      ? "Password updated. Sign in with your new password."
-      : "",
-  );
+  const [notice, setNotice] = useState("");
 
   async function continueWithGoogle() {
     setLoading("google");
@@ -107,30 +118,6 @@ export function LoginForm() {
       router.refresh();
       return;
     }
-  }
-
-  async function sendResetEmail() {
-    setError("");
-    setNotice("");
-
-    if (!email) {
-      setError("Enter your email address first.");
-      return;
-    }
-
-    setLoading("reset");
-    const supabase = createClient();
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-      email,
-      { redirectTo: `${window.location.origin}/auth/callback?next=/reset-password` },
-    );
-
-    if (resetError) {
-      setError(resetError.message);
-    } else {
-      setNotice("Password reset link sent. Check your email.");
-    }
-    setLoading(null);
   }
 
   return (
@@ -206,14 +193,12 @@ export function LoginForm() {
           </div>
         </label>
 
-        <button
-          type="button"
-          onClick={sendResetEmail}
-          disabled={loading !== null}
-          className="self-end text-xs font-semibold text-theme-primary disabled:opacity-60"
+        <Link
+          href={`/forgot-password${categoryQuery}`}
+          className="self-end text-xs font-semibold text-theme-primary transition hover:text-theme-primary-hover"
         >
-          {loading === "reset" ? "Sending reset link..." : "Forgot password?"}
-        </button>
+          Forgot password?
+        </Link>
 
         {error && (
           <p
