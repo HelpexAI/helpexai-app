@@ -1,16 +1,18 @@
 "use client";
 
 import { ClientPageError } from "@/components/dashboard/client-page-error";
-import { DocumentViewer } from "@/components/documents/document-viewer";
 import type { Document } from "@/types";
 import { fetchJson, queryKeys } from "@/lib/client/query";
 import { useQuery } from "@tanstack/react-query";
+import { Download, ExternalLink, FileText } from "lucide-react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 
 type ViewerResponse = {
   error?: string;
   document: Document;
+  viewUrl: string;
   downloadUrl: string;
   extractedText: string | null;
 };
@@ -26,10 +28,88 @@ function OpeningDocument() {
   );
 }
 
+function BrowserDocumentView({
+  document,
+  viewUrl,
+  downloadUrl,
+}: {
+  document: Document;
+  viewUrl: string;
+  downloadUrl: string;
+}) {
+  const isReportDocument = document.document_tag_assignments?.some(
+    (assignment) => assignment.tag.name === "Report",
+  );
+  const displayName = isReportDocument
+    ? document.name.replace(/\.(txt|md)$/i, "")
+    : document.name;
+
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-slate-50 text-zinc-950 dark:bg-zinc-950 dark:text-white">
+      <header className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-3 py-3 dark:border-zinc-800 dark:bg-zinc-900 sm:px-5 lg:px-8">
+        <div className="flex min-w-0 items-center gap-2 text-sm">
+          <Link
+            href={`/documents?collection=${document.collection_id}`}
+            className="flex shrink-0 items-center gap-1 text-zinc-500 transition hover:text-theme-primary dark:text-zinc-400"
+          >
+            <span>Documents</span>
+          </Link>
+          <span className="hidden text-zinc-300 dark:text-zinc-700 sm:inline">/</span>
+          <div className="min-w-0">
+            <span className="block truncate font-medium text-zinc-950 dark:text-white">
+              {displayName}
+            </span>
+            <span className="block truncate text-xs text-zinc-500 dark:text-zinc-400">
+              {document.collection?.name ?? "General"}
+            </span>
+          </div>
+        </div>
+        <a
+          href={downloadUrl}
+          className="flex h-9 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+        >
+          <Download className="size-4" />
+          <span>Download</span>
+        </a>
+      </header>
+
+      <main className="flex min-h-0 flex-1 items-center justify-center p-6">
+        <section className="w-full max-w-lg rounded-xl border border-zinc-200 bg-white p-6 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-xl bg-theme-primary/10 text-theme-primary">
+            <FileText className="size-7" />
+          </div>
+          <h1 className="mt-5 break-words text-xl font-bold tracking-tight text-zinc-950 dark:text-white">
+            {displayName}
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+            The built-in document viewer is temporarily disabled for large files. Open the original document in your browser instead.
+          </p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <a
+              href={viewUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex h-11 items-center justify-center gap-2 rounded-lg bg-theme-primary px-4 text-sm font-semibold text-white transition hover:bg-theme-primary-hover"
+            >
+              <ExternalLink className="size-4" />
+              Open in New Tab
+            </a>
+            <a
+              href={downloadUrl}
+              className="flex h-11 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
+            >
+              <Download className="size-4" />
+              Download
+            </a>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
 export function DocumentViewerClientPage({
   id,
-  initialPage,
-  highlightExcerpt,
 }: {
   id: string;
   initialPage: number;
@@ -49,5 +129,11 @@ export function DocumentViewerClientPage({
   }, [data?.document.collection_id, id, router, searchParams]);
   if (error) return <ClientPageError message={error.message} onRetry={() => void refetch()} />;
   if (!data) return <OpeningDocument />;
-  return <DocumentViewer document={data.document} downloadUrl={data.downloadUrl} extractedText={data.extractedText} pageCount={1} initialPage={initialPage} highlightExcerpt={highlightExcerpt} />;
+  return (
+    <BrowserDocumentView
+      document={data.document}
+      viewUrl={data.viewUrl}
+      downloadUrl={data.downloadUrl}
+    />
+  );
 }
