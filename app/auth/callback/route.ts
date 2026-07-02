@@ -7,16 +7,28 @@ import { getActiveProducts, isActiveProductSlug } from "@/lib/products/catalog";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
+  const tokenHash = url.searchParams.get("token_hash");
+  const emailType = url.searchParams.get("type");
   const requestedCategory = url.searchParams.get("category");
   const mode = url.searchParams.get("mode");
   const next = url.searchParams.get("next");
   const supabase = await createClient();
 
-  if (!code) {
+  if (!code && !tokenHash) {
     return NextResponse.redirect(new URL("/login?error=missing_code", url.origin));
   }
 
-  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+  const { data, error } = code
+    ? await supabase.auth.exchangeCodeForSession(code)
+    : await supabase.auth.verifyOtp({
+        type: (emailType as "signup" | "magiclink" | "invite" | "recovery") ?? "signup",
+        token_hash: tokenHash as string,
+      });
+
+  if (error) {
+    console.error("[auth callback] authentication exchange failed", error);
+  }
+
   if (error || !data.user) {
     return NextResponse.redirect(new URL("/login?error=auth_callback", url.origin));
   }
