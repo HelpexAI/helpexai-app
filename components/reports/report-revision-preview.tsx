@@ -6,7 +6,9 @@ import type { ReportDiffLine } from "@/lib/reports/diff";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  Check,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
   MousePointer2,
   Loader2,
@@ -324,20 +326,24 @@ export function ReportRevisionPreview({ reportId }: { reportId: string }) {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <select
-                value={selectedVersion.id}
-                onChange={(event) => {
-                  const version = query.data.versions.find((item) => item.id === event.target.value);
-                  setSelectedVersionId(event.target.value);
-                  if (version) setTitle(version.title);
-                  setShowChanges(true);
-                }}
-                className="h-10 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-semibold dark:border-zinc-700 dark:bg-zinc-950"
-              >
-                {query.data.versions.map((version) => (
-                  <option key={version.id} value={version.id}>Version {version.version_number}</option>
-                ))}
-              </select>
+              <label className="relative inline-flex h-10 min-w-36 items-center">
+                <span className="sr-only">Report version</span>
+                <select
+                  value={selectedVersion.id}
+                  onChange={(event) => {
+                    const version = query.data.versions.find((item) => item.id === event.target.value);
+                    setSelectedVersionId(event.target.value);
+                    if (version) setTitle(version.title);
+                    setShowChanges(true);
+                  }}
+                  className="h-full w-full appearance-none rounded-lg border border-zinc-200 bg-white px-3 pr-9 text-sm font-semibold text-zinc-700 shadow-sm outline-none transition hover:border-theme-border focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/15 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:border-theme-border-dark"
+                >
+                  {query.data.versions.map((version) => (
+                    <option key={version.id} value={version.id}>Version {version.version_number}</option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 size-4 text-zinc-400" />
+              </label>
               {!finalized && (
                 <button onClick={() => setPanelOpen(true)} className="inline-flex h-10 items-center gap-2 rounded-lg border border-theme-border bg-theme-soft px-4 text-sm font-semibold text-theme-primary dark:bg-theme-soft-dark">
                   <Wand2 className="size-4" /> Improve Report
@@ -388,8 +394,16 @@ export function ReportRevisionPreview({ reportId }: { reportId: string }) {
                   Improve again
                 </button>
               )}
-              <label className="flex items-center gap-2 font-semibold">
-                <input type="checkbox" checked={showChanges} onChange={(event) => setShowChanges(event.target.checked)} />
+              <label className="group inline-flex cursor-pointer select-none items-center gap-2 font-semibold text-zinc-600 transition hover:text-theme-primary dark:text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={showChanges}
+                  onChange={(event) => setShowChanges(event.target.checked)}
+                  className="peer sr-only"
+                />
+                <span className="flex size-5 items-center justify-center rounded-md border border-zinc-300 bg-white text-white shadow-sm transition group-hover:border-theme-border peer-checked:border-theme-primary peer-checked:bg-theme-primary peer-focus-visible:ring-2 peer-focus-visible:ring-theme-primary/25 peer-checked:[&>svg]:opacity-100 dark:border-zinc-700 dark:bg-zinc-950 dark:group-hover:border-theme-border-dark">
+                  <Check className="size-3.5 opacity-0 transition" />
+                </span>
                 Show changes
               </label>
             </div>

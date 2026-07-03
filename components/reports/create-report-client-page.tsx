@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 type PlanSlug = "free" | "pro" | "premium";
 
@@ -368,9 +368,13 @@ export function CreateReportClientPage() {
     string | null
   >(null);
   const [customInstructions, setCustomInstructions] = useState("");
+  const [isOpeningPreview, setIsOpeningPreview] = useState(false);
+  const generationStatusRef = useRef<HTMLElement | null>(null);
   const saveMutation = useMutation({
     mutationFn: saveGeneratedReport,
     onSuccess: async (result) => {
+      setIsOpeningPreview(true);
+
       await queryClient.cancelQueries({ queryKey: queryKeys.reports });
 
       queryClient.removeQueries({ queryKey: queryKeys.reports });
@@ -391,6 +395,7 @@ export function CreateReportClientPage() {
   const generateMutation = useMutation({
     mutationFn: generateReportPreview,
     onSuccess: (result) => saveMutation.mutate(result),
+    onError: () => setIsOpeningPreview(false),
   });
   const { data, error, refetch, isFetching } = useQuery({
     queryKey: [...queryKeys.reportTemplates, "new", templateId],
@@ -465,6 +470,21 @@ export function CreateReportClientPage() {
 
   const canGenerate =
     hasSelectedSource && (!isCustomTemplate || hasCustomPrompt);
+  const generationInProgress =
+    generateMutation.isPending || saveMutation.isPending || isOpeningPreview;
+
+  useEffect(() => {
+    if (!generationInProgress) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      generationStatusRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [generationInProgress]);
 
   function toggleDocument(documentId: string) {
     setSelectedDocumentIds((current) =>
@@ -718,9 +738,10 @@ export function CreateReportClientPage() {
 
             <button
               type="button"
-              disabled={!canGenerate || generateMutation.isPending || saveMutation.isPending}
+              disabled={!canGenerate || generationInProgress}
               className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-theme-primary px-4 text-sm font-bold text-white transition hover:bg-theme-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
               onClick={() => {
+                setIsOpeningPreview(false);
                 generateMutation.mutate({
                   templateId: data.template.id,
                   sourceType: sourceMode,
@@ -732,7 +753,7 @@ export function CreateReportClientPage() {
                 });
               }}
             >
-              {generateMutation.isPending || saveMutation.isPending ? (
+              {generationInProgress ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
                   {generateMutation.isPending ? "Generating..." : "Opening preview..."}
@@ -764,8 +785,11 @@ export function CreateReportClientPage() {
         </aside>
       </div>
       <div className="space-y-6">
-        {(generateMutation.isPending || saveMutation.isPending) && (
-          <section className="overflow-hidden rounded-2xl border border-theme-border bg-theme-soft shadow-sm dark:border-theme-border-dark dark:bg-theme-soft-dark">
+        {generationInProgress && (
+          <section
+            ref={generationStatusRef}
+            className="scroll-mt-6 overflow-hidden rounded-2xl border border-theme-border bg-theme-soft shadow-sm dark:border-theme-border-dark dark:bg-theme-soft-dark"
+          >
             <div className="p-6 sm:p-8">
               <div className="flex items-start gap-4">
                 <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-theme-primary text-white">
@@ -774,12 +798,15 @@ export function CreateReportClientPage() {
 
                 <div>
                   <h2 className="text-lg font-bold text-zinc-950 dark:text-white">
-                    Generating your report
+                    {generateMutation.isPending
+                      ? "Generating your report"
+                      : "Opening your preview"}
                   </h2>
 
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600 dark:text-zinc-300">
-                    HelpexAI is reading the selected knowledge, applying the
-                    selected template, and preparing your revision workspace.
+                    {generateMutation.isPending
+                      ? "HelpexAI is reading the selected knowledge, applying the selected template, and preparing your revision workspace."
+                      : "Your report is ready. We are saving the latest workspace data and taking you to the editable preview."}
                   </p>
 
                   <div className="mt-5 grid gap-3 text-sm sm:grid-cols-3">

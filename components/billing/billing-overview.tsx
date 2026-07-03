@@ -25,6 +25,23 @@ function formatUsage(value: number, format?: "bytes") {
   return `${(value / 1024 ** 2).toFixed(value ? 1 : 0)} MB`;
 }
 
+function formatUsagePair(current: number, limit: number, format?: "bytes") {
+  if (format !== "bytes") {
+    return `${formatUsage(current, format)}/${formatUsage(limit, format)}`;
+  }
+
+  const currentFormatted = formatUsage(current, format);
+  const limitFormatted = formatUsage(limit, format);
+  const currentMatch = currentFormatted.match(/^(.+)\s([A-Z]+)$/);
+  const limitMatch = limitFormatted.match(/^(.+)\s([A-Z]+)$/);
+
+  if (currentMatch?.[2] && currentMatch[2] === limitMatch?.[2]) {
+    return `${currentMatch[1]}/${limitMatch[1]} ${currentMatch[2]}`;
+  }
+
+  return `${currentFormatted}/${limitFormatted}`;
+}
+
 type Invoice = {
   id: string;
   date: string;
@@ -96,9 +113,8 @@ function UsageRow({ label, current, limit, format }: Usage) {
           />
         </div>
 
-        <span className="w-12 text-right text-xs text-zinc-500 dark:text-zinc-400">
-          {formatUsage(current, format)}/
-          {unlimited ? "∞" : formatUsage(limit, format)}
+        <span className="min-w-20 whitespace-nowrap text-right text-xs text-zinc-500 dark:text-zinc-400">
+          {unlimited ? `${formatUsage(current, format)}/∞` : formatUsagePair(current, limit, format)}
         </span>
       </div>
     </div>
