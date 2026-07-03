@@ -73,6 +73,8 @@ export function DocumentLibrary() {
     activeCollection,
     storageUsed,
     storageLimit,
+    plan,
+    plans,
   } = useDocumentsWorkspace();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -257,6 +259,9 @@ export function DocumentLibrary() {
         onClose={() => setPlanModalOpen(false)}
         used={storageUsed}
         limit={storageLimit}
+        resource="storage"
+        currentPlan={plan}
+        plans={plans}
       />
     </div>
   );

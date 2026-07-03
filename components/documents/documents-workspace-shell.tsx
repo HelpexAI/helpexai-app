@@ -9,6 +9,8 @@ import type {
   Document,
   DocumentCollection,
   DocumentTag,
+  Plan,
+  PlanSlug,
 } from "@/types";
 import { useQuery } from "@tanstack/react-query";
 import { Folder, Folders } from "lucide-react";
@@ -20,6 +22,7 @@ export type DocumentsResponse = {
   error?: string;
   documents: Document[];
   category: CategorySlug;
+  plan: PlanSlug;
   storageUsed: number;
   storageLimit: number;
   requiresResolution: boolean;
@@ -30,6 +33,7 @@ type DocumentsWorkspaceValue = DocumentsResponse & {
   productName: string;
   collections: DocumentCollection[];
   tags: DocumentTag[];
+  plans: Plan[];
 };
 const DocumentsWorkspaceContext = createContext<DocumentsWorkspaceValue | null>(
   null,
@@ -73,6 +77,7 @@ export function DocumentsWorkspaceShell({
           productName: referenceData.product.name,
           collections: referenceData.collections,
           tags: referenceData.tags,
+          plans: referenceData.plans,
         }
       : null;
   const requestedCollectionId = searchParams.get("collection");

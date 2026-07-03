@@ -1,14 +1,54 @@
 "use client";
 
 import { ResponsiveModal } from "@/components/dashboard/responsive-modal";
+import { formatPrice, PLAN_LIMITS } from "@/lib/plans/limits";
+import type { Plan, PlanSlug } from "@/types";
 import { Check, Lock, Zap } from "lucide-react";
 import Link from "next/link";
 
-const features = [
-  "2GB of storage",
-  "Unlimited queries/day",
-  "100 reports/month",
-];
+const PLAN_ORDER: PlanSlug[] = ["free", "pro", "premium"];
+
+function formatStorage(bytes: number) {
+  if (bytes >= 1024 ** 3) return `${bytes / 1024 ** 3}GB`;
+  return `${Math.round(bytes / 1024 ** 2)}MB`;
+}
+
+function formatLimit(value: number) {
+  return value < 0 ? "Unlimited" : value.toLocaleString();
+}
+
+function planFallback(slug: PlanSlug): Plan {
+  return {
+    id: slug,
+    name: slug.charAt(0).toUpperCase() + slug.slice(1),
+    slug,
+    category_slug: "business",
+    price_monthly: slug === "premium" ? 1999 : slug === "pro" ? 999 : 0,
+    creem_product_id: null,
+    ...PLAN_LIMITS[slug],
+  };
+}
+
+function nextPlanSlug(currentPlan: PlanSlug): PlanSlug {
+  const index = PLAN_ORDER.indexOf(currentPlan);
+  return PLAN_ORDER[Math.min(index + 1, PLAN_ORDER.length - 1)] ?? "pro";
+}
+
+function planFeatures(plan: Plan) {
+  return [
+    `${formatStorage(plan.max_storage_bytes)} of storage`,
+    `${formatLimit(plan.max_queries_day)} queries/day`,
+    `${formatLimit(plan.max_reports_month)} reports/month`,
+  ];
+}
+
+function formatUsedLimit(used: number, limit: number, resource: string) {
+  if (resource === "storage" || limit >= 1024 ** 2) {
+    return `${formatStorage(used)}/${formatStorage(limit)} ${resource} used`;
+  }
+
+  return `${used.toLocaleString()}/${limit.toLocaleString()} ${resource} used`;
+}
 
 export function PlanLimitModal({
   open,
@@ -16,13 +56,22 @@ export function PlanLimitModal({
   used,
   limit,
   resource = "documents",
+  currentPlan = "free",
+  plans = [],
 }: {
   open: boolean;
   onClose: () => void;
   used: number;
   limit: number;
   resource?: string;
+  currentPlan?: PlanSlug;
+  plans?: Plan[];
 }) {
+  const targetSlug = nextPlanSlug(currentPlan);
+  const targetPlan =
+    plans.find((plan) => plan.slug === targetSlug) ?? planFallback(targetSlug);
+  const features = planFeatures(targetPlan);
+
   return (
     <ResponsiveModal
       open={open}
@@ -41,7 +90,7 @@ export function PlanLimitModal({
             <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 dark:border-amber-900 dark:bg-amber-950/40">
               <span className="size-2 rounded-full bg-amber-500" />
               <span className="text-sm font-semibold text-amber-700 dark:text-amber-300">
-                {used}/{limit} {resource} used
+                {formatUsedLimit(used, limit, resource)}
               </span>
             </div>
           </div>
@@ -49,7 +98,7 @@ export function PlanLimitModal({
 
         <div className="space-y-3">
           <p className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">
-            Upgrade your plan to unlock:
+            Upgrade to {targetPlan.name} to unlock:
           </p>
           <div className="space-y-1">
             {features.map((feature) => (
@@ -69,9 +118,11 @@ export function PlanLimitModal({
         </div>
 
         <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-bold text-theme-primary">$29</span>
+          <span className="text-3xl font-bold text-theme-primary">
+            {formatPrice(targetPlan.price_monthly).replace("/mo", "")}
+          </span>
           <span className="font-semibold text-zinc-950 dark:text-zinc-100">
-            /month and up
+            {targetPlan.price_monthly > 0 ? "/month" : ""}
           </span>
           <span className="text-sm text-zinc-500 dark:text-zinc-400">
             · cancel anytime

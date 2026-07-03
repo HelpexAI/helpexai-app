@@ -73,7 +73,7 @@ PLANS AND PRICING
 The same plans and limits apply to Helpex Legal and Helpex Business:
 
 - Free: $0 forever, up to 3 documents, up to 5 questions per day, and unlimited conversations.
-- Pro: $29 per month, up to 30 documents, up to 30 questions per day, unlimited conversations,
+- Pro: $9.99 per month, up to 30 documents, up to 30 questions per day, unlimited conversations,
   advanced citations, priority processing, and cross-document comparison.
 - Premium: $49 per month, up to 100 documents, up to 100 questions per day,
   unlimited conversations, advanced citations, priority processing, and

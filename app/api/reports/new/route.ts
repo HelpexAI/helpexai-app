@@ -1,4 +1,6 @@
 import { getDocumentRequestContext } from "@/lib/documents/server";
+import { getProductPlan } from "@/lib/plans/catalog";
+import { startOfMonthUtc } from "@/lib/usage/workspace";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -75,7 +77,7 @@ export async function GET(request: Request) {
     );
   }
 
-  const [templateResult, documentsResult, collectionsResult] =
+  const [templateResult, documentsResult, collectionsResult, plan, reportsResult] =
     await Promise.all([
       isCustomTemplate
         ? Promise.resolve({ data: CUSTOM_REPORT_TEMPLATE, error: null })
@@ -117,6 +119,14 @@ export async function GET(request: Request) {
         .eq("category_slug", context.category)
         .eq("is_active", true)
         .order("sort_order", { ascending: true }),
+      getProductPlan(context.service, context.category, context.plan),
+      context.service
+        .from("usage_logs")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", context.user.id)
+        .eq("category_slug", context.category)
+        .eq("action", "report_generate")
+        .gte("created_at", startOfMonthUtc()),
     ]);
 
   if (templateResult.error) {
@@ -136,6 +146,13 @@ export async function GET(request: Request) {
   if (collectionsResult.error) {
     return NextResponse.json(
       { error: collectionsResult.error.message },
+      { status: 500 },
+    );
+  }
+
+  if (reportsResult.error) {
+    return NextResponse.json(
+      { error: reportsResult.error.message },
       { status: 500 },
     );
   }
@@ -197,5 +214,7 @@ export async function GET(request: Request) {
     documents,
     collections,
     plan: userPlan,
+    reportsUsedThisMonth: reportsResult.count ?? 0,
+    reportsLimit: plan.max_reports_month ?? 5,
   });
 }

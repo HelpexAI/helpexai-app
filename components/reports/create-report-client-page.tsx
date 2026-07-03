@@ -1,7 +1,10 @@
 "use client";
 
 import { ClientPageError } from "@/components/dashboard/client-page-error";
+import { PlanLimitModal } from "@/components/dashboard/plan-limit-modal";
 import { fetchJson, queryKeys } from "@/lib/client/query";
+import { useWorkspaceReference } from "@/lib/client/workspace-reference";
+import type { PlanSlug } from "@/types";
 import {
   ArrowLeft,
   Check,
@@ -14,7 +17,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-type PlanSlug = "free" | "pro" | "premium";
 
 type ReportTemplateDetail = {
   id: string;
@@ -72,6 +74,8 @@ type CreateReportData = {
   documents: ReportDocumentOption[];
   collections: ReportCollectionOption[];
   plan: PlanSlug;
+  reportsUsedThisMonth: number;
+  reportsLimit: number;
 };
 
 type SaveReportResponse = {
@@ -98,6 +102,20 @@ type SaveReportResponse = {
 
 type SourceMode = "documents" | "collection";
 
+type ReportLimitError = Error & {
+  code?: string;
+  used?: number;
+  limit?: number;
+};
+
+function isReportLimitError(error: unknown): error is ReportLimitError {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    error.code === "REPORT_LIMIT_REACHED"
+  );
+}
+
 async function generateReportPreview(input: {
   templateId: string;
   sourceType: SourceMode;
@@ -121,14 +139,22 @@ async function generateReportPreview(input: {
 
   const result = (await response.json()) as
     | GeneratedReportPreview
-    | { error?: string };
+    | { error?: string; code?: string; used?: number; limit?: number };
 
   if (!response.ok) {
-    throw new Error(
+    const error = new Error(
       "error" in result && result.error
         ? result.error
         : "Could not generate report.",
     );
+    if ("code" in result) {
+      Object.assign(error, {
+        code: result.code,
+        used: result.used,
+        limit: result.limit,
+      });
+    }
+    throw error;
   }
 
   return result as GeneratedReportPreview;
@@ -361,6 +387,7 @@ export function CreateReportClientPage() {
   const templateId = searchParams.get("template");
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { data: referenceData } = useWorkspaceReference();
 
   const [sourceMode, setSourceMode] = useState<SourceMode>("documents");
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
@@ -369,6 +396,10 @@ export function CreateReportClientPage() {
   >(null);
   const [customInstructions, setCustomInstructions] = useState("");
   const [isOpeningPreview, setIsOpeningPreview] = useState(false);
+  const [reportLimit, setReportLimit] = useState<{
+    used: number;
+    limit: number;
+  } | null>(null);
   const generationStatusRef = useRef<HTMLElement | null>(null);
   const saveMutation = useMutation({
     mutationFn: saveGeneratedReport,
@@ -395,7 +426,15 @@ export function CreateReportClientPage() {
   const generateMutation = useMutation({
     mutationFn: generateReportPreview,
     onSuccess: (result) => saveMutation.mutate(result),
-    onError: () => setIsOpeningPreview(false),
+    onError: (error) => {
+      setIsOpeningPreview(false);
+      if (isReportLimitError(error)) {
+        setReportLimit({
+          used: typeof error.used === "number" ? error.used : 0,
+          limit: typeof error.limit === "number" ? error.limit : 1,
+        });
+      }
+    },
   });
   const { data, error, refetch, isFetching } = useQuery({
     queryKey: [...queryKeys.reportTemplates, "new", templateId],
@@ -472,6 +511,10 @@ export function CreateReportClientPage() {
     hasSelectedSource && (!isCustomTemplate || hasCustomPrompt);
   const generationInProgress =
     generateMutation.isPending || saveMutation.isPending || isOpeningPreview;
+  const reportLimitReached =
+    data?.reportsLimit !== undefined &&
+    data.reportsLimit >= 0 &&
+    data.reportsUsedThisMonth >= data.reportsLimit;
 
   useEffect(() => {
     if (!generationInProgress) return;
@@ -492,6 +535,28 @@ export function CreateReportClientPage() {
         ? current.filter((id) => id !== documentId)
         : [...current, documentId],
     );
+  }
+
+  function handleGenerateReport() {
+    if (!data) return;
+
+    setIsOpeningPreview(false);
+    if (reportLimitReached) {
+      setReportLimit({
+        used: data.reportsUsedThisMonth,
+        limit: data.reportsLimit,
+      });
+      return;
+    }
+
+    setReportLimit(null);
+    generateMutation.mutate({
+      templateId: data.template.id,
+      sourceType: sourceMode,
+      documentIds: sourceMode === "documents" ? selectedDocumentIds : [],
+      collectionId: sourceMode === "collection" ? selectedCollectionId : null,
+      customInstructions,
+    });
   }
 
   if (!templateId) {
@@ -734,24 +799,23 @@ export function CreateReportClientPage() {
                   {data.template.name}
                 </strong>
               </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-zinc-500 dark:text-zinc-400">
+                  Reports this month
+                </span>
+                <strong className="text-zinc-950 dark:text-white">
+                  {data.reportsUsedThisMonth}/
+                  {data.reportsLimit < 0 ? "Unlimited" : data.reportsLimit}
+                </strong>
+              </div>
             </div>
 
             <button
               type="button"
               disabled={!canGenerate || generationInProgress}
               className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-theme-primary px-4 text-sm font-bold text-white transition hover:bg-theme-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
-              onClick={() => {
-                setIsOpeningPreview(false);
-                generateMutation.mutate({
-                  templateId: data.template.id,
-                  sourceType: sourceMode,
-                  documentIds:
-                    sourceMode === "documents" ? selectedDocumentIds : [],
-                  collectionId:
-                    sourceMode === "collection" ? selectedCollectionId : null,
-                  customInstructions,
-                });
-              }}
+              onClick={handleGenerateReport}
             >
               {generationInProgress ? (
                 <>
@@ -765,7 +829,8 @@ export function CreateReportClientPage() {
                 </>
               )}
             </button>
-            {generateMutation.error instanceof Error && (
+            {generateMutation.error instanceof Error &&
+              !isReportLimitError(generateMutation.error) && (
               <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
                 {generateMutation.error.message}
               </p>
@@ -844,6 +909,15 @@ export function CreateReportClientPage() {
         )}
 
       </div>
+      <PlanLimitModal
+        open={reportLimit !== null}
+        onClose={() => setReportLimit(null)}
+        used={reportLimit?.used ?? 0}
+        limit={reportLimit?.limit ?? 1}
+        resource="reports this month"
+        currentPlan={data.plan}
+        plans={referenceData?.plans ?? []}
+      />
     </div>
   );
 }

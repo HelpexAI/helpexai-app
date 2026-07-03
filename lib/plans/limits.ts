@@ -24,5 +24,7 @@ export function normalizePlanSlug(plan: string | null | undefined): Plan["slug"]
 
 export function formatPrice(cents: number): string {
   if (cents === 0) return "Free";
-  return `$${(cents / 100).toFixed(0)}/mo`;
+  const amount = cents / 100;
+  const display = Number.isInteger(amount) ? amount.toFixed(0) : amount.toFixed(2);
+  return `$${display}/mo`;
 }

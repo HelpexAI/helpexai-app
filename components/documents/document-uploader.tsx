@@ -45,6 +45,11 @@ function statusLabel(status: UploadStatus) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
+function formatStorageUsage(value: number) {
+  if (value < 0) return "Unlimited";
+  return formatFileSize(value);
+}
+
 export function DocumentUploader() {
   const workspace = useOptionalDocumentsWorkspace();
   const { data: referenceData } = useWorkspaceReference();
@@ -60,6 +65,10 @@ export function DocumentUploader() {
   const [tagIds, setTagIds] = useState<string[]>([]);
   const collections = workspace?.collections ?? referenceData?.collections ?? [];
   const tags = workspace?.tags ?? referenceData?.tags ?? [];
+  const plans = workspace?.plans ?? referenceData?.plans ?? [];
+  const currentPlan = workspace?.plan ?? "free";
+  const storageUsed = workspace?.storageUsed ?? 0;
+  const storageLimit = workspace?.storageLimit ?? 0;
   const requestedCollectionId = searchParams.get("collection");
   const activeCollection =
     workspace?.activeCollection ??
@@ -72,6 +81,12 @@ export function DocumentUploader() {
     ["uploading", "processing", "embedding"].includes(item.status),
   ).length;
   const uploadButtonCount = uploading ? activeUploadCount || actionableCount : actionableCount;
+  const selectedUploadBytes = items
+    .filter((item) => item.status === "selected" || item.status === "failed")
+    .reduce((total, item) => total + item.file.size, 0);
+  const projectedStorageUsed = storageUsed + selectedUploadBytes;
+  const storageLimitReached =
+    storageLimit >= 0 && selectedUploadBytes > 0 && projectedStorageUsed > storageLimit;
 
   function addFiles(files: File[]) {
     setError("");
@@ -121,6 +136,13 @@ export function DocumentUploader() {
     if (pending.length === 0) return;
     if (!collectionId) return setError("Choose a collection before uploading.");
     if (!tagIds.length) return setError("Choose at least one tag so AI can understand these documents.");
+    const pendingBytes = pending.reduce((total, item) => total + item.file.size, 0);
+    const projectedUsed = storageUsed + pendingBytes;
+    if (storageLimit >= 0 && projectedUsed > storageLimit) {
+      setPlanLimit({ used: projectedUsed, limit: storageLimit || 1 });
+      setError("");
+      return;
+    }
 
     setUploading(true);
     setError("");
@@ -336,14 +358,30 @@ export function DocumentUploader() {
           </div>
 
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            {selectedUploadBytes > 0 && (
+              <div
+                className={`flex min-h-11 items-center rounded-lg border px-3 text-xs font-semibold ${
+                  storageLimitReached
+                    ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300"
+                    : "border-zinc-200 bg-white text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400"
+                }`}
+              >
+                {formatStorageUsage(projectedStorageUsed)}/
+                {formatStorageUsage(storageLimit)} storage after upload
+              </div>
+            )}
             <button
                 type="button"
                 onClick={uploadFiles}
                 disabled={uploading || !collectionId || !tagIds.length || actionableCount === 0}
-                className="flex h-11 items-center justify-center gap-2 rounded-lg bg-theme-primary px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className={`flex h-11 items-center justify-center gap-2 rounded-lg px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 ${
+                  storageLimitReached ? "bg-amber-500 hover:bg-amber-600" : "bg-theme-primary"
+                }`}
               >
                 {uploading && <Loader2 className="size-4 animate-spin" />}
-                {uploading ? "Uploading" : "Upload"} {uploadButtonCount} File(s)
+                {storageLimitReached
+                  ? "View Upgrade Options"
+                  : `${uploading ? "Uploading" : "Upload"} ${uploadButtonCount} File(s)`}
             </button>
           </div>
         </section>
@@ -359,6 +397,9 @@ export function DocumentUploader() {
         onClose={() => setPlanLimit(null)}
         used={planLimit?.used ?? 0}
         limit={planLimit?.limit ?? 1}
+        resource="storage"
+        currentPlan={currentPlan}
+        plans={plans}
       />
     </div>
   );

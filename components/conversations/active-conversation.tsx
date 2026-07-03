@@ -5,7 +5,8 @@ import { MarkdownMessage } from "@/components/conversations/markdown-message";
 import { ConversationDocumentManager } from "@/components/conversations/conversation-document-manager";
 import { PlanLimitModal } from "@/components/dashboard/plan-limit-modal";
 import { aiDisclaimer, stripAiDisclaimer } from "@/lib/ai/disclaimer";
-import type { CategorySlug, Message, MessageSource } from "@/types";
+import { useWorkspaceReference } from "@/lib/client/workspace-reference";
+import type { CategorySlug, Message, MessageSource, PlanSlug } from "@/types";
 import { AlertTriangle, Bot, ChevronDown, ChevronUp, Eye, FileText, List, Loader2, Lock, Send } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { invalidateWorkspaceQueries, queryKeys } from "@/lib/client/query";
@@ -36,6 +37,7 @@ export function ActiveConversation({
   availableDocuments,
   initialMessages,
   category,
+  currentPlan,
   questionsUsed,
   questionsLimit,
   disclaimer,
@@ -46,11 +48,13 @@ export function ActiveConversation({
   availableDocuments: ChatDocument[];
   initialMessages: Message[];
   category: CategorySlug;
+  currentPlan: PlanSlug;
   questionsUsed: number;
   questionsLimit: number;
   disclaimer?: string;
 }) {
   const queryClient = useQueryClient();
+  const { data: referenceData } = useWorkspaceReference();
   const router = useRouter();
   const [messages, setMessages] = useState(initialMessages);
   const [title, setTitle] = useState(conversation.title);
@@ -195,7 +199,15 @@ export function ActiveConversation({
         </form>
       </section>
       <ConversationUploadModal open={uploadOpen} onClose={() => setUploadOpen(false)} onUploaded={(ids) => void attachUploadedDocuments(ids)} />
-      <PlanLimitModal open={limitModalOpen} onClose={() => setLimitModalOpen(false)} used={used} limit={questionsLimit} resource="questions today" />
+      <PlanLimitModal
+        open={limitModalOpen}
+        onClose={() => setLimitModalOpen(false)}
+        used={used}
+        limit={questionsLimit}
+        resource="questions today"
+        currentPlan={currentPlan}
+        plans={referenceData?.plans ?? []}
+      />
     </div>
   );
 }

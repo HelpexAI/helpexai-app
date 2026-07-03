@@ -42,6 +42,7 @@ export async function GET(
     availableDocuments: conversation.conversation_scope === "workplace" ? [] : (availableDocuments ?? []),
     messages: messages ?? [],
     category: context.category,
+    plan: context.plan,
     questionsUsed: questionsUsed ?? 0,
     questionsLimit: plan.max_queries_day,
     disclaimer: product.disclaimer_text,

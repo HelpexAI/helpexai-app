@@ -24,6 +24,7 @@ export async function GET() {
   return NextResponse.json({
     documents: (documents ?? []).map(normalizeDocumentRelations),
     category: context.category,
+    plan: context.plan,
     storageUsed: context.documentLimit.used,
     storageLimit: context.documentLimit.limit,
     requiresResolution: context.documentLimit.requiresResolution,

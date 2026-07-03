@@ -27,14 +27,14 @@ const plans = [
     href: "/signup?category=business",
     highlighted: false,
     features: [
-      "30 MB document storage",
+      "15 MB document storage",
       "100 chat queries per day",
       "5 reports per month",
       "Basic document organization",
       "Limited AI conversations",
       "Free public document tool",
     ],
-    notIncluded: ["Advanced reports", "Team workspace"],
+    notIncluded: [],
   },
   {
     name: "Pro",
@@ -59,7 +59,7 @@ const plans = [
   {
     name: "Premium",
     slug: "premium",
-    price: "$19.99",
+    price: "$19.9",
     period: "/month",
     description:
       "For growing teams using HelpexAI as a business knowledge workspace.",

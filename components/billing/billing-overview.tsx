@@ -1,5 +1,6 @@
 "use client";
 
+import { formatPrice } from "@/lib/plans/limits";
 import type { Plan, PlanSlug, SubscriptionStatus } from "@/types";
 import {
   Check,
@@ -41,6 +42,10 @@ function formatUsagePair(current: number, limit: number, format?: "bytes") {
   }
 
   return `${currentFormatted}/${limitFormatted}`;
+}
+
+function formatMonthlyPrice(cents: number) {
+  return formatPrice(cents).replace("/mo", "");
 }
 
 type Invoice = {
@@ -286,7 +291,7 @@ export function BillingOverview({
 
           <div>
             <strong className="text-4xl font-black">
-              ${(free?.price_monthly ?? 0) / 100}
+              {formatMonthlyPrice(free?.price_monthly ?? 0)}
             </strong>
             <span className="ml-1 text-sm text-zinc-500">/month</span>
           </div>
@@ -328,7 +333,7 @@ export function BillingOverview({
 
           <div>
             <strong className="text-4xl font-black">
-              ${(pro?.price_monthly ?? 2900) / 100}
+              {formatMonthlyPrice(pro?.price_monthly ?? 999)}
             </strong>
             <span className="ml-1 text-sm text-white/80">/month</span>
           </div>
@@ -394,7 +399,7 @@ export function BillingOverview({
 
           <div>
             <strong className="text-4xl font-black">
-              ${(premium?.price_monthly ?? 4900) / 100}
+              {formatMonthlyPrice(premium?.price_monthly ?? 4900)}
             </strong>
             <span className="ml-1 text-sm text-zinc-500">/month</span>
           </div>

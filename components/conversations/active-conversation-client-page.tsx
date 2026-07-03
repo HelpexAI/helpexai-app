@@ -5,7 +5,7 @@ import { ActiveConversation } from "@/components/conversations/active-conversati
 import { ConversationsLocked } from "@/components/conversations/conversations-locked";
 import { ConversationSkeleton } from "@/components/conversations/conversation-skeleton";
 import type { ConversationSummary } from "@/components/conversations/conversation-sidebar";
-import type { CategorySlug, Message } from "@/types";
+import type { CategorySlug, Message, PlanSlug } from "@/types";
 import { fetchJson, queryKeys } from "@/lib/client/query";
 import { useQuery } from "@tanstack/react-query";
 
@@ -20,6 +20,7 @@ type ActiveConversationResponse = {
   availableDocuments?: Array<{ id: string; name: string }>;
   messages?: Message[];
   category?: CategorySlug;
+  plan?: PlanSlug;
   questionsUsed?: number;
   questionsLimit?: number;
   disclaimer?: string;
@@ -34,5 +35,5 @@ export function ActiveConversationClientPage({ id }: { id: string }) {
   if (!data) return <ConversationSkeleton />;
   if (data.locked) return <ConversationsLocked used={data.used ?? 0} limit={data.limit ?? 0} />;
   if (!data.conversation || !data.category) return <ClientPageError message="Conversation data is unavailable." onRetry={() => void refetch()} />;
-  return <ActiveConversation conversation={data.conversation} conversations={data.conversations ?? []} documents={data.documents ?? []} availableDocuments={data.availableDocuments ?? []} initialMessages={data.messages ?? []} category={data.category} questionsUsed={data.questionsUsed ?? 0} questionsLimit={data.questionsLimit ?? 0} disclaimer={data.disclaimer} />;
+  return <ActiveConversation conversation={data.conversation} conversations={data.conversations ?? []} documents={data.documents ?? []} availableDocuments={data.availableDocuments ?? []} initialMessages={data.messages ?? []} category={data.category} currentPlan={data.plan ?? "free"} questionsUsed={data.questionsUsed ?? 0} questionsLimit={data.questionsLimit ?? 0} disclaimer={data.disclaimer} />;
 }

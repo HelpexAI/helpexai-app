@@ -511,7 +511,12 @@ export async function POST(request: Request) {
       const limit = plan.max_reports_month ?? 5;
       if (used >= limit) {
         return NextResponse.json(
-          { error: `You have reached this month's ${limit}-report limit.`, code: "REPORT_LIMIT_REACHED" },
+          {
+            error: `You have reached this month's ${limit}-report limit.`,
+            code: "REPORT_LIMIT_REACHED",
+            used,
+            limit,
+          },
           { status: 403 },
         );
       }
@@ -531,7 +536,12 @@ export async function POST(request: Request) {
     const quota = reservation?.[0];
     if (reservation && !quota?.allowed) {
       return NextResponse.json(
-        { error: `You have reached this month's ${quota?.quota_limit ?? 5}-report limit.`, code: "REPORT_LIMIT_REACHED" },
+        {
+          error: `You have reached this month's ${quota?.quota_limit ?? 5}-report limit.`,
+          code: "REPORT_LIMIT_REACHED",
+          used: quota?.used ?? quota?.quota_limit ?? 5,
+          limit: quota?.quota_limit ?? 5,
+        },
         { status: 403 },
       );
     }

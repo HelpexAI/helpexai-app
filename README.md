@@ -356,7 +356,7 @@ Current plan structure:
 
 | Plan | Storage | Chat queries/day | Reports/month |
 | --- | --- | --- | --- |
-| Free | 30 MB | 100 | 5 |
+| Free | 15 MB | 100 | 5 |
 | Pro | 500 MB | 500 | 30 |
 | Premium | 2 GB | Unlimited | 100 |
 
