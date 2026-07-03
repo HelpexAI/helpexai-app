@@ -534,23 +534,18 @@ test("workspace usage stays consistent across enforcement, dashboard, billing, a
 });
 
 test("Creem scheduled cancellations keep paid access until final cancellation", () => {
-  assert.match(creemWebhookRoute, /function isScheduledCancelEvent\(event: CreemEvent\)/);
-  assert.match(creemWebhookRoute, /isScheduledCancelStatus\(getSubscriptionStatus\(event\)\)/);
-  assert.match(creemWebhookRoute, /isCancellationEventType\(eventType\) && hasFutureCurrentPeriodEnd\(event\)/);
-  assert.match(creemWebhookRoute, /function hasFutureScheduledCancellation/);
-  assert.match(creemWebhookRoute, /isScheduledCancelStatus\(account\.subscription_status\)/);
-  assert.match(creemWebhookRoute, /isFutureDateValue\(account\.creem_current_period_end\)/);
-  assert.match(creemWebhookRoute, /function isCancellationEventType\(eventType: string\)/);
-  assert.match(creemWebhookRoute, /async function syncScheduledCancellation/);
-  assert.match(creemWebhookRoute, /resolvedPlan === "pro" \|\| resolvedPlan === "premium"/);
-  assert.match(creemWebhookRoute, /updatePayload\.plan = paidPlan/);
   assert.match(creemWebhookRoute, /select\("id, user_id, category_slug, plan, subscription_status, creem_customer_id, creem_subscription_id, creem_current_period_end"\)/);
-  assert.match(creemWebhookRoute, /if \(isScheduledCancelEvent\(event\)\) \{\s*await syncScheduledCancellation\(service, event\)/);
-  assert.match(creemWebhookRoute, /if \(isScheduledCancelEvent\(event\)\) \{\s*await syncScheduledCancellation\(service, event\);\s*return;\s*\}/);
-  assert.match(creemWebhookRoute, /if \(hasFutureScheduledCancellation\(account\)\) \{[\s\S]*await syncScheduledCancellation\(service, event\);\s*return;\s*\}/);
-  const cancellationHelper = creemWebhookRoute.split("function isCancellationEventType")[1]?.split("function getSubscription")[0] ?? "";
-  assert.match(cancellationHelper, /subscription\.expired/);
-  assert.match(creemWebhookRoute, /if \(isScheduledCancelEvent\(event\)\) \{[\s\S]*\} else if \([\s\S]*isCancellationEventType\(eventType\)[\s\S]*await downgradeToFree\(service, event, "cancelled"\)/);
+  assert.match(creemWebhookRoute, /eventType === "subscription\.scheduled_cancel"[\s\S]*await syncSubscriptionStatus\(service, event,\s*"scheduled_cancel"\)/);
+  assert.match(creemWebhookRoute, /const subscriptionId = getSubscriptionId\(event\)/);
+  assert.match(creemWebhookRoute, /const plan = await resolvePlan\(service, event, account\.category_slug\)/);
+  assert.match(creemWebhookRoute, /subscriptionId !== account\.creem_subscription_id/);
+  assert.match(creemWebhookRoute, /plan !== account\.plan/);
+  assert.match(creemWebhookRoute, /Creem downgrade skipped for non-current subscription/);
+  assert.match(creemWebhookRoute, /Creem downgrade skipped for non-current plan/);
+  assert.match(creemWebhookRoute, /sendSubscriptionDowngradeEmail\(service, account, status\)/);
+  assert.match(creemWebhookRoute, /service\.auth\.admin\.getUserById\(account\.user_id\)/);
+  assert.match(creemWebhookRoute, /template: status === "expired" \? "subscription_expired" : "subscription_cancelled"/);
+  assert.match(creemWebhookRoute, /eventType === "subscription\.expired" \? "expired" : "cancelled"/);
   assert.match(creemScheduledCancelMigration, /'scheduled_cancel'/);
   assert.match(creemScheduledCancelMigration, /'scheduledcancel'/);
   assert.match(creemCheckoutRoute, /return status === "active";/);
@@ -568,6 +563,8 @@ test("Resend email setup is server-only and template-driven", () => {
   assert.match(resendMailer, /FROM_EMAIL/);
   assert.match(resendMailer, /export async function sendTemplateEmail/);
   assert.match(emailTemplates, /account_notice/);
+  assert.match(emailTemplates, /subscription_cancelled/);
+  assert.match(emailTemplates, /subscription_expired/);
   assert.match(baseEmailTemplate, /renderBaseEmail/);
   assert.match(baseEmailTemplate, /escapeHtml/);
   assert.match(baseEmailTemplate, /text = \[/);

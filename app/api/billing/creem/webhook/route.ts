@@ -1,5 +1,6 @@
 // app/api/webhooks/creem/route.ts
 
+import { sendTemplateEmail } from "@/lib/email/resend";
 import { reportError } from "@/lib/monitoring";
 import { createServiceClient } from "@/lib/supabase/server";
 import crypto from "crypto";
@@ -258,6 +259,70 @@ function serializeError(error: unknown) {
   };
 }
 
+function formatPlanName(plan: string | null | undefined) {
+  if (plan === "premium") return "Premium";
+  if (plan === "pro") return "Pro";
+  return "Paid";
+}
+
+function formatWorkspaceName(categorySlug: string | null | undefined) {
+  if (categorySlug === "business") return "Business";
+  if (categorySlug === "legal") return "Legal";
+  return "workspace";
+}
+
+async function sendSubscriptionDowngradeEmail(
+  service: ReturnType<typeof createServiceClient>,
+  account: {
+    id: string;
+    user_id: string;
+    category_slug: string | null;
+    plan: string | null;
+  },
+  status: string,
+) {
+  if (status !== "expired" && status !== "cancelled") return;
+
+  try {
+    const { data, error } = await service.auth.admin.getUserById(account.user_id);
+
+    if (error) throw error;
+
+    const email = data.user?.email;
+
+    if (!email) {
+      console.warn("Creem downgrade email skipped because user email was not found", {
+        accountId: account.id,
+        userId: account.user_id,
+        status,
+      });
+      return;
+    }
+
+    await sendTemplateEmail({
+      to: email,
+      template: status === "expired" ? "subscription_expired" : "subscription_cancelled",
+      props: {
+        planName: formatPlanName(account.plan),
+        workspaceName: formatWorkspaceName(account.category_slug),
+      },
+    });
+  } catch (error) {
+    console.error("Creem downgrade email failed:", {
+      accountId: account.id,
+      userId: account.user_id,
+      status,
+      error: serializeError(error),
+    });
+    reportError(serializeError(error), {
+      area: "creem-downgrade-email",
+      accountId: account.id,
+      userId: account.user_id,
+      status,
+    });
+  }
+}
+
 async function syncPaidSubscription(
   service: ReturnType<typeof createServiceClient>,
   event: CreemEvent,
@@ -304,6 +369,8 @@ async function syncPaidSubscription(
     .eq("id", account.id);
 
   if (error) throw error;
+
+  await sendSubscriptionDowngradeEmail(service, account, status);
 }
 
 async function syncSubscriptionStatus(
@@ -359,6 +426,35 @@ async function downgradeToFree(
       categorySlug: getCategorySlug(event),
       creemCustomerId: getCustomerId(event),
       creemSubscriptionId: getSubscriptionId(event),
+    });
+
+    return;
+  }
+
+  const subscriptionId = getSubscriptionId(event);
+  const plan = await resolvePlan(service, event, account.category_slug);
+
+  if (!subscriptionId || subscriptionId !== account.creem_subscription_id) {
+    console.warn("Creem downgrade skipped for non-current subscription", {
+      eventId: event.id,
+      eventType: getEventType(event),
+      status,
+      accountId: account.id,
+      accountSubscriptionId: account.creem_subscription_id,
+      eventSubscriptionId: subscriptionId,
+    });
+
+    return;
+  }
+
+  if (!plan || plan !== account.plan) {
+    console.warn("Creem downgrade skipped for non-current plan", {
+      eventId: event.id,
+      eventType: getEventType(event),
+      status,
+      accountId: account.id,
+      accountPlan: account.plan,
+      eventPlan: plan,
     });
 
     return;
@@ -457,7 +553,11 @@ export async function POST(request: Request) {
         eventType === "refund.created" ||
         eventType === "dispute.created"
       ) {
-        await downgradeToFree(service, event, "cancelled");
+        await downgradeToFree(
+          service,
+          event,
+          eventType === "subscription.expired" ? "expired" : "cancelled",
+        );
       }
     } catch (error) {
       await service.from("creem_events").delete().eq("event_id", event.id);
