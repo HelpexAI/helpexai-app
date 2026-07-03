@@ -344,7 +344,8 @@ test("single-product marketing hides inactive products and keeps the active conv
   assert.match(productLanding, /const signupHref = `\/signup\?category=\$\{category\}`/);
   assert.match(robotsRoute, /sitemap/);
   assert.doesNotMatch(sitemapRoute, /absoluteUrl\("\/legal"\)/);
-  assert.match(sitemapRoute, /absoluteUrl\("\/business"\)/);
+  assert.doesNotMatch(sitemapRoute, /absoluteUrl\("\/business"\)/);
+  assert.match(sitemapRoute, /`\/business\/\$\{slug\}`/);
 });
 
 test("product auth flows resolve active database products and preserve their theme", () => {
@@ -368,13 +369,13 @@ test("SEO content and high-intent use-case routes are static, structured, and in
   assert.match(marketingContent, /slug: "ai-document-reports"/);
   assert.match(articleRoute, /generateStaticParams/);
   assert.match(businessUseCaseRoute, /generateStaticParams/);
-  assert.match(articlePage, /"@type": "Article"/);
-  assert.match(articlePage, /"@type": "BreadcrumbList"/);
+  assert.match(articlePage, /"@type": "BlogPosting"/);
+  assert.match(articlePage, /breadcrumbJsonLd/);
   assert.match(useCasePage, /"@type": "FAQPage"/);
   assert.match(productLanding, /href: "\/business\/business-knowledge-workspace"/);
   assert.match(productLanding, /href: "\/business\/ai-document-reports"/);
-  assert.match(sitemapRoute, /articles\.filter/);
-  assert.match(sitemapRoute, /useCases\.filter/);
+  assert.match(sitemapRoute, /const blogPosts = \[/);
+  assert.match(sitemapRoute, /const businessPages = \[/);
 });
 
 test("products are database-driven and Business is the only active seed", () => {

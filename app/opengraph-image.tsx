@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "HelpexAI Document Intelligence Platform";
+export const alt = "HelpexAI AI Business Knowledge Workspace";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -24,10 +24,10 @@ export default function OpenGraphImage() {
             HelpexAI
           </div>
           <div style={{ display: "flex", fontSize: 72, fontWeight: 800, lineHeight: 1.08, marginTop: 24 }}>
-            Your documents. Clear, cited AI answers.
+            AI Business Knowledge Workspace
           </div>
           <div style={{ color: "#b6c4d8", display: "flex", fontSize: 30, marginTop: 30 }}>
-            Document intelligence for growing businesses.
+            Documents, source-backed answers, and professional reports.
           </div>
         </div>
       </div>

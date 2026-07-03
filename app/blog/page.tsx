@@ -1,20 +1,49 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, BookOpen } from "lucide-react";
 import { MarketingFooter } from "@/components/marketing-footer";
 import { MarketingHeader } from "@/components/marketing-header";
 import { articles } from "@/lib/marketing/content";
+import {
+  absoluteUrl,
+  breadcrumbJsonLd,
+  createPageMetadata,
+  jsonLdScript,
+  PUBLIC_PAGE_SEO,
+  SITE_NAME,
+} from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Document AI Guides",
-  description:
-    "Practical guides for reviewing legal and business documents with AI, citations, and source verification.",
-  alternates: { canonical: "/blog" },
-};
+export const metadata = createPageMetadata(PUBLIC_PAGE_SEO.blog);
 
 export default function BlogPage() {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "CollectionPage",
+        name: PUBLIC_PAGE_SEO.blog.title,
+        description: PUBLIC_PAGE_SEO.blog.description,
+        url: absoluteUrl("/blog"),
+        isPartOf: {
+          "@type": "WebSite",
+          name: SITE_NAME,
+          url: absoluteUrl("/"),
+        },
+        mainEntity: articles.map((article) => ({
+          "@type": "BlogPosting",
+          headline: article.title,
+          url: absoluteUrl(`/blog/${article.slug}`),
+        })),
+      },
+      breadcrumbJsonLd([
+        { name: "Home", path: "/" },
+        { name: "Guides", path: "/blog" },
+      ]),
+    ],
+  };
+
   return (
     <div className="marketing-page min-h-screen bg-white text-zinc-950 dark:bg-zinc-950 dark:text-zinc-50">
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdScript(jsonLd)} />
       <div className="min-h-screen bg-[oklch(0.985_0.003_247.858)] dark:bg-zinc-950">
         <div className="mx-auto flex w-full max-w-[1440px] flex-col p-4 sm:p-6 lg:px-10 lg:py-8 xl:px-12">
           <MarketingHeader />
@@ -46,4 +75,3 @@ export default function BlogPage() {
     </div>
   );
 }
-

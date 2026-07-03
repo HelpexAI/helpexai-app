@@ -1,17 +1,31 @@
-import type { Metadata } from "next";
 import { MarketingFooter } from "@/components/marketing-footer";
 import { MarketingHeader } from "@/components/marketing-header";
+import {
+  breadcrumbJsonLd,
+  createPageMetadata,
+  jsonLdScript,
+  PUBLIC_PAGE_SEO,
+  webPageJsonLd,
+} from "@/lib/seo";
 import { Mail, MessageSquare, ShieldCheck } from "lucide-react";
 
-export const metadata: Metadata = {
-  title: "Contact | HelpexAI",
-  description: "Get in touch with the HelpexAI team.",
-  alternates: { canonical: "/contact" },
-};
+export const metadata = createPageMetadata(PUBLIC_PAGE_SEO.contact);
 
 export default function ContactPage() {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      webPageJsonLd(PUBLIC_PAGE_SEO.contact),
+      breadcrumbJsonLd([
+        { name: "Home", path: "/" },
+        { name: "Contact", path: "/contact" },
+      ]),
+    ],
+  };
+
   return (
     <div className="marketing-page min-h-screen bg-white text-zinc-950">
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdScript(jsonLd)} />
       <div className="min-h-screen bg-[oklch(0.985_0.003_247.858)]">
         <div className="mx-auto flex min-h-screen w-full max-w-[1440px] flex-col p-4 sm:p-6 lg:px-10 lg:py-8 xl:px-12">
           <MarketingHeader />
@@ -50,7 +64,7 @@ export default function ContactPage() {
                   href="mailto:support@helpexai.com"
                   className="mt-4 inline-block font-semibold text-theme-primary"
                 >
-                  muhammadarslan0111@gmail.com
+                  support@helpexai.com
                 </a>
               </article>
 
@@ -69,7 +83,7 @@ export default function ContactPage() {
                   href="mailto:privacy@helpexai.com"
                   className="mt-4 inline-block font-semibold text-theme-primary"
                 >
-                  muhammadarslan0111@gmail.com
+                  privacy@helpexai.com
                 </a>
               </article>
             </section>

@@ -1,6 +1,12 @@
-import type { Metadata } from "next";
 import { MarketingFooter } from "@/components/marketing-footer";
 import { MarketingHeader } from "@/components/marketing-header";
+import {
+  breadcrumbJsonLd,
+  createPageMetadata,
+  jsonLdScript,
+  PUBLIC_PAGE_SEO,
+  webPageJsonLd,
+} from "@/lib/seo";
 import {
   CreditCard,
   FileWarning,
@@ -9,18 +15,25 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
-export const metadata: Metadata = {
-  title: "Refund Policy | HelpexAI",
-  description:
-    "Learn about HelpexAI subscription cancellations, refunds, billing, and payment policies.",
-  alternates: { canonical: "/refunds" },
-};
+export const metadata = createPageMetadata(PUBLIC_PAGE_SEO.refunds);
 
 const lastUpdated = "June 12, 2026";
 
 export default function RefundPolicyPage() {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      webPageJsonLd(PUBLIC_PAGE_SEO.refunds),
+      breadcrumbJsonLd([
+        { name: "Home", path: "/" },
+        { name: "Refund Policy", path: "/refunds" },
+      ]),
+    ],
+  };
+
   return (
     <div className="marketing-page min-h-screen bg-white text-zinc-950">
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdScript(jsonLd)} />
       <div className="min-h-screen bg-[oklch(0.985_0.003_247.858)] text-zinc-950">
         <div className="mx-auto flex min-h-screen w-full max-w-[1440px] flex-col p-4 sm:p-6 lg:px-10 lg:py-8 xl:px-12">
           <MarketingHeader />
@@ -98,8 +111,9 @@ export default function RefundPolicyPage() {
                       </p>
 
                       <p>
-                        Cancellation will immediately terminate access to
-                        features that have already been paid for.
+                        Cancellation may be scheduled for the end of the current
+                        billing period, and paid access may remain available
+                        until that period ends.
                       </p>
                     </div>
                   </div>

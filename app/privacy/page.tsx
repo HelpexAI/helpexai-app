@@ -1,6 +1,12 @@
-import type { Metadata } from "next";
 import { MarketingFooter } from "@/components/marketing-footer";
 import { MarketingHeader } from "@/components/marketing-header";
+import {
+  breadcrumbJsonLd,
+  createPageMetadata,
+  jsonLdScript,
+  PUBLIC_PAGE_SEO,
+  webPageJsonLd,
+} from "@/lib/seo";
 import {
   BrainCircuit,
   Cookie,
@@ -14,12 +20,7 @@ import {
   UserRoundCheck,
 } from "lucide-react";
 
-export const metadata: Metadata = {
-  title: "Privacy Policy | HelpexAI",
-  description:
-    "Learn how HelpexAI collects, uses, protects, and manages your information.",
-  alternates: { canonical: "/privacy" },
-};
+export const metadata = createPageMetadata(PUBLIC_PAGE_SEO.privacy);
 
 const lastUpdated = "June 12, 2026";
 
@@ -245,8 +246,20 @@ const sections = [
 ];
 
 export default function PrivacyPage() {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      webPageJsonLd(PUBLIC_PAGE_SEO.privacy),
+      breadcrumbJsonLd([
+        { name: "Home", path: "/" },
+        { name: "Privacy Policy", path: "/privacy" },
+      ]),
+    ],
+  };
+
   return (
     <div className="marketing-page min-h-screen bg-white text-zinc-950">
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdScript(jsonLd)} />
       <div className="min-h-screen bg-[oklch(0.985_0.003_247.858)] text-zinc-950">
         <div className="mx-auto flex min-h-screen w-full max-w-[1440px] flex-col p-4 sm:p-6 lg:px-10 lg:py-8 xl:px-12">
           <MarketingHeader />

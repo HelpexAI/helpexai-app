@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { UseCasePage } from "@/components/marketing/use-case-page";
 import { getUseCase, useCases } from "@/lib/marketing/content";
-import { absoluteUrl } from "@/lib/seo";
+import { BUSINESS_PAGE_SEO, createPageMetadata } from "@/lib/seo";
 
 export function generateStaticParams() {
   return useCases
@@ -17,17 +17,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const useCase = getUseCase("business", (await params).slug);
   if (!useCase) return {};
-  const path = `/business/${useCase.slug}`;
-  return {
+  const seo = BUSINESS_PAGE_SEO[useCase.slug as keyof typeof BUSINESS_PAGE_SEO] ?? {
     title: useCase.title,
     description: useCase.description,
-    alternates: { canonical: path },
-    openGraph: {
-      title: useCase.title,
-      description: useCase.description,
-      url: absoluteUrl(path),
-    },
+    path: `/business/${useCase.slug}`,
   };
+  return createPageMetadata(seo);
 }
 
 export default async function BusinessUseCasePage({

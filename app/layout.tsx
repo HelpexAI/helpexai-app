@@ -1,7 +1,15 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { themeStyle } from '@/lib/theme'
-import { SITE_URL } from '@/lib/seo'
+import {
+  DEFAULT_DESCRIPTION,
+  DEFAULT_OG_IMAGE,
+  DEFAULT_OG_IMAGE_ALT,
+  DEFAULT_TITLE,
+  SITE_NAME,
+  SITE_URL,
+  absoluteUrl,
+} from '@/lib/seo'
 import './globals.css'
 
 const inter = Inter({
@@ -14,23 +22,30 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   manifest: '/manifest.webmanifest',
   title: {
-    default: 'HelpexAI — Document Intelligence Platform',
+    default: DEFAULT_TITLE,
     template: '%s | HelpexAI',
   },
-  description:
-    'Upload business documents and get clear AI answers with exact source citations.',
-  keywords: ['AI', 'business documents', 'contract analysis', 'invoice analysis', 'document intelligence'],
+  description: DEFAULT_DESCRIPTION,
   openGraph: {
-    title: 'HelpexAI — Document Intelligence Platform',
-    description: 'Upload your documents. Ask anything. Get expert answers.',
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
     url: SITE_URL,
-    siteName: 'HelpexAI',
+    siteName: SITE_NAME,
     type: 'website',
+    images: [
+      {
+        url: absoluteUrl(DEFAULT_OG_IMAGE),
+        width: 1200,
+        height: 630,
+        alt: DEFAULT_OG_IMAGE_ALT,
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'HelpexAI - AI Document Intelligence Platform',
-    description: 'Upload your documents. Ask anything. Get clear, cited answers.',
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+    images: [absoluteUrl(DEFAULT_OG_IMAGE)],
   },
   robots: {
     index: true,

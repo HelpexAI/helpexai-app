@@ -2,25 +2,33 @@ import Link from "next/link";
 import { ArrowRight, Check, MessageSquareText, ShieldCheck, Upload } from "lucide-react";
 import { MarketingFooter } from "@/components/marketing-footer";
 import { MarketingHeader } from "@/components/marketing-header";
-import type { UseCasePage as UseCase } from "@/lib/marketing/content";
-import { absoluteUrl, SITE_NAME } from "@/lib/seo";
+import {
+  articles,
+  type UseCasePage as UseCase,
+} from "@/lib/marketing/content";
+import {
+  breadcrumbJsonLd,
+  BUSINESS_PAGE_SEO,
+  jsonLdScript,
+  webPageJsonLd,
+} from "@/lib/seo";
 import { themeStyle } from "@/lib/theme";
 
 export function UseCasePage({ useCase }: { useCase: UseCase }) {
   const signupHref = `/signup?category=${useCase.category}`;
   const path = `/${useCase.category}/${useCase.slug}`;
+  const seo = BUSINESS_PAGE_SEO[useCase.slug as keyof typeof BUSINESS_PAGE_SEO] ?? {
+    title: useCase.title,
+    description: useCase.description,
+    path,
+  };
+  const relatedArticles = articles.filter(
+    (article) => article.relatedUseCase === path,
+  );
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
-      {
-        "@type": "SoftwareApplication",
-        name: `HelpexAI ${useCase.title}`,
-        applicationCategory: "BusinessApplication",
-        operatingSystem: "Web",
-        description: useCase.description,
-        url: absoluteUrl(path),
-        provider: { "@type": "Organization", name: SITE_NAME, url: absoluteUrl("/") },
-      },
+      webPageJsonLd(seo),
       {
         "@type": "FAQPage",
         mainEntity: useCase.faq.map((item) => ({
@@ -29,20 +37,16 @@ export function UseCasePage({ useCase }: { useCase: UseCase }) {
           acceptedAnswer: { "@type": "Answer", text: item.answer },
         })),
       },
-      {
-        "@type": "BreadcrumbList",
-        itemListElement: [
-          { "@type": "ListItem", position: 1, name: "Home", item: absoluteUrl("/") },
-          { "@type": "ListItem", position: 2, name: useCase.category, item: absoluteUrl(`/${useCase.category}`) },
-          { "@type": "ListItem", position: 3, name: useCase.title, item: absoluteUrl(path) },
-        ],
-      },
+      breadcrumbJsonLd([
+        { name: "Home", path: "/" },
+        { name: useCase.title, path },
+      ]),
     ],
   };
 
   return (
     <div className="marketing-page min-h-screen bg-white text-zinc-950 dark:bg-zinc-950 dark:text-zinc-50" style={themeStyle(useCase.category)}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdScript(jsonLd)} />
       <div className="min-h-screen bg-[oklch(0.985_0.003_247.858)] dark:bg-zinc-950">
         <div className="mx-auto flex w-full max-w-[1440px] flex-col p-4 sm:p-6 lg:px-10 lg:py-8 xl:px-12">
           <MarketingHeader authCategory={useCase.category} />
@@ -54,6 +58,7 @@ export function UseCasePage({ useCase }: { useCase: UseCase }) {
               <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
                 <Link href={signupHref} className="inline-flex items-center justify-center gap-2 rounded-full bg-theme-primary px-6 py-3 text-sm font-semibold text-white">Start free <ArrowRight className="size-4" /></Link>
                 <Link href="/free-tool" className="rounded-full border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold dark:border-zinc-700 dark:bg-zinc-900">Try the free tool</Link>
+                <Link href="/pricing" className="rounded-full border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold dark:border-zinc-700 dark:bg-zinc-900">View pricing</Link>
               </div>
             </section>
             <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
@@ -84,6 +89,27 @@ export function UseCasePage({ useCase }: { useCase: UseCase }) {
                 <div className="mt-5 space-y-5">{useCase.faq.map((item) => <div key={item.question}><h3 className="font-bold">{item.question}</h3><p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">{item.answer}</p></div>)}</div>
               </div>
             </section>
+            {relatedArticles.length > 0 ? (
+              <section className="rounded-3xl border border-zinc-200 bg-white p-7 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+                <h2 className="text-2xl font-black tracking-tight">
+                  Related guides
+                </h2>
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  {relatedArticles.map((article) => (
+                    <Link
+                      key={article.slug}
+                      href={`/blog/${article.slug}`}
+                      className="rounded-2xl border border-zinc-200 p-5 transition hover:border-theme-primary dark:border-zinc-800"
+                    >
+                      <h3 className="font-bold">{article.title}</h3>
+                      <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+                        {article.description}
+                      </p>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            ) : null}
           </main>
           <MarketingFooter />
         </div>
@@ -91,4 +117,3 @@ export function UseCasePage({ useCase }: { useCase: UseCase }) {
     </div>
   );
 }
-

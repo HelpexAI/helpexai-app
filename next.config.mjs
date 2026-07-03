@@ -20,6 +20,12 @@ const nextConfig = {
         destination: "/business",
         permanent: true,
       },
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.helpexai.com" }],
+        destination: "https://helpexai.com/:path*",
+        permanent: true,
+      },
     ];
   },
   experimental: {

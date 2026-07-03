@@ -103,7 +103,7 @@ IMPORTANT LINKS
 - Public free tool: /free-tool
 - Create an account: /signup
 - Sign in: /login
-- Pricing: /#pricing
+- Pricing: /pricing
 - Privacy policy: /privacy
 - Logged-in billing and subscription management: /billing
 

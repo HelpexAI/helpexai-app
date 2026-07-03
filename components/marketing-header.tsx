@@ -77,7 +77,7 @@ export function MarketingHeader({ authCategory }: MarketingHeaderProps = {}) {
               HelpexAI
             </span>
             <span className="hidden text-xs leading-4 text-zinc-500 dark:text-zinc-400 sm:block">
-              Document Intelligence Platform
+              AI Business Knowledge Workspace
             </span>
           </div>
         </Link>

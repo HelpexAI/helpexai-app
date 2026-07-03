@@ -14,7 +14,12 @@ import {
 import { MarketingFooter } from "@/components/marketing-footer";
 import { MarketingHeader } from "@/components/marketing-header";
 import { themeStyle } from "@/lib/theme";
-import { absoluteUrl, SITE_NAME } from "@/lib/seo";
+import {
+  absoluteUrl,
+  jsonLdScript,
+  PUBLIC_PAGE_SEO,
+  SITE_NAME,
+} from "@/lib/seo";
 
 type ProductCategory = "business";
 
@@ -119,12 +124,23 @@ export function ProductLandingPage({
     "@context": "https://schema.org",
     "@graph": [
       {
+        "@type": "Organization",
+        name: SITE_NAME,
+        url: absoluteUrl("/"),
+        logo: absoluteUrl("/og/helpexai-og.png"),
+      },
+      {
+        "@type": "WebSite",
+        name: SITE_NAME,
+        url: absoluteUrl("/"),
+      },
+      {
         "@type": "SoftwareApplication",
         name: product.name,
         applicationCategory: "BusinessApplication",
         operatingSystem: "Web",
-        url: absoluteUrl(`/${category}`),
-        description: product.description,
+        url: absoluteUrl("/"),
+        description: PUBLIC_PAGE_SEO.home.description,
         offers: {
           "@type": "Offer",
           price: "0",
@@ -155,9 +171,7 @@ export function ProductLandingPage({
     >
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
-        }}
+        dangerouslySetInnerHTML={jsonLdScript(jsonLd)}
       />
 
       <div className="min-h-screen bg-[oklch(0.985_0.003_247.858)] dark:bg-zinc-950">
@@ -194,6 +208,12 @@ export function ProductLandingPage({
                     className="inline-flex items-center justify-center rounded-full border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-800 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
                   >
                     Try the free document tool
+                  </Link>
+                  <Link
+                    href="/pricing"
+                    className="inline-flex items-center justify-center rounded-full border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-800 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                  >
+                    View pricing
                   </Link>
                 </div>
 

@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "HelpexAI Document Intelligence Platform",
+    name: "HelpexAI - AI Business Knowledge Workspace",
     short_name: "HelpexAI",
     description:
-      "AI document intelligence for growing businesses.",
+      "AI business knowledge workspace for documents, source-backed answers, and professional reports.",
     start_url: "/",
     display: "standalone",
     background_color: "#f8fafc",

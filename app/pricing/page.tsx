@@ -12,7 +12,13 @@ import {
 import { MarketingFooter } from "@/components/marketing-footer";
 import { MarketingHeader } from "@/components/marketing-header";
 import { themeStyle } from "@/lib/theme";
-import { absoluteUrl, SITE_NAME } from "@/lib/seo";
+import {
+  absoluteUrl,
+  createPageMetadata,
+  jsonLdScript,
+  PUBLIC_PAGE_SEO,
+  SITE_NAME,
+} from "@/lib/seo";
 
 const category = "business" as const;
 
@@ -59,7 +65,7 @@ const plans = [
   {
     name: "Premium",
     slug: "premium",
-    price: "$19.9",
+    price: "$19.99",
     period: "/month",
     description:
       "For growing teams using HelpexAI as a business knowledge workspace.",
@@ -95,34 +101,31 @@ const faqs = [
   },
 ];
 
-export const metadata = {
-  title: `Pricing | ${SITE_NAME}`,
-  description:
-    "Simple pricing for HelpexAI Business. Start free and upgrade when you need more documents, AI conversations, and reports.",
-  alternates: {
-    canonical: absoluteUrl("/pricing"),
-  },
-};
+export const metadata = createPageMetadata(PUBLIC_PAGE_SEO.pricing);
 
 export default function PricingPage() {
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "Product",
+    "@type": "SoftwareApplication",
     name: "HelpexAI Business",
     description:
       "AI-powered business knowledge workspace for documents, conversations, and reports.",
-    brand: {
-      "@type": "Brand",
-      name: SITE_NAME,
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    url: absoluteUrl("/pricing"),
+    provider: { "@type": "Organization", name: SITE_NAME, url: absoluteUrl("/") },
+    offers: {
+      "@type": "OfferCatalog",
+      name: "HelpexAI plans",
+      itemListElement: plans.map((plan) => ({
+        "@type": "Offer",
+        name: plan.name,
+        price: plan.price.replace("$", ""),
+        priceCurrency: "USD",
+        availability: "https://schema.org/InStock",
+        url: absoluteUrl(plan.href),
+      })),
     },
-    offers: plans.map((plan) => ({
-      "@type": "Offer",
-      name: plan.name,
-      price: plan.price.replace("$", ""),
-      priceCurrency: "USD",
-      availability: "https://schema.org/InStock",
-      url: absoluteUrl(plan.href),
-    })),
   };
 
   return (
@@ -132,9 +135,7 @@ export default function PricingPage() {
     >
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
-        }}
+        dangerouslySetInnerHTML={jsonLdScript(jsonLd)}
       />
 
       <div className="min-h-screen bg-[oklch(0.985_0.003_247.858)] dark:bg-zinc-950">
@@ -261,6 +262,28 @@ export default function PricingPage() {
                   </p>
                 </article>
               ))}
+            </section>
+
+            <section className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-7">
+              <h2 className="text-2xl font-black tracking-tight">
+                Explore what each plan unlocks
+              </h2>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="/business/business-knowledge-workspace"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-theme-primary"
+                >
+                  Business knowledge workspace
+                  <ArrowRight className="size-4" />
+                </Link>
+                <Link
+                  href="/business/ai-document-reports"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-theme-primary"
+                >
+                  AI document reports
+                  <ArrowRight className="size-4" />
+                </Link>
+              </div>
             </section>
 
             <section className="rounded-3xl bg-[#0a1628] px-6 py-10 text-white sm:px-10">

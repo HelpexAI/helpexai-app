@@ -13,7 +13,7 @@ export function MarketingFooter() {
             HelpexAI
           </span>
           <span className="text-xs leading-4 text-zinc-500 dark:text-zinc-400">
-            Document Intelligence Platform
+            AI Business Knowledge Workspace
           </span>
         </div>
       </Link>
@@ -21,7 +21,7 @@ export function MarketingFooter() {
         <Link href="/free-tool">Free Tool</Link>
         <Link href="/pricing">Pricing</Link>
         <Link href="/blog">Guides</Link>
-        <Link href="/#features">Features</Link>
+        <Link href="/business/business-knowledge-workspace">Business Workspace</Link>
 
         <span className="hidden text-zinc-300 dark:text-zinc-700 sm:inline">
           |
