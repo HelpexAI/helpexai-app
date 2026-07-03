@@ -82,12 +82,19 @@ const reportRevisionPreview = await readFile(new URL("../components/reports/repo
 const storageReportLimitsMigration = await readFile(new URL("../supabase/migrations/016_storage_and_report_limits.sql", import.meta.url), "utf8");
 const workspaceUsage = await readFile(new URL("../lib/usage/workspace.ts", import.meta.url), "utf8");
 const billingPage = await readFile(new URL("../app/(dashboard)/billing/page.tsx", import.meta.url), "utf8");
+const billingOverview = await readFile(new URL("../components/billing/billing-overview.tsx", import.meta.url), "utf8");
+const creemCheckoutRoute = await readFile(new URL("../app/api/billing/creem/checkout/route.ts", import.meta.url), "utf8");
+const creemWebhookRoute = await readFile(new URL("../app/api/billing/creem/webhook/route.ts", import.meta.url), "utf8");
+const creemScheduledCancelMigration = await readFile(new URL("../supabase/migrations/021_creem_scheduled_cancel_status.sql", import.meta.url), "utf8");
 const reportRoute = await readFile(new URL("../app/api/reports/[id]/route.ts", import.meta.url), "utf8");
 const workspaceReferenceRoute = await readFile(new URL("../app/api/workspace/reference/route.ts", import.meta.url), "utf8");
 const workspaceReferenceClient = await readFile(new URL("../lib/client/workspace-reference.ts", import.meta.url), "utf8");
 const documentsSkeleton = await readFile(new URL("../components/documents/documents-skeleton.tsx", import.meta.url), "utf8");
 const documentsRoute = await readFile(new URL("../app/api/documents/route.ts", import.meta.url), "utf8");
 const conversationUploadModal = await readFile(new URL("../components/conversations/conversation-upload-modal.tsx", import.meta.url), "utf8");
+const resendMailer = await readFile(new URL("../lib/email/resend.ts", import.meta.url), "utf8");
+const emailTemplates = await readFile(new URL("../lib/email/templates/index.ts", import.meta.url), "utf8");
+const baseEmailTemplate = await readFile(new URL("../lib/email/templates/base.ts", import.meta.url), "utf8");
 const knowledgeMigration = await readFile(new URL("../supabase/migrations/017_generic_knowledge_foundation.sql", import.meta.url), "utf8");
 const knowledgeService = await readFile(new URL("../lib/knowledge/service.ts", import.meta.url), "utf8");
 const documentProcessRoute = await readFile(new URL("../app/api/documents/[id]/process/route.ts", import.meta.url), "utf8");
@@ -450,11 +457,14 @@ test("report PDF export preserves WinAnsi text and degrades unsupported scripts 
   assert.doesNotMatch(reportDownloadHandler, /tableBuffer|writer\.writeTable/);
 });
 
-test("paid report PDF exports omit HelpexAI download branding", () => {
+test("paid report PDF exports omit the download header and keep page-number footer", () => {
   assert.match(reportDownloadRoute, /showBranding/);
   assert.match(reportDownloadRoute, /createReportPdf\(typedReport, context\.plan === "free"\)/);
   assert.match(reportDownloadRoute, /if \(showBranding\) \{\s*page\.drawText\("Prepared by HelpexAI"/);
   assert.match(reportDownloadRoute, /if \(showBranding\) \{[\s\S]*page\.drawText\("HelpexAI"/);
+  assert.match(reportDownloadRoute, /else \{\s*writer\.setY\(PAGE_HEIGHT - MARGIN_TOP\);\s*\}/);
+  assert.doesNotMatch(reportDownloadRoute, /titleLines/);
+  assert.match(reportDownloadRoute, /page\.drawText\(`Page \$\{pageNumber\}`/);
 });
 
 test("report revision mode stores clean version history and blocks finalized edits", () => {
@@ -521,6 +531,46 @@ test("workspace usage stays consistent across enforcement, dashboard, billing, a
   assert.match(reportGenerateRoute, /reserve_monthly_report/);
   assert.match(reportGenerateRoute, /\.delete\(\)\.eq\("request_id", usageRequestId\)/);
   assert.doesNotMatch(reportRoute, /\.from\("usage_logs"\)\s*\.delete/);
+});
+
+test("Creem scheduled cancellations keep paid access until final cancellation", () => {
+  assert.match(creemWebhookRoute, /function isScheduledCancelEvent\(event: CreemEvent\)/);
+  assert.match(creemWebhookRoute, /isScheduledCancelStatus\(getSubscriptionStatus\(event\)\)/);
+  assert.match(creemWebhookRoute, /isCancellationEventType\(eventType\) && hasFutureCurrentPeriodEnd\(event\)/);
+  assert.match(creemWebhookRoute, /function hasFutureScheduledCancellation/);
+  assert.match(creemWebhookRoute, /isScheduledCancelStatus\(account\.subscription_status\)/);
+  assert.match(creemWebhookRoute, /isFutureDateValue\(account\.creem_current_period_end\)/);
+  assert.match(creemWebhookRoute, /function isCancellationEventType\(eventType: string\)/);
+  assert.match(creemWebhookRoute, /async function syncScheduledCancellation/);
+  assert.match(creemWebhookRoute, /resolvedPlan === "pro" \|\| resolvedPlan === "premium"/);
+  assert.match(creemWebhookRoute, /updatePayload\.plan = paidPlan/);
+  assert.match(creemWebhookRoute, /select\("id, user_id, category_slug, plan, subscription_status, creem_customer_id, creem_subscription_id, creem_current_period_end"\)/);
+  assert.match(creemWebhookRoute, /if \(isScheduledCancelEvent\(event\)\) \{\s*await syncScheduledCancellation\(service, event\)/);
+  assert.match(creemWebhookRoute, /if \(isScheduledCancelEvent\(event\)\) \{\s*await syncScheduledCancellation\(service, event\);\s*return;\s*\}/);
+  assert.match(creemWebhookRoute, /if \(hasFutureScheduledCancellation\(account\)\) \{[\s\S]*await syncScheduledCancellation\(service, event\);\s*return;\s*\}/);
+  const cancellationHelper = creemWebhookRoute.split("function isCancellationEventType")[1]?.split("function getSubscription")[0] ?? "";
+  assert.match(cancellationHelper, /subscription\.expired/);
+  assert.match(creemWebhookRoute, /if \(isScheduledCancelEvent\(event\)\) \{[\s\S]*\} else if \([\s\S]*isCancellationEventType\(eventType\)[\s\S]*await downgradeToFree\(service, event, "cancelled"\)/);
+  assert.match(creemScheduledCancelMigration, /'scheduled_cancel'/);
+  assert.match(creemScheduledCancelMigration, /'scheduledcancel'/);
+  assert.match(creemCheckoutRoute, /return status === "active";/);
+  assert.doesNotMatch(creemCheckoutRoute, /status === "scheduled_cancel"/);
+  assert.match(billingOverview, /status === "scheduled_cancel" \|\| status === "scheduledcancel"/);
+  assert.doesNotMatch(billingOverview, /plan === "free" && isScheduledCancel[\s\S]*Manage Subscription/);
+  assert.match(billingOverview, /plan === "pro" \? \([\s\S]*Manage Subscription/);
+  assert.match(billingOverview, /plan === "premium" \? \([\s\S]*Manage Subscription/);
+});
+
+test("Resend email setup is server-only and template-driven", () => {
+  assert.match(resendMailer, /import "server-only"/);
+  assert.match(resendMailer, /new Resend\(apiKey\)/);
+  assert.match(resendMailer, /RESEND_API_KEY/);
+  assert.match(resendMailer, /FROM_EMAIL/);
+  assert.match(resendMailer, /export async function sendTemplateEmail/);
+  assert.match(emailTemplates, /account_notice/);
+  assert.match(baseEmailTemplate, /renderBaseEmail/);
+  assert.match(baseEmailTemplate, /escapeHtml/);
+  assert.match(baseEmailTemplate, /text = \[/);
 });
 
 test("stable workspace reference data is cached once and documents use a minimal skeleton", () => {

@@ -153,7 +153,7 @@ const sections = [
         </p>
         <p>
           Subscription fees are billed in advance and may renew automatically
-          unless cancelled before the next billing period.
+          unless cancellation is scheduled before the next billing period.
         </p>
         <p>
           Failure to pay applicable fees may result in suspension, downgrade, or
@@ -169,12 +169,14 @@ const sections = [
       <>
         <p>
           You may cancel your subscription at any time through your account,
-          billing portal, or by contacting support.
+          billing portal, or by contacting support. Cancellation may be
+          scheduled for the end of your current billing period.
         </p>
         <p>
           Unless required by law, subscription payments are non-refundable,
           partial billing periods are not refunded, and access remains available
-          until the end of the current billing period.
+          until the end of the current billing period. After that period ends,
+          paid plan access may be downgraded to the free plan.
         </p>
         <p>Refund requests may be reviewed on a case-by-case basis.</p>
       </>

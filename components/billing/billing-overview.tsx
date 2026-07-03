@@ -10,7 +10,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Usage = {
   label: string;
@@ -52,6 +52,46 @@ type Invoice = {
 
 const CHECKOUT_PATH = "/api/billing/creem/checkout";
 const PORTAL_PATH = "/api/billing/creem/portal";
+
+type ToastTone = "success" | "warning" | "error";
+
+function isScheduledCancelStatus(status?: SubscriptionStatus | null) {
+  return status === "scheduled_cancel" || status === "scheduledcancel";
+}
+
+function BillingToast({
+  tone,
+  message,
+  onClose,
+}: {
+  tone: ToastTone;
+  message: string;
+  onClose: () => void;
+}) {
+  const toneClass =
+    tone === "success"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+      : tone === "warning"
+        ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
+        : "border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200";
+
+  return (
+    <div
+      role="status"
+      className={`flex w-full items-start gap-3 rounded-xl border px-4 py-3 text-sm font-medium shadow-lg ${toneClass}`}
+    >
+      <span className="flex-1 leading-5">{message}</span>
+      <button
+        type="button"
+        onClick={onClose}
+        className="rounded-md p-1 opacity-70 transition hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10"
+        aria-label="Dismiss notification"
+      >
+        <X className="size-4" />
+      </button>
+    </div>
+  );
+}
 
 function PlanFeature({
   enabled,
@@ -140,6 +180,18 @@ export function BillingOverview({
     null,
   );
   const [error, setError] = useState("");
+  const [dismissedNotice, setDismissedNotice] = useState<
+    "success" | "cancelled" | null
+  >(null);
+  const [dismissedPastDue, setDismissedPastDue] = useState(false);
+
+  useEffect(() => {
+    setDismissedNotice(null);
+  }, [notice]);
+
+  useEffect(() => {
+    setDismissedPastDue(false);
+  }, [subscriptionStatus]);
 
   const planConfig = (slug: PlanSlug) =>
     plans.find((item) => item.slug === slug);
@@ -147,6 +199,25 @@ export function BillingOverview({
   const free = planConfig("free");
   const pro = planConfig("pro");
   const premium = planConfig("premium");
+  const isScheduledCancel = isScheduledCancelStatus(subscriptionStatus);
+  const noticeToast =
+    notice && dismissedNotice !== notice
+      ? {
+          tone: notice === "success" ? "success" : "warning",
+          message:
+            notice === "success"
+              ? "Payment completed. Your subscription is updated."
+              : "Checkout was cancelled. No payment was made.",
+        }
+      : null;
+  const pastDueToast =
+    subscriptionStatus === "past_due" && !dismissedPastDue
+      ? {
+          tone: "error" as const,
+          message:
+            "Your payment is past due. Update your payment method to restore your paid plan.",
+        }
+      : null;
 
   async function openCreem(action: "pro" | "premium" | "portal") {
     setLoading(action);
@@ -173,30 +244,29 @@ export function BillingOverview({
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6 lg:p-8">
-      {notice && (
-        <div
-          className={`rounded-xl border px-4 py-3 text-sm font-medium ${
-            notice === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
-              : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300"
-          }`}
-        >
-          {notice === "success"
-            ? "Payment completed. Your subscription is updated."
-            : "Checkout was cancelled. No payment was made."}
-        </div>
-      )}
-
-      {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
-          {error}
-        </div>
-      )}
-
-      {subscriptionStatus === "past_due" && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
-          Your payment is past due. Update your payment method to restore your
-          paid plan.
+      {(noticeToast || error || pastDueToast) && (
+        <div className="fixed right-4 top-4 z-50 flex w-[calc(100vw-2rem)] max-w-sm flex-col gap-3 sm:right-6 sm:top-6">
+          {noticeToast && (
+            <BillingToast
+              tone={noticeToast.tone as ToastTone}
+              message={noticeToast.message}
+              onClose={() => setDismissedNotice(notice ?? null)}
+            />
+          )}
+          {error && (
+            <BillingToast
+              tone="error"
+              message={error}
+              onClose={() => setError("")}
+            />
+          )}
+          {pastDueToast && (
+            <BillingToast
+              tone={pastDueToast.tone}
+              message={pastDueToast.message}
+              onClose={() => setDismissedPastDue(true)}
+            />
+          )}
         </div>
       )}
 
@@ -299,7 +369,7 @@ export function BillingOverview({
           ) : (
             <button
               onClick={() => void openCreem("pro")}
-              disabled={loading !== null || plan === "premium"}
+              disabled={loading !== null || (plan === "premium" && !isScheduledCancel)}
               className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-white font-semibold text-theme-primary disabled:opacity-70"
             >
               {loading === "pro" ? (
@@ -307,7 +377,11 @@ export function BillingOverview({
               ) : (
                 <Zap className="size-4" />
               )}{" "}
-              {plan === "premium" ? "Included in Premium" : "Upgrade to Pro"}
+              {plan === "premium"
+                ? isScheduledCancel
+                  ? "Switch to Pro"
+                  : "Included in Premium"
+                : "Upgrade to Pro"}
             </button>
           )}
         </article>

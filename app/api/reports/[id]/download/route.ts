@@ -610,49 +610,34 @@ async function createReportPdf(report: ReportRecord, showBranding: boolean) {
       font: regularFont,
       color: gray,
     });
-  } else {
-    const titleLines = wrapText({
-      text: stripMarkdownInline(report.title),
+
+    page.drawText("Report", {
+      x: PAGE_WIDTH - MARGIN_X - 130,
+      y: PAGE_HEIGHT - 58,
+      size: 16,
       font: boldFont,
-      fontSize: 18,
-      maxWidth: 310,
-    }).slice(0, 2);
-
-    titleLines.forEach((line, index) => {
-      page.drawText(line, {
-        x: MARGIN_X,
-        y: PAGE_HEIGHT - 58 - index * 22,
-        size: 18,
-        font: boldFont,
-        color: black,
-      });
+      color: black,
     });
+
+    page.drawText(formatDate(report.generated_at ?? report.created_at), {
+      x: PAGE_WIDTH - MARGIN_X - 130,
+      y: PAGE_HEIGHT - 78,
+      size: 9,
+      font: regularFont,
+      color: gray,
+    });
+
+    page.drawLine({
+      start: { x: MARGIN_X, y: PAGE_HEIGHT - 120 },
+      end: { x: PAGE_WIDTH - MARGIN_X, y: PAGE_HEIGHT - 120 },
+      thickness: 1,
+      color: border,
+    });
+
+    writer.setY(PAGE_HEIGHT - 155);
+  } else {
+    writer.setY(PAGE_HEIGHT - MARGIN_TOP);
   }
-
-  page.drawText("Report", {
-    x: PAGE_WIDTH - MARGIN_X - 130,
-    y: PAGE_HEIGHT - 58,
-    size: 16,
-    font: boldFont,
-    color: black,
-  });
-
-  page.drawText(formatDate(report.generated_at ?? report.created_at), {
-    x: PAGE_WIDTH - MARGIN_X - 130,
-    y: PAGE_HEIGHT - 78,
-    size: 9,
-    font: regularFont,
-    color: gray,
-  });
-
-  page.drawLine({
-    start: { x: MARGIN_X, y: PAGE_HEIGHT - 120 },
-    end: { x: PAGE_WIDTH - MARGIN_X, y: PAGE_HEIGHT - 120 },
-    thickness: 1,
-    color: border,
-  });
-
-  writer.setY(PAGE_HEIGHT - 155);
 
   //   writer.writeHeading(report.title, 1);
 

@@ -14,7 +14,7 @@ type CreemCheckoutResponse = {
 };
 
 function isManagedCreemSubscriptionStatus(status?: string | null) {
-  return status === "active" || status === "scheduled_cancel";
+  return status === "active";
 }
 
 export async function POST(request: Request) {

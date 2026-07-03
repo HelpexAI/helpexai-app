@@ -54,7 +54,10 @@ export type AnswerType = "document" | "general_knowledge" | "off_topic";
 export type SubscriptionStatus =
   | "active"
   | "cancelled"
+  | "expired"
   | "past_due"
+  | "scheduled_cancel"
+  | "scheduledcancel"
   | "trialing";
 
 // ── User & Account ────────────────────────────
