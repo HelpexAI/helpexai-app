@@ -292,7 +292,7 @@ export default function TermsPage() {
                           className="font-semibold text-theme-primary"
                           href="mailto:support@helpexai.com"
                         >
-                          muhammadarslan0111@gmail.com
+                          contact@helpexai.com
                         </a>
                         .
                       </p>
@@ -303,7 +303,7 @@ export default function TermsPage() {
                           className="font-semibold text-theme-primary"
                           href="mailto:privacy@helpexai.com"
                         >
-                          muhammadarslan0111@gmail.com
+                          contact@helpexai.com
                         </a>
                         .
                       </p>
