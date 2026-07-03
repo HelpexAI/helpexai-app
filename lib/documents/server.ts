@@ -68,19 +68,26 @@ export async function getDocumentAccessContext() {
   };
 }
 
-export function fileTypeFromFile(file: File): FileType | null {
-  const extension = file.name.split(".").pop()?.toLowerCase();
+export function fileTypeFromMetadata(
+  name: string,
+  mimeType?: string | null,
+): FileType | null {
+  const extension = name.split(".").pop()?.toLowerCase();
 
-  if (file.type === "application/pdf" || extension === "pdf") return "pdf";
+  if (mimeType === "application/pdf" || extension === "pdf") return "pdf";
   if (
-    file.type ===
+    mimeType ===
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
     extension === "docx"
   ) {
     return "docx";
   }
-  if (file.type === "text/plain" || extension === "txt") return "txt";
+  if (mimeType === "text/plain" || extension === "txt") return "txt";
   return null;
+}
+
+export function fileTypeFromFile(file: File): FileType | null {
+  return fileTypeFromMetadata(file.name, file.type);
 }
 
 export function safeStorageFilename(name: string) {

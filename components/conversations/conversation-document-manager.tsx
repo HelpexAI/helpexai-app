@@ -1,6 +1,7 @@
 "use client";
 
 import { ResponsiveModal } from "@/components/dashboard/responsive-modal";
+import { uploadDocumentsDirect } from "@/lib/client/direct-document-upload";
 import { invalidateWorkspaceQueries, queryKeys } from "@/lib/client/query";
 import { useWorkspaceReference } from "@/lib/client/workspace-reference";
 import { MAX_FILE_SIZE } from "@/lib/validations/schemas";
@@ -82,20 +83,14 @@ export function ConversationDocumentManager({
     setSaving(true);
     setError("");
     try {
-      const form = new FormData();
-      files.forEach((file) => form.append("files", file));
-      form.append("collection_id", collectionId);
-      tagIds.forEach((tagId) => form.append("tag_ids", tagId));
-      const uploadResponse = await fetch("/api/documents", { method: "POST", body: form });
-      const uploadResult = await uploadResponse.json() as {
-        error?: string;
-        documents?: Array<{ id: string }>;
-      };
-      if (!uploadResponse.ok || !uploadResult.documents?.length) {
-        throw new Error(uploadResult.error ?? "Could not upload the document.");
-      }
+      const documents = await uploadDocumentsDirect({
+        files,
+        collectionId,
+        tagIds,
+      });
+      if (!documents.length) throw new Error("Could not upload the document.");
 
-      await Promise.all(uploadResult.documents.map(async (document) => {
+      await Promise.all(documents.map(async (document) => {
         const response = await fetch(`/api/documents/${document.id}/process`, { method: "POST" });
         if (!response.ok) {
           const result = await response.json() as { error?: string };
@@ -103,7 +98,7 @@ export function ConversationDocumentManager({
         }
       }));
 
-      const nextSelected = Array.from(new Set([...selected, ...uploadResult.documents.map((document) => document.id)]));
+      const nextSelected = Array.from(new Set([...selected, ...documents.map((document) => document.id)]));
       setSelected(nextSelected);
       if (await saveDocuments(nextSelected)) setOpen(false);
     } catch (uploadError) {

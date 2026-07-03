@@ -71,6 +71,9 @@ const dynamicProductsMigration = await readFile(new URL("../supabase/migrations/
 const productCatalog = await readFile(new URL("../lib/products/catalog.ts", import.meta.url), "utf8");
 const documentTaxonomyMigration = await readFile(new URL("../supabase/migrations/010_document_collections_and_tags.sql", import.meta.url), "utf8");
 const documentUploader = await readFile(new URL("../components/documents/document-uploader.tsx", import.meta.url), "utf8");
+const directDocumentUpload = await readFile(new URL("../lib/client/direct-document-upload.ts", import.meta.url), "utf8");
+const documentUploadUrlRoute = await readFile(new URL("../app/api/documents/upload-url/route.ts", import.meta.url), "utf8");
+const documentUploadCompleteRoute = await readFile(new URL("../app/api/documents/complete/route.ts", import.meta.url), "utf8");
 const reportsMigration = await readFile(new URL("../supabase/migrations/014_reports_hardening.sql", import.meta.url), "utf8");
 const reportGenerateRoute = await readFile(new URL("../app/api/reports/generate/route.ts", import.meta.url), "utf8");
 const reportSaveRoute = await readFile(new URL("../app/api/reports/save/route.ts", import.meta.url), "utf8");
@@ -391,8 +394,14 @@ test("documents require dynamic collections and tags that enrich AI context", ()
   assert.match(documentTaxonomyMigration, /CREATE TABLE IF NOT EXISTS document_tag_assignments/);
   assert.match(documentTaxonomyMigration, /ALTER COLUMN collection_id SET NOT NULL/);
   assert.match(documentTaxonomyMigration, /seed_default_document_taxonomy/);
-  assert.match(documentUploader, /formData\.append\("collection_id"/);
-  assert.match(documentUploader, /formData\.append\("tag_ids"/);
+  assert.match(documentUploader, /uploadDocumentsDirect/);
+  assert.match(directDocumentUpload, /\/api\/documents\/upload-url/);
+  assert.match(directDocumentUpload, /uploadToSignedUrl/);
+  assert.match(directDocumentUpload, /\/api\/documents\/complete/);
+  assert.match(documentUploadUrlRoute, /collection_id/);
+  assert.match(documentUploadUrlRoute, /tag_ids/);
+  assert.match(documentUploadUrlRoute, /createSignedUploadUrl/);
+  assert.match(documentUploadCompleteRoute, /document_tag_assignments/);
   assert.match(ingestion, /collectionContext/);
   assert.match(ingestion, /tagContext/);
   assert.match(queryPipeline, /collection:/);

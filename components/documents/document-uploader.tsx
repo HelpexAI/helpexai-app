@@ -4,6 +4,7 @@ import { PlanLimitModal } from "@/components/dashboard/plan-limit-modal";
 import { useOptionalDocumentsWorkspace } from "@/components/documents/documents-workspace-shell";
 import { DocumentsContentSkeleton } from "@/components/documents/documents-skeleton";
 import { useWorkspaceReference } from "@/lib/client/workspace-reference";
+import { uploadDocumentsDirect } from "@/lib/client/direct-document-upload";
 import { MAX_FILES_PER_UPLOAD, MAX_FILE_SIZE } from "@/lib/validations/schemas";
 import { formatFileSize } from "@/lib/utils";
 import {
@@ -25,6 +26,12 @@ import { useQueryClient } from "@tanstack/react-query";
 
 type UploadStatus = "selected" | "uploading" | "processing" | "embedding" | "ready" | "failed";
 
+type UploadLimitError = Error & {
+  code?: string;
+  used?: number;
+  limit?: number;
+};
+
 interface UploadItem {
   key: string;
   file: File;
@@ -35,7 +42,6 @@ interface UploadItem {
 
 function isAccepted(file: File) {
   const extension = file.name.split(".").pop()?.toLowerCase();
-  console.log(file.size)
   return ["pdf", "docx", "txt"].includes(extension ?? "") && file.size <= MAX_FILE_SIZE;
 }
 
@@ -48,6 +54,14 @@ function statusLabel(status: UploadStatus) {
 function formatStorageUsage(value: number) {
   if (value < 0) return "Unlimited";
   return formatFileSize(value);
+}
+
+function isUploadLimitError(error: unknown): error is UploadLimitError {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    error.code === "DOCUMENT_LIMIT_REACHED"
+  );
 }
 
 export function DocumentUploader() {
@@ -148,50 +162,55 @@ export function DocumentUploader() {
     setError("");
     pending.forEach((item) => updateItem(item.key, { status: "uploading", progress: 20, error: undefined }));
 
-    const formData = new FormData();
-    pending.forEach((item) => formData.append("files", item.file));
-    formData.append("collection_id", collectionId);
-    tagIds.forEach((tagId) => formData.append("tag_ids", tagId));
-    const response = await fetch("/api/documents", { method: "POST", body: formData });
-    const body = await response.json();
+    try {
+      const uploadedDocuments = await uploadDocumentsDirect({
+        files: pending.map((item) => item.file),
+        collectionId,
+        tagIds,
+        onProgress: (file, progress) => {
+          const item = pending.find((entry) => entry.file === file);
+          if (item) updateItem(item.key, { progress });
+        },
+      });
+      await Promise.all(
+        pending.map(async (item, index) => {
+          updateItem(item.key, { status: "processing", progress: 70 });
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          updateItem(item.key, { status: "embedding", progress: 84 });
 
-    if (!response.ok) {
-      if (body.code === "DOCUMENT_LIMIT_REACHED") {
-        setPlanLimit({ used: body.used ?? 0, limit: body.limit ?? 1 });
-      }
-      pending.forEach((item) =>
-        updateItem(item.key, { status: "failed", progress: 0, error: body.error }),
+          try {
+            const processResponse = await fetch(`/api/documents/${uploadedDocuments[index].id}/process`, { method: "POST" });
+            const processResult = await processResponse.json();
+            if (!processResponse.ok) throw new Error(processResult.error ?? "Document processing failed.");
+            updateItem(item.key, {
+              status: "ready",
+              progress: 100,
+              error: processResult.embedded ? undefined : processResult.warning ?? "Semantic indexing is pending.",
+            });
+          } catch {
+            updateItem(item.key, { status: "ready", progress: 100, error: "Document stored successfully, but semantic indexing could not be confirmed." });
+          }
+        }),
       );
-      setError(body.error ?? "Upload failed.");
+
       setUploading(false);
-      return;
+      await invalidateWorkspaceQueries(queryClient);
+      router.replace(`/documents?collection=${collectionId}`);
+    } catch (uploadError) {
+      if (isUploadLimitError(uploadError)) {
+        setPlanLimit({
+          used: typeof uploadError.used === "number" ? uploadError.used : projectedUsed,
+          limit: typeof uploadError.limit === "number" ? uploadError.limit : storageLimit || 1,
+        });
+      }
+      const message =
+        uploadError instanceof Error ? uploadError.message : "Upload failed.";
+      pending.forEach((item) =>
+        updateItem(item.key, { status: "failed", progress: 0, error: message }),
+      );
+      setError(message);
+      setUploading(false);
     }
-
-    const uploadedDocuments = body.documents as Array<{ id: string }>;
-    await Promise.all(
-      pending.map(async (item, index) => {
-        updateItem(item.key, { status: "processing", progress: 65 });
-        await new Promise((resolve) => setTimeout(resolve, 250));
-        updateItem(item.key, { status: "embedding", progress: 82 });
-
-        try {
-          const processResponse = await fetch(`/api/documents/${uploadedDocuments[index].id}/process`, { method: "POST" });
-          const processResult = await processResponse.json();
-          if (!processResponse.ok) throw new Error(processResult.error ?? "Document processing failed.");
-          updateItem(item.key, {
-            status: "ready",
-            progress: 100,
-            error: processResult.embedded ? undefined : processResult.warning ?? "Semantic indexing is pending.",
-          });
-        } catch {
-          updateItem(item.key, { status: "ready", progress: 100, error: "Document stored successfully, but semantic indexing could not be confirmed." });
-        }
-      }),
-    );
-
-    setUploading(false);
-    await invalidateWorkspaceQueries(queryClient);
-    router.replace(`/documents?collection=${collectionId}`);
   }
 
   if (!activeCollection) {

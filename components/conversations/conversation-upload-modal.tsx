@@ -1,6 +1,7 @@
 "use client";
 
 import { ResponsiveModal } from "@/components/dashboard/responsive-modal";
+import { uploadDocumentsDirect } from "@/lib/client/direct-document-upload";
 import { invalidateWorkspaceQueries } from "@/lib/client/query";
 import { useWorkspaceReference } from "@/lib/client/workspace-reference";
 import { MAX_FILE_SIZE } from "@/lib/validations/schemas";
@@ -33,14 +34,15 @@ export function ConversationUploadModal({ open, onClose, onUploaded }: { open: b
     if (file.size > MAX_FILE_SIZE) return setError("Document must be no larger than 10MB.");
     setSaving(true); setError("");
     try {
-      const form = new FormData();
-      form.append("files", file); form.append("collection_id", collectionId); tagIds.forEach((id) => form.append("tag_ids", id));
-      const response = await fetch("/api/documents", { method: "POST", body: form });
-      const result = await response.json() as { error?: string; documents?: Array<{ id: string }> };
-      if (!response.ok || !result.documents?.length) throw new Error(result.error ?? "Could not upload document.");
-      await Promise.all(result.documents.map((document) => fetch(`/api/documents/${document.id}/process`, { method: "POST" })));
+      const documents = await uploadDocumentsDirect({
+        files: [file],
+        collectionId,
+        tagIds,
+      });
+      if (!documents.length) throw new Error("Could not upload document.");
+      await Promise.all(documents.map((document) => fetch(`/api/documents/${document.id}/process`, { method: "POST" })));
       await invalidateWorkspaceQueries(queryClient);
-      onUploaded?.(result.documents.map((document) => document.id));
+      onUploaded?.(documents.map((document) => document.id));
       onClose();
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Could not upload document.");
