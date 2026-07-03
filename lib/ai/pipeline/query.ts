@@ -83,8 +83,9 @@ function getSystemPromptForQuery(
 
 EXTERNAL RESEARCH MODE:
 - The user explicitly enabled External Research.
-- Answer relevant questions even when they are outside the workspace category or not covered by the documents.
-- Use supplied live web research and reliable general knowledge, cite web sources, and distinguish outside context from document facts.
+- If document context is supplied, it remains the primary source. Answer document-specific, keyword, definition, clause, party, amount, date, obligation, risk, or summary questions from the document context first.
+- Use supplied live web research and reliable general knowledge only when the documents do not contain the answer or when the user asks for outside benchmarks, current market context, comparisons, or practical external implications.
+- Cite web sources only for external context, and clearly separate them from document facts.
 - Do not respond with the category's off-topic refusal while External Research is enabled.`;
 }
 
@@ -107,7 +108,7 @@ function buildPromptWithContext(
 ): string {
   const webContext = formatWebContext(webResults);
   if (!hasContext) {
-    return `${externalResearchEnabled ? `The selected documents do not contain information directly relevant to this question, so answer using External Research and clearly label it as outside context.` : `The selected documents do not contain enough relevant evidence to answer this question. Explain what information is missing and suggest turning on **External Research** for this conversation if the user wants current benchmarks or outside context.`}
+    return `${externalResearchEnabled ? `The retrieved document snippets do not contain information directly relevant to this question. If selected documents are available, the application may retry with direct document text before using External Research. Only answer from External Research when no document context is supplied or the document context still does not answer the question, and clearly label it as outside context.` : `The selected documents do not contain enough relevant evidence to answer this question. Explain what information is missing and suggest turning on **External Research** for this conversation if the user wants current benchmarks or outside context.`}
 
     ${externalResearchEnabled ? `Use reliable general knowledge to answer. ${webContext ? `Use the live web research below when relevant and cite it with Markdown links.\n\nLIVE WEB RESEARCH:\n${webContext}` : "Clearly label estimates, benchmarks, and assumptions."}` : "Do not answer using outside knowledge or invent an estimate."}
 
@@ -154,14 +155,14 @@ ${chunk.payload.text}
 
     User Question: ${question}
 
-    Use the document context as the source of truth for the user's facts. ${externalResearchEnabled ? "You may use general professional knowledge and the live web research to provide benchmarks, estimates, comparisons, or practical context." : "Answer only from the document context. If outside context is needed, suggest turning on **External Research** instead of supplying it."} Never let external knowledge override or invent document facts.
+    Use the document context as the source of truth for the user's facts. For keyword, definition, clause, party, amount, date, obligation, risk, summary, or "what does this mean here" questions, answer from the document context before considering external sources. ${externalResearchEnabled ? "Use general professional knowledge and live web research only for outside benchmarks, estimates, comparisons, current market context, or practical implications that the document itself does not provide." : "Answer only from the document context. If outside context is needed, suggest turning on **External Research** instead of supplying it."} Never let external knowledge override, replace, or invent document facts.
 
-    When external knowledge is relevant, separate the response into:
+    When external knowledge is relevant and genuinely adds value, separate the response into:
     - **Document evidence**
     - **External context or benchmark**
     - **Conclusion and assumptions**
 
-    Cite document names/pages for document evidence. Cite live web sources using Markdown links. Clearly label estimates and uncertainty.
+    If the document context answers the question, do not lead with a generic internet definition. Cite document names/pages for document evidence. Cite live web sources using Markdown links only for external context. Clearly label estimates and uncertainty.
 
     ${RETRIEVAL_METADATA_INSTRUCTION}
 
@@ -419,7 +420,7 @@ ${webContext ? `---\n\nLIVE WEB RESEARCH:\n${webContext}` : ""}
 
 User Question: ${question}
 
-Use document context as the source of truth for document facts. ${externalResearchEnabled ? "You may use reliable general knowledge and live web research for benchmarks, estimates, and practical context. Separate document evidence from external context, cite document names/pages, link web sources, and clearly label assumptions." : "Answer only from the document context. If the documents cannot support the requested outside benchmark or estimate, suggest turning on **External Research** for this conversation."}
+Use document context as the source of truth for document facts. For keyword, definition, clause, party, amount, date, obligation, risk, summary, or "what does this mean here" questions, answer from the document context before considering external sources. ${externalResearchEnabled ? "Use reliable general knowledge and live web research only for outside benchmarks, estimates, current market context, comparisons, or practical context that the document itself does not provide. Separate document evidence from external context, cite document names/pages, link web sources only for external context, and clearly label assumptions." : "Answer only from the document context. If the documents cannot support the requested outside benchmark or estimate, suggest turning on **External Research** for this conversation."}
 
 ${RETRIEVAL_METADATA_INSTRUCTION}
 

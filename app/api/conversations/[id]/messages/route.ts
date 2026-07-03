@@ -96,8 +96,7 @@ async function queryWithSelectedDocumentFallback(
 
     if (
       result.answerType === "document" ||
-      selectedDocumentIds.length === 0 ||
-      externalResearchEnabled
+      selectedDocumentIds.length === 0
     ) {
       return { result, fallbackUsed: false, fallbackReason: null };
     }

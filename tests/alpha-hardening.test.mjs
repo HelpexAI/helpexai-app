@@ -257,12 +257,18 @@ test("document chat can use optional live web research without overriding docume
   assert.match(webSearch, /TAVILY_API_KEY/);
   assert.match(queryPipeline, /LIVE WEB RESEARCH/);
   assert.match(queryPipeline, /document context as the source of truth/);
+  assert.match(queryPipeline, /keyword, definition, clause, party, amount, date, obligation, risk, summary/);
+  assert.match(queryPipeline, /do not lead with a generic internet definition/);
+  assert.match(queryPipeline, /Use reliable general knowledge and live web research only for outside benchmarks/);
+  assert.doesNotMatch(conversationMessagesRoute, /selectedDocumentIds\.length === 0 \|\|\s*externalResearchEnabled/);
+  assert.match(conversationMessagesRoute, /result\.answerType === "document" \|\|\s*selectedDocumentIds\.length === 0/);
 });
 
-test("external research bypasses category rejection and unnecessary raw PDF fallback", () => {
+test("external research bypasses category rejection while preserving selected-document fallback", () => {
   assert.match(queryPipeline, /!\s*externalResearchEnabled && isOffTopic/);
   assert.match(queryPipeline, /\^\(hi\|hello\|hey\|what's up\|how are you\)\\b/);
-  assert.match(conversationMessagesRoute, /\|\|\s*externalResearchEnabled/);
+  assert.doesNotMatch(conversationMessagesRoute, /\|\|\s*externalResearchEnabled/);
+  assert.match(conversationMessagesRoute, /weak_semantic_context/);
   assert.match(ingestion, /standardFontDataUrl/);
   assert.match(queryPipeline, /Do not respond with the category's off-topic refusal/);
 });
