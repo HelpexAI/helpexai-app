@@ -54,6 +54,11 @@ export function DocumentUploader() {
   const [planLimit, setPlanLimit] = useState<{ used: number; limit: number } | null>(null);
   const [tagIds, setTagIds] = useState<string[]>([]);
   const collectionId = activeCollection.id;
+  const actionableCount = items.filter((item) => item.status === "selected" || item.status === "failed").length;
+  const activeUploadCount = items.filter((item) =>
+    ["uploading", "processing", "embedding"].includes(item.status),
+  ).length;
+  const uploadButtonCount = uploading ? activeUploadCount || actionableCount : actionableCount;
 
   function addFiles(files: File[]) {
     setError("");
@@ -317,11 +322,11 @@ export function DocumentUploader() {
             <button
                 type="button"
                 onClick={uploadFiles}
-                disabled={uploading || !collectionId || !tagIds.length || !items.some((item) => item.status === "selected" || item.status === "failed")}
+                disabled={uploading || !collectionId || !tagIds.length || actionableCount === 0}
                 className="flex h-11 items-center justify-center gap-2 rounded-lg bg-theme-primary px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {uploading && <Loader2 className="size-4 animate-spin" />}
-                Upload {items.filter((item) => item.status === "selected" || item.status === "failed").length} File(s)
+                {uploading ? "Uploading" : "Upload"} {uploadButtonCount} File(s)
             </button>
           </div>
         </section>

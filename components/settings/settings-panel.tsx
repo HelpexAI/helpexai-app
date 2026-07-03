@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/client";
 import type { CurrentWorkspace } from "@/lib/dashboard/workspace";
 import {
   AlertTriangle,
-  Bell,
   Check,
   Eye,
   EyeOff,
@@ -284,7 +283,6 @@ export function SettingsPanel({
   const tabs = [
     { id: "profile" as const, label: "Profile", icon: User },
     { id: "password" as const, label: "Password", icon: Lock },
-    { id: "notifications" as const, label: "Notifications", icon: Bell },
     { id: "theme" as const, label: "Theme", icon: Palette },
     {
       id: "delete" as const,
@@ -394,25 +392,6 @@ export function SettingsPanel({
                 />
                 <span className="text-xs text-zinc-500">Cannot be changed</span>
               </label>
-              <div className="border-t border-zinc-200 pt-5 dark:border-zinc-800">
-                <SettingRow
-                  title="Show source citations"
-                  description="Display document sources alongside AI responses"
-                  checked={preferences.showCitations}
-                  onChange={() =>
-                    setPreferences((value) => ({
-                      ...value,
-                      showCitations: !value.showCitations,
-                    }))
-                  }
-                />
-                <SettingRow
-                  title="AI Disclaimer"
-                  description="Required - cannot be disabled"
-                  checked
-                  disabled
-                />
-              </div>
               <button
                 onClick={() => void saveMetadata()}
                 disabled={loading || !name.trim()}

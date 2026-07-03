@@ -4,7 +4,7 @@ import { ClientPageError } from "@/components/dashboard/client-page-error";
 import type { Document } from "@/types";
 import { fetchJson, queryKeys } from "@/lib/client/query";
 import { useQuery } from "@tanstack/react-query";
-import { Download, ExternalLink, FileText } from "lucide-react";
+import { ChevronLeft, Download, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
@@ -52,7 +52,8 @@ function BrowserDocumentView({
             href={`/documents?collection=${document.collection_id}`}
             className="flex shrink-0 items-center gap-1 text-zinc-500 transition hover:text-theme-primary dark:text-zinc-400"
           >
-            <span>Documents</span>
+            <ChevronLeft className="size-4" />
+            <span className="hidden sm:inline">Documents</span>
           </Link>
           <span className="hidden text-zinc-300 dark:text-zinc-700 sm:inline">/</span>
           <div className="min-w-0">
@@ -64,45 +65,32 @@ function BrowserDocumentView({
             </span>
           </div>
         </div>
-        <a
-          href={downloadUrl}
-          className="flex h-9 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
-        >
-          <Download className="size-4" />
-          <span>Download</span>
-        </a>
+        <div className="flex items-center gap-2">
+          <a
+            href={viewUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex h-9 items-center gap-2 rounded-lg bg-theme-primary px-3 text-sm font-medium text-white transition hover:bg-theme-primary-hover"
+          >
+            <ExternalLink className="size-4" />
+            <span className="hidden sm:inline">Open</span>
+          </a>
+          <a
+            href={downloadUrl}
+            className="flex h-9 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+          >
+            <Download className="size-4" />
+            <span className="hidden sm:inline">Download</span>
+          </a>
+        </div>
       </header>
 
-      <main className="flex min-h-0 flex-1 items-center justify-center p-6">
-        <section className="w-full max-w-lg rounded-xl border border-zinc-200 bg-white p-6 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8">
-          <div className="mx-auto flex size-14 items-center justify-center rounded-xl bg-theme-primary/10 text-theme-primary">
-            <FileText className="size-7" />
-          </div>
-          <h1 className="mt-5 break-words text-xl font-bold tracking-tight text-zinc-950 dark:text-white">
-            {displayName}
-          </h1>
-          {/* <p className="mt-3 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-            The built-in document viewer is temporarily disabled for large files. Open the original document in your browser instead.
-          </p> */}
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <a
-              href={viewUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="flex h-11 items-center justify-center gap-2 rounded-lg bg-theme-primary px-4 text-sm font-semibold text-white transition hover:bg-theme-primary-hover"
-            >
-              <ExternalLink className="size-4" />
-              View Document
-            </a>
-            <a
-              href={downloadUrl}
-              className="flex h-11 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
-            >
-              <Download className="size-4" />
-              Download
-            </a>
-          </div>
-        </section>
+      <main className="min-h-0 flex-1 bg-zinc-100 dark:bg-zinc-950">
+        <iframe
+          title={displayName}
+          src={viewUrl}
+          className="h-full min-h-[calc(100dvh-8rem)] w-full border-0 bg-white dark:bg-zinc-950"
+        />
       </main>
     </div>
   );

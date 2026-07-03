@@ -192,9 +192,10 @@ test("Qdrant ingestion uses valid UUID point IDs and correct docId filters", () 
   assert.match(conversationMessagesRoute, /direct selected-document context/);
 });
 
-test("conversation citations open a page-aware highlighted preview", () => {
-  assert.match(activeConversation, /CitationPreviewPanel/);
-  assert.match(activeConversation, /onPreview=\{setActiveCitation\}/);
+test("conversation citations render inline source text without opening the preview drawer", () => {
+  assert.doesNotMatch(activeConversation, /CitationPreviewPanel/);
+  assert.doesNotMatch(activeConversation, /onPreview=\{setActiveCitation\}/);
+  assert.match(activeConversation, /whitespace-pre-wrap/);
   assert.match(citationPanel, /Referenced content/);
   assert.match(citationPanel, /pageNumber/);
   assert.match(documentViewerPage, /highlightExcerpt/);
