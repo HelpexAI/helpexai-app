@@ -18,6 +18,7 @@ type CreemEvent = {
 type CreemObject = {
   object?: string;
   id?: string;
+  status?: string;
   request_id?: string;
   metadata?: Record<string, string>;
   subscription?: CreemObject | string;
@@ -170,7 +171,7 @@ async function resolveAccount(
   if (accountId) {
     const { data, error } = await service
       .from("accounts")
-      .select("id, user_id, category_slug")
+      .select("id, user_id, category_slug, plan, subscription_status, creem_customer_id, creem_subscription_id, creem_current_period_end")
       .eq("id", accountId)
       .maybeSingle();
 
@@ -181,7 +182,7 @@ async function resolveAccount(
   if (creemSubscriptionId) {
     const { data, error } = await service
       .from("accounts")
-      .select("id, user_id, category_slug")
+      .select("id, user_id, category_slug, plan, subscription_status, creem_customer_id, creem_subscription_id, creem_current_period_end")
       .eq("creem_subscription_id", creemSubscriptionId)
       .maybeSingle();
 
@@ -192,7 +193,7 @@ async function resolveAccount(
   if (userId && categorySlug) {
     const { data, error } = await service
       .from("accounts")
-      .select("id, user_id, category_slug")
+      .select("id, user_id, category_slug, plan, subscription_status, creem_customer_id, creem_subscription_id, creem_current_period_end")
       .eq("user_id", userId)
       .eq("category_slug", categorySlug)
       .maybeSingle();
@@ -204,7 +205,7 @@ async function resolveAccount(
   if (creemCustomerId && categorySlug) {
     const { data, error } = await service
       .from("accounts")
-      .select("id, user_id, category_slug")
+      .select("id, user_id, category_slug, plan, subscription_status, creem_customer_id, creem_subscription_id, creem_current_period_end")
       .eq("creem_customer_id", creemCustomerId)
       .eq("category_slug", categorySlug)
       .maybeSingle();
@@ -435,7 +436,9 @@ export async function POST(request: Request) {
     if (claimError) throw claimError;
 
     try {
-      if (
+      if (eventType === "subscription.scheduled_cancel" ) {
+        await syncSubscriptionStatus(service, event,"scheduled_cancel");
+      } else if (
         eventType === "subscription.active" ||
         eventType === "subscription.paid" ||
         eventType === "subscription.trialing" ||
@@ -443,14 +446,11 @@ export async function POST(request: Request) {
         eventType === "checkout.completed"
       ) {
         await syncPaidSubscription(service, event);
-      }
-
-      if (eventType === "subscription.past_due") {
+      } else if (eventType === "subscription.past_due") {
         await syncSubscriptionStatus(service, event, "past_due");
-      }
-      if (
+      } else if (
         eventType === "subscription.canceled" ||
-        eventType === "subscription.scheduled_cancel" ||
+        eventType === "subscription.cancelled" ||
         eventType === "subscription.expired" ||
         eventType === "subscription.unpaid" ||
         eventType === "subscription.paused" ||
