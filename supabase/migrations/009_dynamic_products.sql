@@ -81,7 +81,7 @@ WHERE slug = 'business';
 
 UPDATE categories SET is_active = false, updated_at = now() WHERE slug <> 'business';
 
-INSERT INTO plans (name, slug, category_slug, price_monthly, stripe_price_id, max_documents, max_queries_day)
+INSERT INTO plans (name, slug, category_slug, price_monthly, creem_product_id, max_documents, max_queries_day)
 VALUES
   ('Free', 'free', 'business', 0, NULL, 3, 5),
   ('Pro', 'pro', 'business', 2900, NULL, 30, 30),
@@ -99,7 +99,7 @@ CREATE INDEX IF NOT EXISTS idx_categories_active_sort
 CREATE OR REPLACE FUNCTION seed_default_product_plans()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO plans (name, slug, category_slug, price_monthly, stripe_price_id, max_documents, max_queries_day)
+  INSERT INTO plans (name, slug, category_slug, price_monthly, creem_product_id, max_documents, max_queries_day)
   VALUES
     ('Free', 'free', NEW.slug, 0, NULL, 3, 5),
     ('Pro', 'pro', NEW.slug, 2900, NULL, 30, 30),

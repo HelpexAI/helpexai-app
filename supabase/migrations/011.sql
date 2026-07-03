@@ -49,7 +49,7 @@ begin
       add constraint accounts_billing_provider_check
       check (
         billing_provider is null
-        or billing_provider in ('none', 'stripe', 'creem', 'manual')
+        or billing_provider in ('none', 'creem', 'manual')
       );
   end if;
 end $$;

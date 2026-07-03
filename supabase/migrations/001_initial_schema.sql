@@ -49,7 +49,7 @@ CREATE TABLE plans (
   slug                TEXT NOT NULL CHECK (slug IN ('free', 'pro', 'premium')),
   category_slug       TEXT NOT NULL CHECK (category_slug IN ('legal', 'business')),
   price_monthly       INTEGER NOT NULL DEFAULT 0,           -- in cents (2900 = $29)
-  stripe_price_id     TEXT,                                 -- null for free plan
+  creem_product_id    TEXT,                                 -- null until configured in Creem
   max_documents       INTEGER NOT NULL,
   max_queries_day     INTEGER NOT NULL,
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -70,8 +70,10 @@ CREATE TABLE accounts (
   user_id                 UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   category_slug           TEXT NOT NULL CHECK (category_slug IN ('legal', 'business')),
   plan                    TEXT NOT NULL DEFAULT 'free' CHECK (plan IN ('free', 'pro', 'premium')),
-  stripe_customer_id      TEXT,
-  stripe_subscription_id  TEXT,
+  billing_provider        TEXT DEFAULT 'none' CHECK (billing_provider IS NULL OR billing_provider IN ('none', 'creem', 'manual')),
+  creem_customer_id       TEXT,
+  creem_subscription_id   TEXT,
+  creem_current_period_end TIMESTAMPTZ,
   subscription_status     TEXT CHECK (subscription_status IN ('active', 'cancelled', 'past_due', 'trialing')),
   deletion_requested_at   TIMESTAMPTZ,                      -- set when user requests deletion
   created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -270,10 +272,9 @@ INSERT INTO categories (slug, name, description, system_prompt, disclaimer_text,
 );
 
 -- ── Seed Plans ────────────────────────────────────────────────────────────────
--- stripe_price_id: fill in after creating Stripe products
--- Create 4 Stripe products: Legal Free, Legal Pro, Business Free, Business Pro
+-- creem_product_id: fill in after creating Creem products
 
-INSERT INTO plans (name, slug, category_slug, price_monthly, stripe_price_id, max_documents, max_queries_day) VALUES
+INSERT INTO plans (name, slug, category_slug, price_monthly, creem_product_id, max_documents, max_queries_day) VALUES
 -- Helpex Legal plans
 ('Free',    'free',    'legal',    0,    NULL,           3,   5),
 ('Pro',     'pro',     'legal',    2900, 'price_XXXXXX', 30,  30),
@@ -283,7 +284,7 @@ INSERT INTO plans (name, slug, category_slug, price_monthly, stripe_price_id, ma
 ('Pro',     'pro',     'business', 2900, 'price_YYYYYY', 30,  30),
 ('Premium', 'premium', 'business', 4900, NULL,           100, 100);
 
--- Prefer environment-based Stripe price IDs in application configuration.
+-- Prefer Creem product IDs stored in the plans table.
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- SUPABASE STORAGE
@@ -349,9 +350,9 @@ INSERT INTO plans (name, slug, category_slug, price_monthly, stripe_price_id, ma
 --    Option B: update the row with full prompt text after seeding
 --    Either way, application code in /lib/ai/pipeline/query.ts loads it
 
--- 3. Stripe price IDs: update plans rows after creating Stripe products
---    UPDATE plans SET stripe_price_id = 'price_live_xxx' WHERE slug = 'pro' AND category_slug = 'legal';
---    UPDATE plans SET stripe_price_id = 'price_live_yyy' WHERE slug = 'pro' AND category_slug = 'business';
+-- 3. Creem product IDs: update plans rows after creating Creem products
+--    UPDATE plans SET creem_product_id = 'prod_xxx' WHERE slug = 'pro' AND category_slug = 'legal';
+--    UPDATE plans SET creem_product_id = 'prod_yyy' WHERE slug = 'pro' AND category_slug = 'business';
 
 -- 4. Qdrant: no SQL needed — collection created via /lib/utils/qdrant-setup.ts
 --    Run separately during Phase 0 setup

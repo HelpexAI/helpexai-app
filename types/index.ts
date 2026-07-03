@@ -75,8 +75,6 @@ export interface Account {
   category_slug: CategorySlug;
   plan: PlanSlug;
   dashboard_theme_id: string | null;
-  stripe_customer_id: string | null;
-  stripe_subscription_id: string | null;
   subscription_status: SubscriptionStatus | null;
   deletion_requested_at: string | null;
   created_at: string;
@@ -185,7 +183,6 @@ export interface Plan {
   slug: PlanSlug;
   category_slug: CategorySlug;
   price_monthly: number; // cents
-  stripe_price_id?: string | null;
   max_storage_bytes: number;
   max_queries_day: number;
   max_reports_month: number;

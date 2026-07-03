@@ -18,7 +18,7 @@ Phase 1 (Now):
   ✅ Qdrant        → Vector database
 
 Phase 4 (Week 2):
-  ⏳ Stripe        → Payments + subscriptions
+  ⏳ Creem         → Payments + subscriptions
   ⏳ Resend        → Transactional email
   ⏳ Vercel        → Production deployment
 ```
@@ -308,17 +308,16 @@ OPENAI_API_KEY=sk-proj-your_key_here
 
 ---
 
-## 5. Stripe Setup (Phase 4 — Week 2)
+## 5. Creem Setup (Phase 4 — Week 2)
 
-**URL:** stripe.com  
-**Cost:** 2.9% + $0.30 per transaction  
+**URL:** creem.io  
 **Used for:** Subscription billing
 
 ### 5.1 Get API Keys
 ```
-1. stripe.com → Dashboard → Developers → API Keys
-2. Secret key:      sk_test_... → STRIPE_SECRET_KEY
-3. Publishable key: pk_test_... → NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+1. Creem dashboard → API Keys
+2. API key → CREEM_API_KEY
+3. Webhook signing secret → CREEM_WEBHOOK_SECRET
 ```
 
 ### 5.2 Create Products & Prices
@@ -327,37 +326,38 @@ Dashboard → Products → Add product
 
 Product 1: Helpex Legal Pro
   → Price: $49/month recurring
-  → Copy Price ID → STRIPE_LEGAL_PRO_PRICE_ID
+  → Copy Product ID into plans.creem_product_id
 
 Product 2: Helpex Business Pro
   → Price: $49/month recurring
-  → Copy Price ID → STRIPE_BUSINESS_PRO_PRICE_ID
+  → Copy Product ID into plans.creem_product_id
 ```
 
 ### 5.3 Webhook Setup
 ```
-Dashboard → Developers → Webhooks → Add endpoint
+Dashboard → Webhooks → Add endpoint
 
-Endpoint URL: https://helpexai.com/api/webhooks/stripe
+Endpoint URL: https://helpexai.com/api/billing/creem/webhook
 
 Events to listen:
-  → customer.subscription.created
-  → customer.subscription.updated
-  → customer.subscription.deleted
-  → invoice.payment_succeeded
-  → invoice.payment_failed
+  → checkout.completed
+  → subscription.active
+  → subscription.scheduled_cancel
+  → subscription.expired
+  → subscription.canceled
+  → subscription.unpaid
+  → subscription.paused
 
-Copy: Signing secret → STRIPE_WEBHOOK_SECRET
+Copy: Signing secret → CREEM_WEBHOOK_SECRET
 ```
 
 ### 5.4 Local Webhook Testing
 ```bash
-# Install Stripe CLI
-stripe login
-stripe listen --forward-to localhost:3000/api/webhooks/stripe
+# Use ngrok or another HTTPS tunnel
+ngrok http 3000
 
-# Copy the webhook secret shown in terminal
-# Add to .env.local as STRIPE_WEBHOOK_SECRET
+# Forward Creem webhooks to the ngrok HTTPS URL:
+# https://your-ngrok-domain.ngrok-free.app/api/billing/creem/webhook
 ```
 
 ---
@@ -454,12 +454,10 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 
 # ── PHASE 4 — Fill in Week 2 ─────────────────
 
-# Stripe
-STRIPE_SECRET_KEY=sk_test_...
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_LEGAL_PRO_PRICE_ID=price_...
-STRIPE_BUSINESS_PRO_PRICE_ID=price_...
+# Creem
+CREEM_API_KEY=creem_...
+CREEM_WEBHOOK_SECRET=...
+CREEM_TEST_MODE=true
 
 # Resend (post-MVP)
 RESEND_API_KEY=re_...
@@ -512,11 +510,11 @@ Vercel:
 
 ### Phase 4 (Week 2)
 ```
-Stripe:
+Creem:
   □ Account created
-  □ Test API keys copied
-  □ Products created (Legal Pro + Business Pro)
-  □ Price IDs copied to .env.local
+  □ API key copied
+  □ Products created
+  □ Product IDs added to plans.creem_product_id
   □ Webhook endpoint configured
   □ Webhook secret copied
 

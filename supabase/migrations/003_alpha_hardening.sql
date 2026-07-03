@@ -1,4 +1,4 @@
--- Alpha hardening: secure writes, atomic quotas, rate limiting, and Stripe idempotency.
+-- Alpha hardening: secure writes, atomic quotas, and rate limiting.
 
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS is_locked BOOLEAN NOT NULL DEFAULT false;
 
@@ -81,14 +81,6 @@ BEGIN
   UPDATE rate_limits SET count = count + 1, updated_at = now() WHERE key = p_key;
   RETURN QUERY SELECT true, GREATEST(p_limit - v_row.count - 1, 0), GREATEST(1, CEIL(EXTRACT(EPOCH FROM (v_row.window_started_at + make_interval(secs => p_window_seconds) - now())))::INTEGER);
 END; $$;
-
-CREATE TABLE IF NOT EXISTS stripe_events (
-  event_id TEXT PRIMARY KEY,
-  event_type TEXT NOT NULL,
-  processed_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-ALTER TABLE stripe_events ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON stripe_events FROM anon, authenticated;
 
 REVOKE ALL ON FUNCTION reserve_daily_query(UUID, TEXT, UUID) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION reserve_document_uploads(UUID, TEXT, JSONB) FROM PUBLIC, anon, authenticated;

@@ -3,7 +3,7 @@ import { getActiveWorkspaceCategory } from "@/lib/dashboard/active-workspace";
 import { getDocumentLimitState } from "@/lib/usage/limits";
 import type { CategorySlug, PlanSlug } from "@/types";
 import type { Product } from "@/types";
-import { normalizePlanSlug } from "@/lib/stripe/plans";
+import { normalizePlanSlug } from "@/lib/plans/limits";
 import {
   getActiveProduct,
   getActiveProducts,

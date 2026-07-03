@@ -2,7 +2,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getActiveWorkspaceCategory } from "@/lib/dashboard/active-workspace";
 import { getDocumentLimitState } from "@/lib/usage/limits";
 import type { CategorySlug, FileType, PlanSlug } from "@/types";
-import { normalizePlanSlug } from "@/lib/stripe/plans";
+import { normalizePlanSlug } from "@/lib/plans/limits";
 import { getActiveProducts } from "@/lib/products/catalog";
 
 export async function getDocumentRequestContext() {

@@ -4,7 +4,7 @@ import { BillingOverview } from "@/components/billing/billing-overview";
 import { listCreemCustomerTransactions } from "@/lib/creem/client";
 import { getCurrentWorkspace } from "@/lib/dashboard/workspace";
 import { getProductPlan, getProductPlans } from "@/lib/plans/catalog";
-import { normalizePlanSlug } from "@/lib/stripe/plans";
+import { normalizePlanSlug } from "@/lib/plans/limits";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getWorkspaceUsage } from "@/lib/usage/workspace";
 
@@ -97,9 +97,6 @@ export default async function BillingPage({
           date: formatCreemDate(transaction.created_at),
           amount: formatCreemAmount(amountPaid, transaction.currency ?? "USD"),
           status: getTransactionStatus(amountPaid, refundedAmount),
-
-          // Creem does not return Stripe-style invoice_pdf here.
-          // This opens Creem customer portal instead.
           url: `/api/billing/invoices/${transaction.id}`,
         });
       }

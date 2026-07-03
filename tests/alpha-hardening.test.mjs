@@ -7,7 +7,7 @@ const initialMigration = await readFile(new URL("../supabase/migrations/001_init
 const callback = await readFile(new URL("../app/auth/callback/route.ts", import.meta.url), "utf8");
 const messages = await readFile(new URL("../app/api/conversations/[id]/messages/route.ts", import.meta.url), "utf8");
 const pricingMigration = await readFile(new URL("../supabase/migrations/004_three_tier_pricing.sql", import.meta.url), "utf8");
-const plans = await readFile(new URL("../lib/stripe/plans.ts", import.meta.url), "utf8");
+const planLimits = await readFile(new URL("../lib/plans/limits.ts", import.meta.url), "utf8");
 const publicToolMigration = await readFile(new URL("../supabase/migrations/005_public_tool.sql", import.meta.url), "utf8");
 const publicQuestionRoute = await readFile(new URL("../app/api/public-tool/question/route.ts", import.meta.url), "utf8");
 const publicToolRoute = await readFile(new URL("../app/api/public-tool/route.ts", import.meta.url), "utf8");
@@ -121,11 +121,21 @@ test("successful query usage is reserved atomically", () => {
   assert.match(messages, /querySelectedDocumentsDirectly/);
 });
 
+test("first answer generates a specific conversation title", () => {
+  assert.match(messages, /async function generateConversationTitle/);
+  assert.match(messages, /Create a concise conversation title from the user's question and the assistant's answer/);
+  assert.match(messages, /answer: result\.answer/);
+  assert.match(messages, /sources: result\.sources/);
+  assert.match(messages, /conversationUpdate\.title = sanitizeTextForStorage\(title\)/);
+  assert.match(messages, /conversationUpdate\.is_locked = true/);
+  assert.doesNotMatch(messages, /title: sanitizeTextForStorage\(conversationTitle\(parsed\.data\.content\)\)/);
+});
+
 test("three-tier pricing is consistent in code and migration", () => {
   assert.match(pricingMigration, /'Premium', 'premium', 'legal', 4900, NULL, 100, 100/);
   assert.match(pricingMigration, /'Pro', 'pro', 'business', 2900, NULL, 30, 30/);
-  assert.match(plans, /max_storage_bytes: 30 \* 1024 \* 1024/);
-  assert.match(plans, /max_queries_day: -1/);
+  assert.match(planLimits, /max_storage_bytes: 30 \* 1024 \* 1024/);
+  assert.match(planLimits, /max_queries_day: -1/);
 });
 
 test("public tool enforces one email trial and five atomic answers", () => {

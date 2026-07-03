@@ -1,5 +1,4 @@
 import { getDocumentRequestContext } from "@/lib/documents/server";
-import { stripe } from "@/lib/stripe/client";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { NextResponse } from "next/server";
 
@@ -14,25 +13,6 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   if (body.confirmation !== "DELETE") {
     return NextResponse.json({ error: 'Type "DELETE" to confirm.' }, { status: 400 });
-  }
-
-  const { data: accounts } = await context.service
-    .from("accounts")
-    .select("stripe_subscription_id")
-    .eq("user_id", context.user.id)
-
-  const cancellationErrors: string[] = [];
-  for (const account of accounts ?? []) {
-    if (account.stripe_subscription_id) {
-      try {
-        await stripe.subscriptions.cancel(account.stripe_subscription_id);
-      } catch (error) {
-        cancellationErrors.push(error instanceof Error ? error.message : "Stripe cancellation failed");
-      }
-    }
-  }
-  if (cancellationErrors.length) {
-    return NextResponse.json({ error: "Could not cancel all active subscriptions. Please try again." }, { status: 502 });
   }
 
   const { error } = await context.service

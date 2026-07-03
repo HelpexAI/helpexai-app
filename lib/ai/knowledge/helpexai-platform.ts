@@ -52,7 +52,7 @@ CORE FEATURES
 - Conversation rename and deletion.
 - Legal and Business workspaces with separate themes and document collections.
 - Daily question usage and document-limit tracking.
-- Stripe-powered subscription management.
+- Creem-powered subscription management.
 - Light and dark themes.
 
 PUBLIC FREE TOOL
@@ -80,7 +80,7 @@ The same plans and limits apply to Helpex Legal and Helpex Business:
   cross-document comparison.
 
 Questions reset daily. Subscriptions can be managed through the Billing page.
-Paid plans use Stripe. Users can cancel their paid subscription through the
+Paid plans use Creem. Users can cancel their paid subscription through the
 billing management portal. If a paid subscription becomes inactive, the
 workspace returns to the Free plan. If the workspace then contains more documents
 than the Free allowance, conversations remain locked until the user chooses which
@@ -94,7 +94,7 @@ PRIVACY AND DATA HANDLING
 - Users should upload only documents they have permission to process.
 - Account users can request account deletion from Settings.
 - An account deletion request freezes the account, with permanent cleanup scheduled later.
-- HelpexAI does not store full payment-card numbers; Stripe processes payment details.
+- HelpexAI does not store full payment-card numbers; Creem processes payment details.
 - HelpexAI does not sell personal information.
 - The full public privacy policy is available at /privacy.
 

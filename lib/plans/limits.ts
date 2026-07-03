@@ -1,6 +1,5 @@
-import type { Plan } from '@/types'
+import type { Plan } from "@/types";
 
-// Plan limits
 export const PLAN_LIMITS = {
   free: {
     max_storage_bytes: 30 * 1024 * 1024,
@@ -17,13 +16,13 @@ export const PLAN_LIMITS = {
     max_queries_day: -1,
     max_reports_month: 100,
   },
-} as const
+} as const;
 
-export function normalizePlanSlug(plan: string | null | undefined): Plan['slug'] {
-  return plan === 'premium' || plan === 'pro' ? plan : 'free'
+export function normalizePlanSlug(plan: string | null | undefined): Plan["slug"] {
+  return plan === "premium" || plan === "pro" ? plan : "free";
 }
 
 export function formatPrice(cents: number): string {
-  if (cents === 0) return 'Free'
-  return `$${(cents / 100).toFixed(0)}/mo`
+  if (cents === 0) return "Free";
+  return `$${(cents / 100).toFixed(0)}/mo`;
 }

@@ -13,7 +13,7 @@ This README is the team onboarding guide. It explains how to run the app locally
 - Optional external research through Tavily.
 - Reports, report revisions, finalization, PDF export, and report knowledge indexing.
 - Public free document tool with email capture and abuse protection.
-- Creem billing integration, with older Stripe routes still present for compatibility.
+- Creem billing integration.
 - Internal admin dashboard for users, workspaces, knowledge, reports, usage, health, billing, and settings.
 - Admin-managed categories, collections, tags, report templates, plans, and dashboard themes.
 
@@ -174,18 +174,6 @@ https://your-domain.com/api/billing/creem/webhook
 ```
 
 For local webhook testing, use ngrok or another HTTPS tunnel.
-
-### Stripe Compatibility
-
-Stripe env vars still exist because older routes remain in the codebase:
-
-```env
-STRIPE_SECRET_KEY=
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
-STRIPE_WEBHOOK_SECRET=
-```
-
-Do not rebuild billing around Stripe unless we intentionally switch providers again.
 
 ### Public Tool
 
@@ -573,4 +561,3 @@ lib/admin/data.ts
 - Keep Qdrant payloads backward compatible with `docId` and `docName`.
 - Run migrations deliberately and record which environment they were applied to.
 - Before major launch work, review `/admin/health` and `npm run check`.
-

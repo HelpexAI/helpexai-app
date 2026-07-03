@@ -1,4 +1,4 @@
-import { PLAN_LIMITS } from "@/lib/stripe/plans";
+import { PLAN_LIMITS } from "@/lib/plans/limits";
 import type { CategorySlug, Plan, PlanSlug } from "@/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 

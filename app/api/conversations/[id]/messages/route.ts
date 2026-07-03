@@ -1,4 +1,5 @@
 import { extractDocumentPages } from "@/lib/ai/pipeline/ingest";
+import { getLLMProvider } from "@/lib/ai/factory";
 import {
   isSemanticSearchUnavailable,
   queryDocuments,
@@ -19,6 +20,64 @@ function conversationTitle(message: string) {
   const words = message.trim().replace(/\s+/g, " ").split(" ");
   const title = words.slice(0, 7).join(" ");
   return title.length > 70 ? `${title.slice(0, 67)}...` : title;
+}
+
+function cleanConversationTitle(title: string) {
+  const cleaned = title
+    .replace(/^["'`]+|["'`.]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleaned) return null;
+
+  return cleaned.length > 70 ? `${cleaned.slice(0, 67).trim()}...` : cleaned;
+}
+
+async function generateConversationTitle({
+  question,
+  answer,
+  sources,
+}: {
+  question: string;
+  answer: string;
+  sources: Array<{ docName?: string; itemTitle?: string }>;
+}) {
+  const sourceNames = [
+    ...new Set(
+      sources
+        .map((source) => source.docName ?? source.itemTitle)
+        .filter(Boolean),
+    ),
+  ].slice(0, 3);
+  const fallback = conversationTitle(`${question} ${answer}`);
+
+  try {
+    const title = await getLLMProvider().complete(
+      `Create a concise conversation title from the user's question and the assistant's answer.
+
+Rules:
+- 3 to 6 words.
+- Use the main topic, document concept, party, clause, risk, metric, or task.
+- Do not use generic titles like "Document Question" or "AI Response".
+- Do not include quotation marks, punctuation at the end, or explanatory text.
+- Return only the title.
+
+User question:
+${question.slice(0, 900)}
+
+Assistant answer:
+${answer.slice(0, 1400)}
+
+Relevant sources:
+${sourceNames.length ? sourceNames.join(", ") : "None"}`,
+      "You write short, specific conversation titles for a document-analysis app.",
+    );
+
+    return cleanConversationTitle(title) ?? fallback;
+  } catch (error) {
+    console.warn("Could not generate conversation title:", error);
+    return fallback;
+  }
 }
 
 async function queryWithSelectedDocumentFallback(
@@ -232,16 +291,6 @@ export async function POST(
     return NextResponse.json({ error: userError.message }, { status: 500 });
   }
 
-  if (conversation.title === "New Conversation") {
-    await context.service
-      .from("conversations")
-      .update({
-        title: sanitizeTextForStorage(conversationTitle(parsed.data.content)),
-        is_locked: true,
-      })
-      .eq("id", conversation.id);
-  }
-
   try {
     await logEvent("conversation_semantic_query_started", {
       requestId,
@@ -295,9 +344,25 @@ export async function POST(
       );
     }
 
+    const conversationUpdate: {
+      updated_at: string;
+      title?: string;
+      is_locked?: boolean;
+    } = { updated_at: new Date().toISOString() };
+
+    if (conversation.title === "New Conversation") {
+      const title = await generateConversationTitle({
+        question: parsed.data.content,
+        answer: result.answer,
+        sources: result.sources,
+      });
+      conversationUpdate.title = sanitizeTextForStorage(title);
+      conversationUpdate.is_locked = true;
+    }
+
     await context.service
       .from("conversations")
-      .update({ updated_at: new Date().toISOString() })
+      .update(conversationUpdate)
       .eq("id", conversation.id);
     await logEvent("conversation_answer_completed", {
       requestId,

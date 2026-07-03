@@ -6,7 +6,7 @@ ALTER TABLE plans ADD CONSTRAINT plans_slug_check CHECK (slug IN ('free', 'pro',
 ALTER TABLE accounts DROP CONSTRAINT IF EXISTS accounts_plan_check;
 ALTER TABLE accounts ADD CONSTRAINT accounts_plan_check CHECK (plan IN ('free', 'pro', 'premium'));
 
-INSERT INTO plans (name, slug, category_slug, price_monthly, stripe_price_id, max_documents, max_queries_day)
+INSERT INTO plans (name, slug, category_slug, price_monthly, creem_product_id, max_documents, max_queries_day)
 VALUES
   ('Free', 'free', 'legal', 0, NULL, 3, 5),
   ('Pro', 'pro', 'legal', 2900, NULL, 30, 30),
