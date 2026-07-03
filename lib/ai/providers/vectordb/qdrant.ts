@@ -4,6 +4,8 @@ import { VectorDBProvider, VectorSearchResult } from "@/types";
 const TEMPORARY_QDRANT_ERROR =
   /eai_again|fetch failed|failed to fetch|etimedout|timeout|econnreset|enotfound/i;
 const QDRANT_RETRY_DELAY_MS = 250;
+const QDRANT_DEFAULT_TIMEOUT_MS = 30_000;
+const QDRANT_DEFAULT_UPSERT_BATCH_SIZE = 100;
 
 function isTemporaryQdrantError(error: unknown): boolean {
   const values: string[] = [];
@@ -28,6 +30,14 @@ function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
 export class QdrantProvider implements VectorDBProvider {
   private client: QdrantClient;
   private collectionName: string;
@@ -49,7 +59,7 @@ export class QdrantProvider implements VectorDBProvider {
       // The compatibility probe is an extra network request on every client
       // creation. Semantic operations already surface actionable errors.
       checkCompatibility: false,
-      timeout: Number(process.env.QDRANT_TIMEOUT_MS ?? 4_000),
+      timeout: Number(process.env.QDRANT_TIMEOUT_MS ?? QDRANT_DEFAULT_TIMEOUT_MS),
     });
     this.collectionName = process.env.QDRANT_COLLECTION_NAME;
   }
@@ -70,10 +80,9 @@ export class QdrantProvider implements VectorDBProvider {
       }
     }
 
-    const cause =
-      lastError instanceof Error && lastError.cause
-        ? ` Cause: ${String(lastError.cause)}`
-        : "";
+    const cause = lastError instanceof Error
+      ? ` Cause: ${lastError.message}${lastError.cause ? ` ${String(lastError.cause)}` : ""}`
+      : "";
     throw new Error(
       `Qdrant ${operation} failed for collection "${this.collectionName}".${cause}`,
       { cause: lastError },
@@ -126,12 +135,22 @@ export class QdrantProvider implements VectorDBProvider {
       payload: { ...v.payload, namespace },
     }));
 
-    await this.run("upsert", () =>
-      this.client.upsert(this.collectionName, {
-        wait: true,
-        points,
-      }),
+    const batchSize = Math.max(
+      1,
+      Number(
+        process.env.QDRANT_UPSERT_BATCH_SIZE ??
+          QDRANT_DEFAULT_UPSERT_BATCH_SIZE,
+      ),
     );
+
+    for (const [batchIndex, batch] of chunkArray(points, batchSize).entries()) {
+      await this.run(`upsert batch ${batchIndex + 1}`, () =>
+        this.client.upsert(this.collectionName, {
+          wait: true,
+          points: batch,
+        }),
+      );
+    }
     void this.ensurePayloadIndexes().catch((error) => {
       console.warn("Qdrant payload index setup failed after upsert.", error);
     });

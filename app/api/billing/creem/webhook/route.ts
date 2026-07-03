@@ -369,8 +369,6 @@ async function syncPaidSubscription(
     .eq("id", account.id);
 
   if (error) throw error;
-
-  await sendSubscriptionDowngradeEmail(service, account, status);
 }
 
 async function syncSubscriptionStatus(
@@ -473,6 +471,8 @@ async function downgradeToFree(
     .eq("id", account.id);
 
   if (error) throw error;
+
+  await sendSubscriptionDowngradeEmail(service, account, status);
 }
 
 export async function POST(request: Request) {

@@ -10,6 +10,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type Usage = {
@@ -51,7 +52,6 @@ type Invoice = {
 };
 
 const CHECKOUT_PATH = "/api/billing/creem/checkout";
-const PORTAL_PATH = "/api/billing/creem/portal";
 
 type ToastTone = "success" | "warning" | "error";
 
@@ -176,9 +176,7 @@ export function BillingOverview({
   subscriptionStatus: SubscriptionStatus | null;
   plans: Plan[];
 }) {
-  const [loading, setLoading] = useState<"pro" | "premium" | "portal" | null>(
-    null,
-  );
+  const [loading, setLoading] = useState<"pro" | "premium" | null>(null);
   const [error, setError] = useState("");
   const [dismissedNotice, setDismissedNotice] = useState<
     "success" | "cancelled" | null
@@ -219,16 +217,14 @@ export function BillingOverview({
         }
       : null;
 
-  async function openCreem(action: "pro" | "premium" | "portal") {
+  async function openCreem(action: "pro" | "premium") {
     setLoading(action);
     setError("");
 
-    const isPortal = action === "portal";
-
-    const response = await fetch(isPortal ? PORTAL_PATH : CHECKOUT_PATH, {
+    const response = await fetch(CHECKOUT_PATH, {
       method: "POST",
-      headers: isPortal ? undefined : { "Content-Type": "application/json" },
-      body: isPortal ? undefined : JSON.stringify({ plan_slug: action }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plan_slug: action }),
     });
 
     const body = await response.json().catch(() => null);
@@ -354,18 +350,13 @@ export function BillingOverview({
           </ul>
 
           {plan === "pro" ? (
-            <button
-              onClick={() => void openCreem("portal")}
-              disabled={loading !== null}
+            <Link
+              href="/billing/manage"
               className="flex h-11 items-center justify-center gap-2 rounded-full bg-white font-semibold text-theme-primary disabled:opacity-70"
             >
-              {loading === "portal" ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Settings2 className="size-4" />
-              )}{" "}
+              <Settings2 className="size-4" />
               Manage Subscription
-            </button>
+            </Link>
           ) : (
             <button
               onClick={() => void openCreem("pro")}
@@ -426,18 +417,13 @@ export function BillingOverview({
           </ul>
 
           {plan === "premium" ? (
-            <button
-              onClick={() => void openCreem("portal")}
-              disabled={loading !== null}
+            <Link
+              href="/billing/manage"
               className="flex h-11 items-center justify-center gap-2 rounded-full bg-theme-primary font-semibold text-white disabled:opacity-70"
             >
-              {loading === "portal" ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Settings2 className="size-4" />
-              )}{" "}
+              <Settings2 className="size-4" />
               Manage Subscription
-            </button>
+            </Link>
           ) : (
             <button
               onClick={() => void openCreem("premium")}

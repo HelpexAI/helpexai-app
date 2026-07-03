@@ -133,7 +133,8 @@ Notes:
 QDRANT_URL=
 QDRANT_API_KEY=
 QDRANT_COLLECTION_NAME=helpexai_alpha
-QDRANT_TIMEOUT_MS=4000
+QDRANT_TIMEOUT_MS=30000
+QDRANT_UPSERT_BATCH_SIZE=100
 VECTOR_SELECTED_DOC_MIN_SCORE=0.3
 VECTOR_GLOBAL_MIN_SCORE=0.45
 ```
@@ -490,6 +491,8 @@ Check:
 - collection name
 - Qdrant cluster status
 - local network/DNS
+- `QDRANT_TIMEOUT_MS` is high enough for your Qdrant region and document size
+- `QDRANT_UPSERT_BATCH_SIZE` is small enough for large document indexing
 
 The app has selected-document fallback behavior, but semantic search needs Qdrant.
 

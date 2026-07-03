@@ -1,7 +1,9 @@
 "use client";
 
 import { PlanLimitModal } from "@/components/dashboard/plan-limit-modal";
-import { useDocumentsWorkspace } from "@/components/documents/documents-workspace-shell";
+import { useOptionalDocumentsWorkspace } from "@/components/documents/documents-workspace-shell";
+import { DocumentsContentSkeleton } from "@/components/documents/documents-skeleton";
+import { useWorkspaceReference } from "@/lib/client/workspace-reference";
 import { MAX_FILES_PER_UPLOAD, MAX_FILE_SIZE } from "@/lib/validations/schemas";
 import { formatFileSize } from "@/lib/utils";
 import {
@@ -16,7 +18,7 @@ import {
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ChangeEvent, DragEvent, useRef, useState } from "react";
 import { invalidateWorkspaceQueries } from "@/lib/client/query";
 import { useQueryClient } from "@tanstack/react-query";
@@ -33,6 +35,7 @@ interface UploadItem {
 
 function isAccepted(file: File) {
   const extension = file.name.split(".").pop()?.toLowerCase();
+  console.log(file.size)
   return ["pdf", "docx", "txt"].includes(extension ?? "") && file.size <= MAX_FILE_SIZE;
 }
 
@@ -43,7 +46,9 @@ function statusLabel(status: UploadStatus) {
 }
 
 export function DocumentUploader() {
-  const { activeCollection, tags } = useDocumentsWorkspace();
+  const workspace = useOptionalDocumentsWorkspace();
+  const { data: referenceData } = useWorkspaceReference();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -53,7 +58,15 @@ export function DocumentUploader() {
   const [error, setError] = useState("");
   const [planLimit, setPlanLimit] = useState<{ used: number; limit: number } | null>(null);
   const [tagIds, setTagIds] = useState<string[]>([]);
-  const collectionId = activeCollection.id;
+  const collections = workspace?.collections ?? referenceData?.collections ?? [];
+  const tags = workspace?.tags ?? referenceData?.tags ?? [];
+  const requestedCollectionId = searchParams.get("collection");
+  const activeCollection =
+    workspace?.activeCollection ??
+    collections.find((collection) => collection.id === requestedCollectionId) ??
+    collections[0] ??
+    null;
+  const collectionId = activeCollection?.id ?? "";
   const actionableCount = items.filter((item) => item.status === "selected" || item.status === "failed").length;
   const activeUploadCount = items.filter((item) =>
     ["uploading", "processing", "embedding"].includes(item.status),
@@ -159,11 +172,15 @@ export function DocumentUploader() {
     router.replace(`/documents?collection=${collectionId}`);
   }
 
+  if (!activeCollection) {
+    return <DocumentsContentSkeleton />;
+  }
+
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <div className="flex items-center gap-4">
         <Link
-          href={`/documents?collection=${collectionId}`}
+          href={collectionId ? `/documents?collection=${collectionId}` : "/documents"}
           className="flex h-10 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
         >
           <ArrowLeft className="size-4" />

@@ -36,12 +36,16 @@ const DocumentsWorkspaceContext = createContext<DocumentsWorkspaceValue | null>(
 );
 
 export function useDocumentsWorkspace() {
-  const context = useContext(DocumentsWorkspaceContext);
+  const context = useOptionalDocumentsWorkspace();
   if (!context)
     throw new Error(
       "useDocumentsWorkspace must be used inside DocumentsWorkspaceShell.",
     );
   return context;
+}
+
+export function useOptionalDocumentsWorkspace() {
+  return useContext(DocumentsWorkspaceContext);
 }
 
 export function DocumentsWorkspaceShell({

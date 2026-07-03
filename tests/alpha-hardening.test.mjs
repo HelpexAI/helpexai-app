@@ -85,6 +85,10 @@ const billingPage = await readFile(new URL("../app/(dashboard)/billing/page.tsx"
 const billingOverview = await readFile(new URL("../components/billing/billing-overview.tsx", import.meta.url), "utf8");
 const creemCheckoutRoute = await readFile(new URL("../app/api/billing/creem/checkout/route.ts", import.meta.url), "utf8");
 const creemWebhookRoute = await readFile(new URL("../app/api/billing/creem/webhook/route.ts", import.meta.url), "utf8");
+const creemCancelRoute = await readFile(new URL("../app/api/billing/creem/subscription/cancel/route.ts", import.meta.url), "utf8");
+const creemResumeRoute = await readFile(new URL("../app/api/billing/creem/subscription/resume/route.ts", import.meta.url), "utf8");
+const billingManagePage = await readFile(new URL("../app/(dashboard)/billing/manage/page.tsx", import.meta.url), "utf8");
+const subscriptionManagement = await readFile(new URL("../components/billing/subscription-management.tsx", import.meta.url), "utf8");
 const creemScheduledCancelMigration = await readFile(new URL("../supabase/migrations/021_creem_scheduled_cancel_status.sql", import.meta.url), "utf8");
 const reportRoute = await readFile(new URL("../app/api/reports/[id]/route.ts", import.meta.url), "utf8");
 const workspaceReferenceRoute = await readFile(new URL("../app/api/workspace/reference/route.ts", import.meta.url), "utf8");
@@ -193,7 +197,9 @@ test("Qdrant ingestion uses valid UUID point IDs and correct docId filters", () 
   }
   assert.match(qdrantProvider, /Qdrant \$\{operation\} failed/);
   assert.match(qdrantProvider, /checkCompatibility: false/);
-  assert.match(qdrantProvider, /QDRANT_TIMEOUT_MS \?\? 4_000/);
+  assert.match(qdrantProvider, /QDRANT_DEFAULT_TIMEOUT_MS = 30_000/);
+  assert.match(qdrantProvider, /QDRANT_DEFAULT_UPSERT_BATCH_SIZE = 100/);
+  assert.match(qdrantProvider, /QDRANT_UPSERT_BATCH_SIZE/);
   assert.match(qdrantProvider, /eai_again\|fetch failed/);
   const qdrantSearchMethod = qdrantProvider.match(/async search[\s\S]*?\n  async delete/)?.[0] ?? "";
   assert.doesNotMatch(qdrantSearchMethod, /ensurePayloadIndexes/);
@@ -562,6 +568,10 @@ test("Creem scheduled cancellations keep paid access until final cancellation", 
   assert.match(creemWebhookRoute, /service\.auth\.admin\.getUserById\(account\.user_id\)/);
   assert.match(creemWebhookRoute, /template: status === "expired" \? "subscription_expired" : "subscription_cancelled"/);
   assert.match(creemWebhookRoute, /eventType === "subscription\.expired" \? "expired" : "cancelled"/);
+  const paidSync = creemWebhookRoute.split("async function syncPaidSubscription")[1]?.split("async function syncSubscriptionStatus")[0] ?? "";
+  const downgradeSync = creemWebhookRoute.split("async function downgradeToFree")[1]?.split("export async function POST")[0] ?? "";
+  assert.doesNotMatch(paidSync, /sendSubscriptionDowngradeEmail/);
+  assert.match(downgradeSync, /sendSubscriptionDowngradeEmail\(service, account, status\)/);
   assert.match(creemScheduledCancelMigration, /'scheduled_cancel'/);
   assert.match(creemScheduledCancelMigration, /'scheduledcancel'/);
   assert.match(creemCheckoutRoute, /return status === "active";/);
@@ -570,6 +580,28 @@ test("Creem scheduled cancellations keep paid access until final cancellation", 
   assert.doesNotMatch(billingOverview, /plan === "free" && isScheduledCancel[\s\S]*Manage Subscription/);
   assert.match(billingOverview, /plan === "pro" \? \([\s\S]*Manage Subscription/);
   assert.match(billingOverview, /plan === "premium" \? \([\s\S]*Manage Subscription/);
+});
+
+test("Creem subscription management is handled inside the app", () => {
+  assert.match(billingOverview, /href="\/billing\/manage"/);
+  assert.doesNotMatch(billingOverview, /openCreem\("portal"\)/);
+  assert.match(billingManagePage, /SubscriptionManagement/);
+  assert.match(billingManagePage, /noStore\(\)/);
+  assert.match(billingManagePage, /creem_subscription_id/);
+  assert.match(subscriptionManagement, /Cancel subscription/);
+  assert.match(subscriptionManagement, /Confirm cancellation/);
+  assert.match(subscriptionManagement, /Resume subscription/);
+  assert.match(subscriptionManagement, /Update payment method/);
+  assert.match(subscriptionManagement, /\/api\/billing\/creem\/portal/);
+  assert.match(subscriptionManagement, /\/api\/billing\/creem\/subscription\/\$\{action\}/);
+  assert.match(subscriptionManagement, /router\.refresh\(\)/);
+  assert.match(creemCancelRoute, /\/subscriptions\/\$\{account\.creem_subscription_id\}\/cancel/);
+  assert.match(creemCancelRoute, /mode: "scheduled"/);
+  assert.match(creemCancelRoute, /onExecute: "cancel"/);
+  assert.match(creemCancelRoute, /subscription_status: "scheduled_cancel"/);
+  assert.match(creemResumeRoute, /\/subscriptions\/\$\{account\.creem_subscription_id\}\/resume/);
+  assert.match(creemResumeRoute, /subscription_status: "active"/);
+  assert.match(creemResumeRoute, /subscriptionStatus: "active"/);
 });
 
 test("Resend email setup is server-only and template-driven", () => {
@@ -598,6 +630,9 @@ test("stable workspace reference data is cached once and documents use a minimal
   assert.match(queryProvider, /WorkspaceReferenceBootstrap/);
   assert.doesNotMatch(documentsGetRoute, /\.from\("collections"\)/);
   assert.doesNotMatch(documentsGetRoute, /\.from\("tags"\)/);
+  assert.match(documentUploader, /useOptionalDocumentsWorkspace/);
+  assert.match(documentUploader, /useWorkspaceReference/);
+  assert.match(documentUploader, /return <DocumentsContentSkeleton \/>/);
   assert.match(conversationUploadModal, /useWorkspaceReference/);
   assert.match(documentsSkeleton, /DocumentsContentSkeleton/);
   assert.match(documentsSkeleton, /animate-pulse/);
