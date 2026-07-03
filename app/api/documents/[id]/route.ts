@@ -38,10 +38,6 @@ export async function GET(
     .createSignedUrl(document.file_path, 60 * 60, { download: document.name });
   if (!download?.signedUrl) return NextResponse.json({ error: "Could not open document" }, { status: 500 });
 
-  const { data: view } = await context.service.storage
-    .from("documents")
-    .createSignedUrl(document.file_path, 60 * 60);
-
   let extractedText: string | null = null;
   if (document.file_type !== "pdf") {
     const { data: file } = await context.service.storage.from("documents").download(document.file_path);
@@ -58,7 +54,7 @@ export async function GET(
 
   return NextResponse.json({
     document: normalizeDocumentRelations(document),
-    viewUrl: report ? `/api/reports/${report.id}/download` : view?.signedUrl ?? download.signedUrl,
+    viewUrl: report ? `/api/reports/${report.id}/download` : `/api/documents/${document.id}/view`,
     downloadUrl: report ? `/api/reports/${report.id}/download` : download.signedUrl,
     extractedText,
   });

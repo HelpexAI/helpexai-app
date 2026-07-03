@@ -81,9 +81,9 @@ function BrowserDocumentView({
           <h1 className="mt-5 break-words text-xl font-bold tracking-tight text-zinc-950 dark:text-white">
             {displayName}
           </h1>
-          <p className="mt-3 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+          {/* <p className="mt-3 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
             The built-in document viewer is temporarily disabled for large files. Open the original document in your browser instead.
-          </p>
+          </p> */}
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <a
               href={viewUrl}
@@ -92,7 +92,7 @@ function BrowserDocumentView({
               className="flex h-11 items-center justify-center gap-2 rounded-lg bg-theme-primary px-4 text-sm font-semibold text-white transition hover:bg-theme-primary-hover"
             >
               <ExternalLink className="size-4" />
-              Open in New Tab
+              View Document
             </a>
             <a
               href={downloadUrl}
