@@ -151,10 +151,12 @@ function drawFooter({
   page,
   regularFont,
   pageNumber,
+  showBranding,
 }: {
   page: PDFPage;
   regularFont: PDFFont;
   pageNumber: number;
+  showBranding: boolean;
 }) {
   const gray = rgb(0.45, 0.45, 0.5);
   const border = rgb(0.86, 0.86, 0.88);
@@ -166,13 +168,15 @@ function drawFooter({
     color: border,
   });
 
-  page.drawText("Prepared by HelpexAI", {
-    x: MARGIN_X,
-    y: 28,
-    size: 8,
-    font: regularFont,
-    color: gray,
-  });
+  if (showBranding) {
+    page.drawText("Prepared by HelpexAI", {
+      x: MARGIN_X,
+      y: 28,
+      size: 8,
+      font: regularFont,
+      color: gray,
+    });
+  }
 
   page.drawText(`Page ${pageNumber}`, {
     x: PAGE_WIDTH - MARGIN_X - 40,
@@ -187,10 +191,12 @@ function createWriter({
   pdfDoc,
   regularFont,
   boldFont,
+  showBranding,
 }: {
   pdfDoc: PDFDocument;
   regularFont: PDFFont;
   boldFont: PDFFont;
+  showBranding: boolean;
 }) {
   const black = rgb(0.09, 0.09, 0.11);
   const gray = rgb(0.38, 0.38, 0.42);
@@ -205,7 +211,7 @@ function createWriter({
   function ensureSpace(height: number) {
     if (y - height >= MARGIN_BOTTOM) return;
 
-    drawFooter({ page, regularFont, pageNumber });
+    drawFooter({ page, regularFont, pageNumber, showBranding });
 
     pageNumber += 1;
     page = addPage(pdfDoc);
@@ -536,7 +542,7 @@ function createWriter({
   }
 
   function finish() {
-    drawFooter({ page, regularFont, pageNumber });
+    drawFooter({ page, regularFont, pageNumber, showBranding });
   }
 
   return {
@@ -564,7 +570,7 @@ function createWriter({
   };
 }
 
-async function createReportPdf(report: ReportRecord) {
+async function createReportPdf(report: ReportRecord, showBranding: boolean) {
   const pdfDoc = await PDFDocument.create();
 
   const regularFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -574,34 +580,54 @@ async function createReportPdf(report: ReportRecord) {
     pdfDoc,
     regularFont,
     boldFont,
+    showBranding,
   });
 
   const page = writer.page();
   const { black, gray, primary, border, lightBg } = writer.colors;
 
-  page.drawRectangle({
-    x: 0,
-    y: PAGE_HEIGHT - 120,
-    width: PAGE_WIDTH,
-    height: 120,
-    color: lightBg,
-  });
+  if (showBranding) {
+    page.drawRectangle({
+      x: 0,
+      y: PAGE_HEIGHT - 120,
+      width: PAGE_WIDTH,
+      height: 120,
+      color: lightBg,
+    });
 
-  page.drawText("HelpexAI", {
-    x: MARGIN_X,
-    y: PAGE_HEIGHT - 58,
-    size: 24,
-    font: boldFont,
-    color: primary,
-  });
+    page.drawText("HelpexAI", {
+      x: MARGIN_X,
+      y: PAGE_HEIGHT - 58,
+      size: 24,
+      font: boldFont,
+      color: primary,
+    });
 
-  page.drawText("Business Knowledge Workspace", {
-    x: MARGIN_X,
-    y: PAGE_HEIGHT - 78,
-    size: 9,
-    font: regularFont,
-    color: gray,
-  });
+    page.drawText("Business Knowledge Workspace", {
+      x: MARGIN_X,
+      y: PAGE_HEIGHT - 78,
+      size: 9,
+      font: regularFont,
+      color: gray,
+    });
+  } else {
+    const titleLines = wrapText({
+      text: stripMarkdownInline(report.title),
+      font: boldFont,
+      fontSize: 18,
+      maxWidth: 310,
+    }).slice(0, 2);
+
+    titleLines.forEach((line, index) => {
+      page.drawText(line, {
+        x: MARGIN_X,
+        y: PAGE_HEIGHT - 58 - index * 22,
+        size: 18,
+        font: boldFont,
+        color: black,
+      });
+    });
+  }
 
   page.drawText("Report", {
     x: PAGE_WIDTH - MARGIN_X - 130,
@@ -766,7 +792,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     );
   }
 
-  const pdfBytes = await createReportPdf(typedReport);
+  const pdfBytes = await createReportPdf(typedReport, context.plan === "free");
 
   return new NextResponse(Buffer.from(pdfBytes), {
     headers: {

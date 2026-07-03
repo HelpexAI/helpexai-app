@@ -450,6 +450,13 @@ test("report PDF export preserves WinAnsi text and degrades unsupported scripts 
   assert.doesNotMatch(reportDownloadHandler, /tableBuffer|writer\.writeTable/);
 });
 
+test("paid report PDF exports omit HelpexAI download branding", () => {
+  assert.match(reportDownloadRoute, /showBranding/);
+  assert.match(reportDownloadRoute, /createReportPdf\(typedReport, context\.plan === "free"\)/);
+  assert.match(reportDownloadRoute, /if \(showBranding\) \{\s*page\.drawText\("Prepared by HelpexAI"/);
+  assert.match(reportDownloadRoute, /if \(showBranding\) \{[\s\S]*page\.drawText\("HelpexAI"/);
+});
+
 test("report revision mode stores clean version history and blocks finalized edits", () => {
   assert.match(reportRevisionMigration, /CREATE TABLE IF NOT EXISTS report_versions/);
   assert.match(reportRevisionMigration, /current_version_id/);
