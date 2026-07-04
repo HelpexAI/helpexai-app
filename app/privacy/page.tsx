@@ -343,7 +343,7 @@ export default function PrivacyPage() {
                           className="font-semibold text-theme-primary"
                           href="mailto:privacy@helpexai.com"
                         >
-                          contact@helpexai.com
+                          privacy@helpexai.com
                         </a>
                         .
                       </p>
@@ -352,7 +352,7 @@ export default function PrivacyPage() {
                         For general support, contact{" "}
                         <a
                           className="font-semibold text-theme-primary"
-                          href="mailto:support@helpexai.com"
+                          href="mailto:contact@helpexai.com"
                         >
                           contact@helpexai.com
                         </a>
@@ -363,11 +363,11 @@ export default function PrivacyPage() {
                         Operator: HelpexAI. Country: Pakistan. Website:{" "}
                         <a
                           className="font-semibold text-theme-primary"
-                          href="https://helpexai.tiwanaconnect.com"
+                          href="https://helpexai.com"
                           target="_blank"
                           rel="noreferrer"
                         >
-                          helpexai.tiwanaconnect.com
+                          helpexai.com
                         </a>
                         .
                       </p>

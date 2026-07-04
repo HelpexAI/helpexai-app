@@ -290,7 +290,7 @@ export default function TermsPage() {
                         access, or support, contact us at{" "}
                         <a
                           className="font-semibold text-theme-primary"
-                          href="mailto:support@helpexai.com"
+                          href="mailto:contact@helpexai.com"
                         >
                           contact@helpexai.com
                         </a>
@@ -303,7 +303,7 @@ export default function TermsPage() {
                           className="font-semibold text-theme-primary"
                           href="mailto:privacy@helpexai.com"
                         >
-                          contact@helpexai.com
+                          privacy@helpexai.com
                         </a>
                         .
                       </p>
@@ -312,11 +312,11 @@ export default function TermsPage() {
                         Operator: HelpexAI. Country: Pakistan. Website:{" "}
                         <a
                           className="font-semibold text-theme-primary"
-                          href="https://helpexai.tiwanaconnect.com"
+                          href="https://helpexai.com"
                           target="_blank"
                           rel="noreferrer"
                         >
-                          helpexai.tiwanaconnect.com
+                          helpexai.com
                         </a>
                         .
                       </p>

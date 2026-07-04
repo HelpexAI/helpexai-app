@@ -205,10 +205,10 @@ export default function RefundPolicyPage() {
 
                       <p>
                         <a
-                          href="mailto:support@helpexai.com"
+                          href="mailto:contact@helpexai.com"
                           className="font-semibold text-theme-primary"
                         >
-                          support@helpexai.com
+                          contact@helpexai.com
                         </a>
                       </p>
 

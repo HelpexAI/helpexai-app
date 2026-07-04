@@ -61,10 +61,10 @@ export default function ContactPage() {
                 </p>
 
                 <a
-                  href="mailto:support@helpexai.com"
+                  href="mailto:contact@helpexai.com"
                   className="mt-4 inline-block font-semibold text-theme-primary"
                 >
-                  support@helpexai.com
+                  contact@helpexai.com
                 </a>
               </article>
 
