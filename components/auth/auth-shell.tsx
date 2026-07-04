@@ -1,11 +1,11 @@
 "use client";
 
+import { BrandLogo } from "@/components/brand-logo";
 import { AuthBrandPanel } from "@/components/auth/auth-brand-panel";
 import { AuthThemeToggle } from "@/components/auth/auth-theme-toggle";
 import { themeStyle } from "@/lib/theme";
 import type { Product } from "@/types";
 import Link from "next/link";
-import { LayoutDashboard } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
 export function AuthShell({
@@ -38,9 +38,7 @@ export function AuthShell({
         <main className="relative flex min-h-screen w-full items-center justify-center px-4 py-20 sm:px-8 lg:w-[58%] lg:px-12 lg:py-12 xl:w-[60%]">
           <div className="absolute left-4 top-4 lg:hidden">
             <Link href={productHref} className="flex items-center gap-2">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-theme-primary text-white">
-                <LayoutDashboard className="size-4" />
-              </div>
+              <BrandLogo className="size-9 rounded-xl" priority />
               <span className="font-bold tracking-tight">HelpexAI</span>
             </Link>
           </div>

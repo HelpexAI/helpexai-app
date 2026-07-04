@@ -1,21 +1,10 @@
 "use client";
 
+import { useThemeMode } from "@/lib/theme-mode";
 import { Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
 
 export function AuthThemeToggle() {
-  const [dark, setDark] = useState(false);
-
-  useEffect(() => {
-    setDark(document.documentElement.classList.contains("dark"));
-  }, []);
-
-  function toggleTheme() {
-    const nextDark = !dark;
-    document.documentElement.classList.toggle("dark", nextDark);
-    localStorage.setItem("helpex-theme", nextDark ? "dark" : "light");
-    setDark(nextDark);
-  }
+  const { dark, toggleTheme } = useThemeMode();
 
   return (
     <button

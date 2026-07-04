@@ -1,11 +1,11 @@
 "use client";
 
+import { BrandLogo } from "@/components/brand-logo";
 import { AuthThemeToggle } from "@/components/auth/auth-theme-toggle";
 import type { CurrentWorkspace } from "@/lib/dashboard/workspace";
 import { themeStyle } from "@/lib/theme";
 import { createClient } from "@/lib/supabase/client";
 import {
-  Briefcase,
   ChevronLeft,
   ChevronRight,
   CreditCard,
@@ -14,7 +14,6 @@ import {
   Loader2,
   LogOut,
   MessageSquare,
-  Scale,
   Settings,
   User,
   Upload,
@@ -160,7 +159,6 @@ export function DashboardShell({
     navigation[0];
   const activeConversationOpen = /^\/conversations\/[^/]+$/.test(pathname);
   const immersivePageOpen = activeConversationOpen;
-  const CategoryIcon = workspace.product.icon === "scale" ? Scale : Briefcase;
 
   return (
     <div
@@ -200,9 +198,7 @@ export function DashboardShell({
             href="/dashboard"
             className={`flex items-center ${collapsed ? "justify-center" : "gap-2.5"}`}
           >
-            <div className="flex size-9 items-center justify-center rounded-lg bg-theme-primary">
-              <CategoryIcon className="size-4.5 text-white" />
-            </div>
+            <BrandLogo className="size-9 rounded-lg" priority />
             {!collapsed && (
               <span className="text-lg font-bold tracking-tight">HelpexAI</span>
             )}
@@ -338,9 +334,7 @@ export function DashboardShell({
         {!immersivePageOpen && (
           <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-zinc-200 bg-white/95 px-4 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95 sm:px-6 lg:px-8">
             <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-lg bg-theme-primary text-white lg:hidden">
-                <CategoryIcon className="size-4" />
-              </div>
+              <BrandLogo className="size-9 rounded-lg lg:hidden" priority />
               <div>
                 <h1 className="text-lg font-bold leading-6 text-zinc-950 dark:text-white sm:text-xl">
                   {current.label}

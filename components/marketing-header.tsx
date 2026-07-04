@@ -1,8 +1,10 @@
 "use client";
 
+import { BrandLogo } from "@/components/brand-logo";
+import { useThemeMode } from "@/lib/theme-mode";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Menu, Moon, Sun, X } from "lucide-react";
+import { Menu, Moon, Sun, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const links = [
@@ -20,11 +22,10 @@ type MarketingHeaderProps = {
 export function MarketingHeader({ authCategory }: MarketingHeaderProps = {}) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [dark, setDark] = useState(false);
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const { dark, toggleTheme } = useThemeMode();
 
   useEffect(() => {
-    setDark(document.documentElement.classList.contains("dark"));
     if (authCategory) return;
 
     let unsubscribe: (() => void) | undefined;
@@ -42,13 +43,6 @@ export function MarketingHeader({ authCategory }: MarketingHeaderProps = {}) {
     });
     return () => unsubscribe?.();
   }, [authCategory]);
-
-  function toggleTheme() {
-    const nextDark = !dark;
-    document.documentElement.classList.toggle("dark", nextDark);
-    localStorage.setItem("helpex-theme", nextDark ? "dark" : "light");
-    setDark(nextDark);
-  }
 
   const signInHref = authCategory
     ? `/login?category=${authCategory}`
@@ -69,9 +63,7 @@ export function MarketingHeader({ authCategory }: MarketingHeaderProps = {}) {
     <header className="relative rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:px-6 sm:py-4">
       <div className="flex items-center justify-between gap-3">
         <Link href="/" className="flex min-w-0 items-center gap-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-theme-primary text-theme-primary-foreground shadow-sm sm:size-10">
-            <LayoutDashboard className="size-5" />
-          </div>
+          <BrandLogo className="size-9 shrink-0 rounded-xl shadow-sm sm:size-10" priority />
           <div className="flex min-w-0 flex-col leading-none">
             <span className="text-base font-semibold leading-6 tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-lg sm:leading-7">
               HelpexAI

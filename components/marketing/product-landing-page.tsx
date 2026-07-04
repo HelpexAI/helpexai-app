@@ -127,7 +127,7 @@ export function ProductLandingPage({
         "@type": "Organization",
         name: SITE_NAME,
         url: absoluteUrl("/"),
-        logo: absoluteUrl("/og/helpexai-og.png"),
+        logo: absoluteUrl("/logo.png"),
       },
       {
         "@type": "WebSite",

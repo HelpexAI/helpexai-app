@@ -1,13 +1,11 @@
+import { BrandLogo } from "@/components/brand-logo";
 import Link from "next/link";
-import { LayoutDashboard } from "lucide-react";
 
 export function MarketingFooter() {
   return (
     <footer className="mt-8 flex flex-col items-center gap-5 rounded-2xl border border-zinc-200 bg-white px-5 py-5 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:mt-10 sm:px-6 lg:flex-row lg:justify-between lg:text-left">
       <Link href="/" className="flex items-center gap-3">
-        <div className="flex size-9 items-center justify-center rounded-xl bg-theme-primary text-theme-primary-foreground">
-          <LayoutDashboard className="size-4" />
-        </div>
+        <BrandLogo className="size-9 rounded-xl" />
         <div className="flex flex-col leading-none">
           <span className="text-sm font-semibold leading-5 text-zinc-950 dark:text-zinc-50">
             HelpexAI

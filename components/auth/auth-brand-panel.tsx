@@ -1,8 +1,8 @@
+import { BrandLogo } from "@/components/brand-logo";
 import Link from "next/link";
 import {
   Database,
   FileText,
-  LayoutDashboard,
   MessageSquareText,
 } from "lucide-react";
 
@@ -35,9 +35,7 @@ export function AuthBrandPanel({ homeHref = "/" }: { homeHref?: string }) {
 
       <div className="relative z-10 flex w-full flex-col">
         <Link href={homeHref} className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-theme-primary text-theme-primary-foreground shadow-lg shadow-black/20">
-            <LayoutDashboard className="size-5" />
-          </div>
+          <BrandLogo className="size-10 rounded-xl shadow-lg shadow-black/20" priority />
 
           <div className="flex flex-col">
             <span className="text-xl font-bold leading-6 tracking-tight">
